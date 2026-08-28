@@ -16,8 +16,8 @@ jobs:
         with:
           ref: work/stv-sav-live-final
       - name: Patch route tariff aggregation
-        shell: python
         run: |
+          python3 - <<'PY'
           from pathlib import Path
           p = Path('lib/main.dart')
           s = p.read_text()
@@ -48,6 +48,7 @@ jobs:
               raise SystemExit('Target saveFact tariff line not found')
           s = s.replace(old2, new2, 1)
           p.write_text(s)
+          PY
       - name: Commit patch
         run: |
           git config user.name "github-actions[bot]"
