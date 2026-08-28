@@ -2,28 +2,29 @@ name: Apply STV SAV route tariff patch
 
 on:
   push:
-    branches: [work/stv-sav-live-final]
+    branches:
+      - work/stv-sav-live-final
 
 permissions:
   contents: write
 
 jobs:
   patch:
-    if: ${{ !contains(github.event.head_commit.message, '[stv-sav-patched]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: work/stv-sav-live-final
-      - name: Patch route tariff aggregation
+      - name: Patch and commit
         run: |
           python3 - <<'PY'
           from pathlib import Path
           p = Path('lib/main.dart')
           s = p.read_text()
-          old = """      final tariffValue = double.tryParse(tariff.text.replaceAll(',', '.'));
-      String? groupId;
-"""
+          marker = "tariff: autoCarrier == null ? tariffValue : autoTariffValue,"
+          if marker in s:
+              raise SystemExit(0)
+          old = "      final tariffValue = double.tryParse(tariff.text.replaceAll(',', '.'));\n      String? groupId;\n"
           new = """      final tariffValue = double.tryParse(tariff.text.replaceAll(',', '.'));
       double? autoTariffValue;
       if (autoCarrier != null) {
@@ -42,17 +43,12 @@ jobs:
           if old not in s:
               raise SystemExit('Target tariff block not found')
           s = s.replace(old, new, 1)
-          old2 = "tariff: autoCarrier == null ? tariffValue : null,"
-          new2 = "tariff: autoCarrier == null ? tariffValue : autoTariffValue,"
-          if old2 not in s:
-              raise SystemExit('Target saveFact tariff line not found')
-          s = s.replace(old2, new2, 1)
+          s = s.replace('tariff: autoCarrier == null ? tariffValue : null,', marker, 1)
           p.write_text(s)
           PY
-      - name: Commit patch
-        run: |
+          if git diff --quiet; then exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add lib/main.dart
-          git commit -m "Fix STV SAV route tariff aggregation [stv-sav-patched]"
+          git commit -m "Fix STV SAV route tariff aggregation"
           git push origin HEAD:work/stv-sav-live-final
