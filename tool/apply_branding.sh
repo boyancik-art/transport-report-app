@@ -10,11 +10,18 @@ if [ ! -f "$ICON_B64" ]; then
   exit 1
 fi
 
-if [ "$(uname -s)" = "Darwin" ]; then
-  base64 -D -i "$ICON_B64" -o "$TMP_ICON"
-else
-  base64 --decode "$ICON_B64" > "$TMP_ICON"
-fi
+# Decode with Python so wrapped/unpadded Base64 behaves consistently on Linux/macOS.
+python3 - "$ICON_B64" "$TMP_ICON" <<'PY'
+import base64, pathlib, re, sys
+src = pathlib.Path(sys.argv[1]).read_text(encoding='utf-8')
+s = re.sub(r'\s+', '', src)
+s += '=' * ((4 - len(s) % 4) % 4)
+data = base64.b64decode(s, validate=False)
+if not data.startswith(b'\x89PNG\r\n\x1a\n'):
+    raise SystemExit('Decoded launcher icon is not a PNG')
+pathlib.Path(sys.argv[2]).write_bytes(data)
+print(f'Decoded PNG icon: {len(data)} bytes')
+PY
 
 echo "Applying Transport Report TS branding..."
 
