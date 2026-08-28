@@ -400,7 +400,22 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int index = 0;
   late final repo = RouteRepository(widget.demo);
-  DateTime date = DateTime(2026, 8, 27);
+  DateTime date = DateTime.now();
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: date,
+      firstDate: DateTime(2024, 1, 1),
+      lastDate: DateTime(2035, 12, 31),
+      helpText: 'Оберіть дату маршрутів',
+      cancelText: 'Скасувати',
+      confirmText: 'Обрати',
+    );
+    if (picked != null && mounted) {
+      setState(() => date = picked);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -411,6 +426,38 @@ class _AppShellState extends State<AppShell> {
       MorePage(demo: widget.demo),
     ];
     return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        toolbarHeight: 52,
+        title: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: _pickDate,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.calendar_month_outlined, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  DateFormat('dd.MM.yyyy').format(date),
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.keyboard_arrow_down, size: 18),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Змінити дату',
+            onPressed: _pickDate,
+            icon: const Icon(Icons.date_range_outlined),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: pages[index],
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
@@ -582,6 +629,14 @@ class _RoutesPageState extends State<RoutesPage> {
   void initState() {
     super.initState();
     future = widget.repo.loadRoutes(widget.date);
+  }
+
+  @override
+  void didUpdateWidget(covariant RoutesPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!DateUtils.isSameDay(oldWidget.date, widget.date)) {
+      future = widget.repo.loadRoutes(widget.date);
+    }
   }
 
   void reload() => setState(() => future = widget.repo.loadRoutes(widget.date));
