@@ -10,11 +10,14 @@ if [ ! -f "$ICON_B64" ]; then
   exit 1
 fi
 
-base64 --decode "$ICON_B64" > "$TMP_ICON" 2>/dev/null || base64 -D "$ICON_B64" > "$TMP_ICON"
+if [ "$(uname -s)" = "Darwin" ]; then
+  base64 -D -i "$ICON_B64" -o "$TMP_ICON"
+else
+  base64 --decode "$ICON_B64" > "$TMP_ICON"
+fi
 
 echo "Applying Transport Report TS branding..."
 
-# Android launcher icon. Android resource compiler supports JPEG bitmap resources.
 if [ -d "$ROOT/android/app/src/main/res" ]; then
   for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
     dir="$ROOT/android/app/src/main/res/mipmap-$density"
@@ -34,7 +37,6 @@ PY
   fi
 fi
 
-# Web favicon/PWA icons and names.
 if [ -d "$ROOT/web" ]; then
   mkdir -p "$ROOT/web/icons"
   cp "$TMP_ICON" "$ROOT/web/favicon.jpg"
@@ -70,7 +72,6 @@ if man.exists():
 PY
 fi
 
-# iOS icon set: generated on macOS runners after flutter create.
 IOS_SET="$ROOT/ios/Runner/Assets.xcassets/AppIcon.appiconset"
 if [ -d "$IOS_SET" ] && command -v sips >/dev/null 2>&1; then
   python3 - "$IOS_SET/Contents.json" <<'PY' > "${RUNNER_TEMP:-/tmp}/trts_ios_icons.txt"
@@ -92,7 +93,7 @@ PY
   done < "${RUNNER_TEMP:-/tmp}/trts_ios_icons.txt"
 
   plist="$ROOT/ios/Runner/Info.plist"
-  if [ -f "$plist" ] && command -v /usr/libexec/PlistBuddy >/dev/null 2>&1; then
+  if [ -f "$plist" ] && [ -x /usr/libexec/PlistBuddy ]; then
     /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Transport Report TS" "$plist" 2>/dev/null || true
     /usr/libexec/PlistBuddy -c "Set :CFBundleName Transport Report TS" "$plist" 2>/dev/null || true
   fi
