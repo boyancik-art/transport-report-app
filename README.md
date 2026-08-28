@@ -1,43 +1,60 @@
 # Transport Report App
 
-Flutter MVP для iOS та Android із Supabase як джерелом маршрутів і Cloudflare Worker для health/runtime configuration.
+Мобільний застосунок транспортної звітності для iOS та Android на Flutter.
 
-## Supabase model used by the client
+## Джерело даних
 
-The application reads existing `profiles`, `routes`, and `route_reports` relations. Row Level Security must restrict route selection and report updates to authenticated users with the corresponding role.
+Основою є реальний логістичний куб Excel, який імпортується в Supabase.
 
-Required profile fields: `id`, `full_name`, `role`.
+Поточна модель:
 
-Required route fields: `id`, `route_number`, `origin`, `destination`, `scheduled_at`, `status`, `assigned_logistician_id`.
+- `routes` — один маршрут на дату; `route_delivery_id` = реальний ID маршруту з поля `ID Доставки`;
+- `route_points` — унікальні фізичні ТТ усередині маршруту;
+- `route_business_allocations` — бізнес + EmployeeID усередині ТТ;
+- `source_documents` — всі вихідні рядки-накладні;
+- `route_facts` — факт логіста: водій, авто, перевізник, хвиля, тариф, коментар;
+- `profiles` — ролі користувачів після застосування `supabase_migration_v3.sql`.
 
-Required report fields: `route_id`, `logistician_id`, `actual_departure_at`, `actual_arrival_at`, `actual_distance_km`, `fuel_liters`, `notes`, `status`.
+## Ролі
 
-`route_reports` must have a unique constraint for `(route_id, logistician_id)` so repeated submissions are idempotent.
+- `admin` — повний доступ;
+- `manager` — перегляд усіх маршрутів/звітів;
+- `logistician` — обирає свої маршрути та заповнює фактичні дані.
 
-## Flutter configuration
+## Flutter
 
 ```bash
-flutter create . --platforms=android,ios
+flutter create . --platforms=android,ios --project-name transport_report_app --org com.transportreport
 flutter pub get
 flutter analyze
-flutter test
-flutter run --dart-define=SUPABASE_URL=https://your-project.supabase.co --dart-define=SUPABASE_ANON_KEY=your-public-anon-key
-flutter build apk --release --dart-define=SUPABASE_URL=https://your-project.supabase.co --dart-define=SUPABASE_ANON_KEY=your-public-anon-key
+flutter run
 ```
 
-On macOS, validate the unsigned iOS release build with:
+Без Supabase ключів застосунок може працювати в demo mode після переходу на UI v0.2.
+
+Для реального підключення:
 
 ```bash
-flutter build ios --release --no-codesign --dart-define=SUPABASE_URL=https://your-project.supabase.co --dart-define=SUPABASE_ANON_KEY=your-public-anon-key
+flutter run \
+  --dart-define=SUPABASE_URL=https://YOUR_PROJECT.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=YOUR_LEGACY_ANON_KEY
 ```
 
-TestFlight publication additionally requires an Apple Developer team, distribution certificate, provisioning profile, bundle identifier, and App Store Connect API credentials.
+## CI
 
-## Cloudflare Worker
+`.github/workflows/flutter-ci.yml` автоматично:
 
-The Worker exposes:
+1. встановлює Flutter;
+2. створює відсутні Android/iOS platform folders;
+3. запускає `flutter pub get`;
+4. запускає `flutter analyze`;
+5. збирає Android APK;
+6. публікує APK як GitHub Actions artifact.
 
-- `GET /health` — dependency-free service health check.
-- `GET /config` — public Supabase URL and anon key from Worker secrets.
+## Supabase
 
-Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` as Cloudflare Worker secrets and deploy through the Cloudflare Direct API. GitHub Actions are not used for deployment.
+У проєкті Supabase вже використовується кубова схема. Для авторизації, ролей та вибору логістом своїх маршрутів потрібно один раз виконати `supabase_migration_v3.sql` у SQL Editor.
+
+## iPhone / TestFlight
+
+Після стабільної Flutter-збірки підключаємо Apple Developer + App Store Connect. GitHub CI для iOS/TestFlight буде окремим етапом, оскільки потрібні Apple credentials і code signing.
