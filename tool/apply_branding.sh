@@ -2,8 +2,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-ICON_B64="$ROOT/assets/app_icon.jpg.b64"
-TMP_ICON="${RUNNER_TEMP:-/tmp}/transport_report_ts_icon.jpg"
+ICON_B64="$ROOT/assets/app_icon.png.b64"
+TMP_ICON="${RUNNER_TEMP:-/tmp}/transport_report_ts_icon.png"
 
 if [ ! -f "$ICON_B64" ]; then
   echo "Brand icon not found: $ICON_B64"
@@ -22,8 +22,8 @@ if [ -d "$ROOT/android/app/src/main/res" ]; then
   for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
     dir="$ROOT/android/app/src/main/res/mipmap-$density"
     mkdir -p "$dir"
-    rm -f "$dir/ic_launcher.png" "$dir/ic_launcher.webp"
-    cp "$TMP_ICON" "$dir/ic_launcher.jpg"
+    rm -f "$dir/ic_launcher.png" "$dir/ic_launcher.webp" "$dir/ic_launcher.jpg"
+    cp "$TMP_ICON" "$dir/ic_launcher.png"
   done
   manifest="$ROOT/android/app/src/main/AndroidManifest.xml"
   if [ -f "$manifest" ]; then
@@ -39,19 +39,19 @@ fi
 
 if [ -d "$ROOT/web" ]; then
   mkdir -p "$ROOT/web/icons"
-  cp "$TMP_ICON" "$ROOT/web/favicon.jpg"
-  cp "$TMP_ICON" "$ROOT/web/icons/Icon-192.jpg"
-  cp "$TMP_ICON" "$ROOT/web/icons/Icon-512.jpg"
-  cp "$TMP_ICON" "$ROOT/web/icons/Icon-maskable-192.jpg"
-  cp "$TMP_ICON" "$ROOT/web/icons/Icon-maskable-512.jpg"
-  rm -f "$ROOT/web/favicon.png" "$ROOT/web/icons/Icon-192.png" "$ROOT/web/icons/Icon-512.png" "$ROOT/web/icons/Icon-maskable-192.png" "$ROOT/web/icons/Icon-maskable-512.png"
+  cp "$TMP_ICON" "$ROOT/web/favicon.png"
+  cp "$TMP_ICON" "$ROOT/web/icons/Icon-192.png"
+  cp "$TMP_ICON" "$ROOT/web/icons/Icon-512.png"
+  cp "$TMP_ICON" "$ROOT/web/icons/Icon-maskable-192.png"
+  cp "$TMP_ICON" "$ROOT/web/icons/Icon-maskable-512.png"
+  rm -f "$ROOT/web/favicon.jpg" "$ROOT/web/icons/Icon-192.jpg" "$ROOT/web/icons/Icon-512.jpg" "$ROOT/web/icons/Icon-maskable-192.jpg" "$ROOT/web/icons/Icon-maskable-512.jpg"
   python3 - "$ROOT/web" <<'PY'
 import json, pathlib, re, sys
 web=pathlib.Path(sys.argv[1])
 idx=web/'index.html'
 if idx.exists():
     s=idx.read_text()
-    s=s.replace('href="favicon.png"', 'href="favicon.jpg"')
+    s=s.replace('href="favicon.jpg"', 'href="favicon.png"')
     s=re.sub(r'<meta name="apple-mobile-web-app-title" content="[^"]*">', '<meta name="apple-mobile-web-app-title" content="Transport Report TS">', s)
     idx.write_text(s)
 man=web/'manifest.json'
@@ -63,10 +63,10 @@ if man.exists():
     d['background_color']='#0B1020'
     d['theme_color']='#1677FF'
     d['icons']=[
-      {'src':'icons/Icon-192.jpg','sizes':'192x192','type':'image/jpeg'},
-      {'src':'icons/Icon-512.jpg','sizes':'512x512','type':'image/jpeg'},
-      {'src':'icons/Icon-maskable-192.jpg','sizes':'192x192','type':'image/jpeg','purpose':'maskable'},
-      {'src':'icons/Icon-maskable-512.jpg','sizes':'512x512','type':'image/jpeg','purpose':'maskable'},
+      {'src':'icons/Icon-192.png','sizes':'192x192','type':'image/png'},
+      {'src':'icons/Icon-512.png','sizes':'512x512','type':'image/png'},
+      {'src':'icons/Icon-maskable-192.png','sizes':'192x192','type':'image/png','purpose':'maskable'},
+      {'src':'icons/Icon-maskable-512.png','sizes':'512x512','type':'image/png','purpose':'maskable'},
     ]
     man.write_text(json.dumps(d, ensure_ascii=False, indent=2))
 PY
