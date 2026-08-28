@@ -26,12 +26,33 @@ PY
 echo "Applying Transport Report TS branding..."
 
 if [ -d "$ROOT/android/app/src/main/res" ]; then
-  for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
-    dir="$ROOT/android/app/src/main/res/mipmap-$density"
-    mkdir -p "$dir"
-    rm -f "$dir/ic_launcher.png" "$dir/ic_launcher.webp" "$dir/ic_launcher.jpg"
-    cp "$TMP_ICON" "$dir/ic_launcher.png"
-  done
+  # Android/AAPT2 is strict about PNG internals. Re-encode the source PNG with
+  # ImageMagick (available on GitHub Ubuntu runners) and generate the canonical
+  # launcher sizes instead of copying one PNG into every density bucket.
+  if command -v convert >/dev/null 2>&1; then
+    RESIZE=convert
+  elif command -v magick >/dev/null 2>&1; then
+    RESIZE="magick convert"
+  else
+    echo "ImageMagick not found; keeping Flutter-generated Android icons"
+    RESIZE=""
+  fi
+
+  if [ -n "$RESIZE" ]; then
+    for spec in "mdpi:48" "hdpi:72" "xhdpi:96" "xxhdpi:144" "xxxhdpi:192"; do
+      density="${spec%%:*}"
+      pixels="${spec##*:}"
+      dir="$ROOT/android/app/src/main/res/mipmap-$density"
+      mkdir -p "$dir"
+      rm -f "$dir/ic_launcher.png" "$dir/ic_launcher.webp" "$dir/ic_launcher.jpg"
+      if [ "$RESIZE" = "convert" ]; then
+        convert "$TMP_ICON" -strip -resize "${pixels}x${pixels}!" PNG32:"$dir/ic_launcher.png"
+      else
+        magick convert "$TMP_ICON" -strip -resize "${pixels}x${pixels}!" PNG32:"$dir/ic_launcher.png"
+      fi
+    done
+  fi
+
   manifest="$ROOT/android/app/src/main/AndroidManifest.xml"
   if [ -f "$manifest" ]; then
     python3 - "$manifest" <<'PY'
