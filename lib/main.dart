@@ -1934,6 +1934,18 @@ class _RouteDetailsPageState extends State<RouteDetailsPage> {
       await widget.repo.replaceExtras(widget.route.id, 'vt', usesVt ? selectedVt : {});
       await widget.repo.replaceExtras(widget.route.id, 'extra_tt', selectedExtra);
       final tariffValue = double.tryParse(tariff.text.replaceAll(',', '.'));
+      double? autoTariffValue;
+      if (autoCarrier != null) {
+        final points = await pointsFuture;
+        final unresolved = points.any((p) => p.zone == null || p.calculatedCost == null);
+        if (!unresolved) {
+          autoTariffValue = points.fold<double>(0, (sum, p) => sum + p.calculatedCost!);
+        } else if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('STV/SAV: є ТТ без визначеної зони. Маршрут збережено без фінального тарифу.')),
+          );
+        }
+      }
       String? groupId;
       List<RouteModel> partners = [];
       if (autoCarrier == null && carrier != 'ТОВ ТС ПЛЮС') {
@@ -1958,7 +1970,7 @@ class _RouteDetailsPageState extends State<RouteDetailsPage> {
         vehicle: vehicle!,
         carrier: autoCarrier ?? carrier!,
         wave: wave,
-        tariff: autoCarrier == null ? tariffValue : null,
+        tariff: autoCarrier == null ? tariffValue : autoTariffValue,
         tariffUnknown: autoCarrier == null ? tariffUnknown : false,
         comment: comment.text.trim(),
         deliveredPoints: deliveredValue,
