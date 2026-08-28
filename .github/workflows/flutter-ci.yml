@@ -17,40 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Patch STV SAV route tariff aggregation
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('lib/main.dart')
-          s = p.read_text()
-          marker = "tariff: autoCarrier == null ? tariffValue : autoTariffValue,"
-          if marker in s:
-              print('STV/SAV tariff aggregation already patched')
-              raise SystemExit(0)
-          old = "      final tariffValue = double.tryParse(tariff.text.replaceAll(',', '.'));\n      String? groupId;\n"
-          new = """      final tariffValue = double.tryParse(tariff.text.replaceAll(',', '.'));
-      double? autoTariffValue;
-      if (autoCarrier != null) {
-        final points = await pointsFuture;
-        final unresolved = points.any((p) => p.zone == null || p.calculatedCost == null);
-        if (!unresolved) {
-          autoTariffValue = points.fold<double>(0, (sum, p) => sum + p.calculatedCost!);
-        } else if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('STV/SAV: є ТТ без визначеної зони. Маршрут збережено без фінального тарифу.')),
-          );
-        }
-      }
-      String? groupId;
-"""
-          if old not in s:
-              raise SystemExit('Target tariff block not found')
-          s = s.replace(old, new, 1)
-          old2 = "tariff: autoCarrier == null ? tariffValue : null,"
-          if old2 not in s:
-              raise SystemExit('Target saveFact tariff line not found')
-          s = s.replace(old2, marker, 1)
-          p.write_text(s)
-          PY
+        run: python3 -c "import base64; exec(base64.b64decode('ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCnAgPSBQYXRoKCJsaWIvbWFpbi5kYXJ0IikKcyA9IHAucmVhZF90ZXh0KCkKbWFya2VyID0gInRhcmlmZjogYXV0b0NhcnJpZXIgPT0gbnVsbCA/IHRhcmlmZlZhbHVlIDogYXV0b1RhcmlmZlZhbHVlLCIKaWYgbWFya2VyIGluIHM6CiAgICBwcmludCgiU1RWL1NBViB0YXJpZmYgYWdncmVnYXRpb24gYWxyZWFkeSBwYXRjaGVkIikKICAgIHJhaXNlIFN5c3RlbUV4aXQoMCkKb2xkID0gIiAgICAgIGZpbmFsIHRhcmlmZlZhbHVlID0gZG91YmxlLnRyeVBhcnNlKHRhcmlmZi50ZXh0LnJlcGxhY2VBbGwoJywnLCAnLicpKTtcbiAgICAgIFN0cmluZz8gZ3JvdXBJZDtcbiIKbmV3ID0gIiIiICAgICAgZmluYWwgdGFyaWZmVmFsdWUgPSBkb3VibGUudHJ5UGFyc2UodGFyaWZmLnRleHQucmVwbGFjZUFsbCgnLCcsICcuJykpOwogICAgICBkb3VibGU/IGF1dG9UYXJpZmZWYWx1ZTsKICAgICAgaWYgKGF1dG9DYXJyaWVyICE9IG51bGwpIHsKICAgICAgICBmaW5hbCBwb2ludHMgPSBhd2FpdCBwb2ludHNGdXR1cmU7CiAgICAgICAgZmluYWwgdW5yZXNvbHZlZCA9IHBvaW50cy5hbnkoKHApID0+IHAuem9uZSA9PSBudWxsIHx8IHAuY2FsY3VsYXRlZENvc3QgPT0gbnVsbCk7CiAgICAgICAgaWYgKCF1bnJlc29sdmVkKSB7CiAgICAgICAgICBhdXRvVGFyaWZmVmFsdWUgPSBwb2ludHMuZm9sZDxkb3VibGU+KDAsIChzdW0sIHApID0+IHN1bSArIHAuY2FsY3VsYXRlZENvc3QhKTsKICAgICAgICB9IGVsc2UgaWYgKG1vdW50ZWQpIHsKICAgICAgICAgIFNjYWZmb2xkTWVzc2VuZ2VyLm9mKGNvbnRleHQpLnNob3dTbmFja0JhcigKICAgICAgICAgICAgY29uc3QgU25hY2tCYXIoY29udGVudDogVGV4dCgnU1RWL1NBVjog0ZQg0KLQoiDQsdC10Lcg0LLQuNC30L3QsNGH0LXQvdC+0Zcg0LfQvtC90LguINCc0LDRgNGI0YDRg9GCINC30LHQtdGA0LXQttC10L3QviDQsdC10Lcg0YTRltC90LDQu9GM0L3QvtCz0L4g0YLQsNGA0LjRhNGDLicpKSwKICAgICAgICAgICk7CiAgICAgICAgfQogICAgICB9CiAgICAgIFN0cmluZz8gZ3JvdXBJZDsKIiIiCmlmIG9sZCBub3QgaW4gczoKICAgIHJhaXNlIFN5c3RlbUV4aXQoIlRhcmdldCB0YXJpZmYgYmxvY2sgbm90IGZvdW5kIikKcyA9IHMucmVwbGFjZShvbGQsIG5ldywgMSkKb2xkMiA9ICJ0YXJpZmY6IGF1dG9DYXJyaWVyID09IG51bGwgPyB0YXJpZmZWYWx1ZSA6IG51bGwsIgppZiBvbGQyIG5vdCBpbiBzOgogICAgcmFpc2UgU3lzdGVtRXhpdCgiVGFyZ2V0IHNhdmVGYWN0IHRhcmlmZiBsaW5lIG5vdCBmb3VuZCIpCnMgPSBzLnJlcGxhY2Uob2xkMiwgbWFya2VyLCAxKQpwLndyaXRlX3RleHQocykK'))"
       - name: Commit source patch
         run: |
           if git diff --quiet; then
