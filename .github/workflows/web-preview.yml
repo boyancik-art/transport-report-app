@@ -25,7 +25,18 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
       - name: Build web preview
-        run: flutter build web --release --base-href /transport-report-app/
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_ANON_KEY" ]; then
+            flutter build web --release --base-href /transport-report-app/ \
+              --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+              --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+          else
+            echo "Supabase secrets are not set; building demo mode."
+            flutter build web --release --base-href /transport-report-app/
+          fi
       - name: Disable Jekyll
         run: touch build/web/.nojekyll
       - name: Publish to gh-pages
