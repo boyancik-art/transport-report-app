@@ -1,0 +1,54 @@
+name: Patch date picker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/patch-date-picker.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add dynamic date and date picker
+        shell: python
+        run: |
+          from pathlib import Path
+
+          p = Path('lib/main.dart')
+          s = p.read_text(encoding='utf-8')
+
+          old = """  DateTime date = DateTime(2026, 8, 27);\n\n  @override\n  Widget build(BuildContext context) {"""
+          new = """  DateTime date = DateTime.now();\n\n  Future<void> _pickDate() async {\n    final picked = await showDatePicker(\n      context: context,\n      initialDate: date,\n      firstDate: DateTime(2024, 1, 1),\n      lastDate: DateTime(2035, 12, 31),\n      helpText: 'Оберіть дату маршрутів',\n      cancelText: 'Скасувати',\n      confirmText: 'Обрати',\n    );\n    if (picked != null && mounted) {\n      setState(() => date = picked);\n    }\n  }\n\n  @override\n  Widget build(BuildContext context) {"""
+          if old not in s:
+              raise SystemExit('AppShell date block not found')
+          s = s.replace(old, new, 1)
+
+          old = """    return Scaffold(\n      body: pages[index],\n      bottomNavigationBar: NavigationBar("""
+          new = """    return Scaffold(\n      appBar: AppBar(\n        automaticallyImplyLeading: false,\n        toolbarHeight: 52,\n        title: InkWell(\n          borderRadius: BorderRadius.circular(12),\n          onTap: _pickDate,\n          child: Padding(\n            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),\n            child: Row(\n              mainAxisSize: MainAxisSize.min,\n              children: [\n                const Icon(Icons.calendar_month_outlined, size: 20),\n                const SizedBox(width: 8),\n                Text(\n                  DateFormat('dd.MM.yyyy').format(date),\n                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),\n                ),\n                const SizedBox(width: 4),\n                const Icon(Icons.keyboard_arrow_down, size: 18),\n              ],\n            ),\n          ),\n        ),\n        actions: [\n          IconButton(\n            tooltip: 'Змінити дату',\n            onPressed: _pickDate,\n            icon: const Icon(Icons.date_range_outlined),\n          ),\n          const SizedBox(width: 8),\n        ],\n      ),\n      body: pages[index],\n      bottomNavigationBar: NavigationBar("""
+          if old not in s:
+              raise SystemExit('Scaffold block not found')
+          s = s.replace(old, new, 1)
+
+          old = """  @override\n  void initState() {\n    super.initState();\n    future = widget.repo.loadRoutes(widget.date);\n  }\n\n  void reload() => setState(() => future = widget.repo.loadRoutes(widget.date));"""
+          new = """  @override\n  void initState() {\n    super.initState();\n    future = widget.repo.loadRoutes(widget.date);\n  }\n\n  @override\n  void didUpdateWidget(covariant RoutesPage oldWidget) {\n    super.didUpdateWidget(oldWidget);\n    if (!DateUtils.isSameDay(oldWidget.date, widget.date)) {\n      future = widget.repo.loadRoutes(widget.date);\n    }\n  }\n\n  void reload() => setState(() => future = widget.repo.loadRoutes(widget.date));"""
+          if old not in s:
+              raise SystemExit('RoutesPage init block not found')
+          s = s.replace(old, new, 1)
+
+          p.write_text(s, encoding='utf-8')
+
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/main.dart
+          git commit -m "Add selectable route date" || exit 0
+          git push
