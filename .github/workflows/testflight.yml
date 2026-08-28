@@ -22,6 +22,9 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Force CocoaPods plugin integration
+        run: flutter config --no-enable-swift-package-manager
+
       - name: Ensure iOS platform exists
         run: flutter create . --platforms=ios --project-name transport_report_app --org com.transportreport
 
@@ -36,6 +39,12 @@ jobs:
           set -euo pipefail
           cd ios
           pod install --repo-update
+
+      - name: Verify secure storage pod integration
+        run: |
+          set -euo pipefail
+          test -d ios/Pods
+          grep -R "flutter_secure_storage" ios/Podfile.lock ios/Pods/Manifest.lock
 
       - name: Prepare App Store Connect API key
         env:
