@@ -20,6 +20,8 @@ jobs:
           cache: true
       - name: Ensure web platform exists
         run: flutter create . --platforms=web --project-name transport_report_app --org com.transportreport
+      - name: Apply Transport Report TS branding
+        run: bash tool/apply_branding.sh
       - name: Remove generated default test
         run: rm -rf test
       - name: Install dependencies
