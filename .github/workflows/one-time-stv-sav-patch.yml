@@ -1,4 +1,4 @@
-name: One time STV SAV patch
+name: One time exact TT invoice mapping patch
 on:
   push:
     branches:
@@ -14,32 +14,41 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('lib/main.dart')
-          s=p.read_text()
-          marker="tariff: autoCarrier == null ? tariffValue : autoTariffValue,"
+          p = Path('lib/main.dart')
+          s = p.read_text()
+          marker = "final pointDocs = point.addressId.isNotEmpty"
           if marker in s:
+              print('Exact TT invoice mapping already patched')
               raise SystemExit(0)
-          old="      final tariffValue = double.tryParse(tariff.text.replaceAll(',', '.'));\n      String? groupId;\n"
-          new="""      final tariffValue = double.tryParse(tariff.text.replaceAll(',', '.'));
-      double? autoTariffValue;
-      if (autoCarrier != null) {
-        final points = await pointsFuture;
-        final unresolved = points.any((p) => p.zone == null || p.calculatedCost == null);
-        if (!unresolved) {
-          autoTariffValue = points.fold<double>(0, (sum, p) => sum + p.calculatedCost!);
-        } else if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('STV/SAV: є ТТ без визначеної зони. Маршрут збережено без фінального тарифу.')),
-          );
-        }
-      }
-      String? groupId;
-"""
-          if old not in s: raise SystemExit('target block not found')
-          s=s.replace(old,new,1)
-          old2='tariff: autoCarrier == null ? tariffValue : null,'
-          if old2 not in s: raise SystemExit('save tariff line not found')
-          s=s.replace(old2,marker,1)
+
+          replacements = [
+            (
+              "class RoutePointModel {\n  RoutePointModel({\n    required this.id,\n    required this.customer,",
+              "class RoutePointModel {\n  RoutePointModel({\n    required this.id,\n    required this.addressId,\n    required this.customer,"
+            ),
+            (
+              "  final int id;\n  final String customer;",
+              "  final int id;\n  final String addressId;\n  final String customer;"
+            ),
+            (
+              "RoutePointModel(id: 1, customer: 'ТОВ Приклад'",
+              "RoutePointModel(id: 1, addressId: 'A1', customer: 'ТОВ Приклад'"
+            ),
+            (
+              "        id: (r['id'] as num).toInt(),\n        customer:",
+              "        id: (r['id'] as num).toInt(),\n        addressId: '${loc['address_id'] ?? r['address_id'] ?? ''}',\n        customer:"
+            ),
+            (
+              "    final pointDocs = documents.where((d) => d.customer == point.customer || d.addressId.isEmpty).toList();",
+              "    final pointDocs = point.addressId.isNotEmpty\n        ? documents.where((d) => d.addressId == point.addressId).toList()\n        : documents.where((d) => d.customer == point.customer).toList();"
+            ),
+          ]
+
+          for old, new in replacements:
+              if old not in s:
+                  raise SystemExit(f'target not found: {old[:70]}')
+              s = s.replace(old, new, 1)
+
           p.write_text(s)
           PY
       - name: Commit
@@ -48,5 +57,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add lib/main.dart
-          git commit -m "Fix STV SAV route tariff aggregation"
+          git commit -m "Fix exact TT to invoice mapping by address ID"
           git push
