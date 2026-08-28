@@ -24,7 +24,7 @@ class TransportReportApp extends StatelessWidget {
   Widget build(BuildContext context) {
     const seed = Color(0xFF1677FF);
     return MaterialApp(
-      title: 'Transport Report',
+      title: 'Transport Report TS',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
@@ -119,9 +119,9 @@ class _SignInPageState extends State<SignInPage> {
         password: password.text,
       );
     } on AuthException catch (e) {
-      setState(() => error = e.message);
+      if (mounted) setState(() => error = e.message);
     } catch (_) {
-      setState(() => error = 'Не вдалося виконати вхід');
+      if (mounted) setState(() => error = 'Не вдалося виконати вхід');
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -146,13 +146,16 @@ class _SignInPageState extends State<SignInPage> {
                         size: 42, color: Color(0xFF1677FF)),
                   ),
                   const SizedBox(height: 20),
-                  Text('Transport Report',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          )),
+                  Text(
+                    'Transport Report TS',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context)
+                        .textTheme
+                        .headlineMedium
+                        ?.copyWith(fontWeight: FontWeight.w800),
+                  ),
                   const SizedBox(height: 8),
-                  const Text('Єдина база транспортної логістики',
+                  const Text('Система транспортної звітності',
                       textAlign: TextAlign.center),
                   const SizedBox(height: 32),
                   TextField(
@@ -274,7 +277,7 @@ class DemoData {
   static final routes = <RouteModel>[
     RouteModel(
       id: 1,
-      routeDate: DateTime(2026, 8, 27),
+      routeDate: DateTime.now(),
       routeDeliveryId: '61287185',
       expeditor: 'Сніжана Глушко',
       warehouse: 'Розумовського',
@@ -292,7 +295,7 @@ class DemoData {
     ),
     RouteModel(
       id: 2,
-      routeDate: DateTime(2026, 8, 27),
+      routeDate: DateTime.now(),
       routeDeliveryId: '61287204',
       expeditor: 'Сергій Кузьменко',
       warehouse: 'Чайка',
@@ -307,23 +310,6 @@ class DemoData {
       wave: '48',
       tariff: 12600,
     ),
-    RouteModel(
-      id: 3,
-      routeDate: DateTime(2026, 8, 27),
-      routeDeliveryId: '61287231',
-      expeditor: 'Сніжана Глушко',
-      warehouse: 'Розумовського',
-      points: 15,
-      documents: 22,
-      weight: 7850,
-      pallets: 30,
-      bottles: 1900,
-      places: 224,
-      orderAmount: 198760,
-      carrier: 'САВ',
-      wave: 'Мережа',
-      tariff: 9750,
-    ),
   ];
 }
 
@@ -333,11 +319,10 @@ class RouteRepository {
 
   Future<List<RouteModel>> loadRoutes(DateTime date) async {
     if (demo) {
-      await Future<void>.delayed(const Duration(milliseconds: 250));
+      await Future<void>.delayed(const Duration(milliseconds: 200));
       return DemoData.routes;
     }
-    final c = Supabase.instance.client;
-    final rows = await c
+    final rows = await Supabase.instance.client
         .from('routes')
         .select('*, route_facts(*)')
         .eq('route_date', DateFormat('yyyy-MM-dd').format(date))
@@ -412,9 +397,7 @@ class _AppShellState extends State<AppShell> {
       cancelText: 'Скасувати',
       confirmText: 'Обрати',
     );
-    if (picked != null && mounted) {
-      setState(() => date = picked);
-    }
+    if (picked != null && mounted) setState(() => date = picked);
   }
 
   @override
@@ -439,10 +422,9 @@ class _AppShellState extends State<AppShell> {
               children: [
                 const Icon(Icons.calendar_month_outlined, size: 20),
                 const SizedBox(width: 8),
-                Text(
-                  DateFormat('dd.MM.yyyy').format(date),
-                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
-                ),
+                Text(DateFormat('dd.MM.yyyy').format(date),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w800, fontSize: 16)),
                 const SizedBox(width: 4),
                 const Icon(Icons.keyboard_arrow_down, size: 18),
               ],
@@ -463,9 +445,18 @@ class _AppShellState extends State<AppShell> {
         selectedIndex: index,
         onDestinationSelected: (i) => setState(() => index = i),
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Дашборд'),
-          NavigationDestination(icon: Icon(Icons.route_outlined), selectedIcon: Icon(Icons.route), label: 'Маршрути'),
-          NavigationDestination(icon: Icon(Icons.assessment_outlined), selectedIcon: Icon(Icons.assessment), label: 'Звіти'),
+          NavigationDestination(
+              icon: Icon(Icons.dashboard_outlined),
+              selectedIcon: Icon(Icons.dashboard),
+              label: 'Дашборд'),
+          NavigationDestination(
+              icon: Icon(Icons.route_outlined),
+              selectedIcon: Icon(Icons.route),
+              label: 'Маршрути'),
+          NavigationDestination(
+              icon: Icon(Icons.assessment_outlined),
+              selectedIcon: Icon(Icons.assessment),
+              label: 'Звіти'),
           NavigationDestination(icon: Icon(Icons.more_horiz), label: 'Ще'),
         ],
       ),
@@ -474,7 +465,8 @@ class _AppShellState extends State<AppShell> {
 }
 
 class PageHeader extends StatelessWidget {
-  const PageHeader({required this.title, required this.subtitle, this.trailing, super.key});
+  const PageHeader(
+      {required this.title, required this.subtitle, this.trailing, super.key});
   final String title;
   final String subtitle;
   final Widget? trailing;
@@ -490,9 +482,14 @@ class PageHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                Text(title,
+                    style: Theme.of(context)
+                        .textTheme
+                        .headlineSmall
+                        ?.copyWith(fontWeight: FontWeight.w800)),
                 const SizedBox(height: 3),
-                Text(subtitle, style: const TextStyle(color: Color(0xFF6C778A))),
+                Text(subtitle,
+                    style: const TextStyle(color: Color(0xFF6C778A))),
               ],
             ),
           ),
@@ -504,7 +501,8 @@ class PageHeader extends StatelessWidget {
 }
 
 class DashboardPage extends StatelessWidget {
-  const DashboardPage({required this.repo, required this.date, required this.demo, super.key});
+  const DashboardPage(
+      {required this.repo, required this.date, required this.demo, super.key});
   final RouteRepository repo;
   final DateTime date;
   final bool demo;
@@ -522,62 +520,38 @@ class DashboardPage extends StatelessWidget {
           final weight = routes.fold<double>(0, (s, r) => s + r.weight);
           final spend = routes.fold<double>(0, (s, r) => s + (r.tariff ?? 0));
           final sales = routes.fold<double>(0, (s, r) => s + r.orderAmount);
-          return RefreshIndicator(
-            onRefresh: () async {},
-            child: ListView(
-              padding: const EdgeInsets.only(bottom: 24),
-              children: [
-                PageHeader(
-                  title: 'Transport Report',
-                  subtitle: demo ? 'Demo · ${DateFormat('dd.MM.yyyy').format(date)}' : DateFormat('dd.MM.yyyy').format(date),
-                  trailing: const CircleAvatar(child: Icon(Icons.person_outline)),
+          return ListView(
+            padding: const EdgeInsets.only(bottom: 24),
+            children: [
+              PageHeader(
+                title: 'Transport Report TS',
+                subtitle: demo
+                    ? 'Demo · ${DateFormat('dd.MM.yyyy').format(date)}'
+                    : DateFormat('dd.MM.yyyy').format(date),
+                trailing: const CircleAvatar(child: Icon(Icons.person_outline)),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: GridView.count(
+                  physics: const NeverScrollableScrollPhysics(),
+                  shrinkWrap: true,
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 1.32,
+                  children: [
+                    KpiCard(label: 'Накладних', value: '$documents', icon: Icons.description_outlined),
+                    KpiCard(label: 'ТТ', value: '$tt', icon: Icons.storefront_outlined),
+                    KpiCard(label: 'Маршрутів', value: '${routes.length}', icon: Icons.route_outlined),
+                    KpiCard(label: 'Палет', value: nf0(pallets), icon: Icons.grid_view_rounded),
+                    KpiCard(label: 'Вага, кг', value: nf0(weight), icon: Icons.scale_outlined),
+                    KpiCard(label: 'Витрати, грн', value: money0(spend), icon: Icons.account_balance_wallet_outlined),
+                    KpiCard(label: 'Продажі, грн', value: money0(sales), icon: Icons.payments_outlined),
+                    KpiCard(label: '1 ТТ, грн', value: tt == 0 ? '0' : money2(spend / tt), icon: Icons.calculate_outlined),
+                  ],
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: GridView.count(
-                    physics: const NeverScrollableScrollPhysics(),
-                    shrinkWrap: true,
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1.32,
-                    children: [
-                      KpiCard(label: 'Накладних', value: '$documents', icon: Icons.description_outlined),
-                      KpiCard(label: 'ТТ', value: '$tt', icon: Icons.storefront_outlined),
-                      KpiCard(label: 'Маршрутів', value: '${routes.length}', icon: Icons.route_outlined),
-                      KpiCard(label: 'Палет', value: nf0(pallets), icon: Icons.grid_view_rounded),
-                      KpiCard(label: 'Вага, кг', value: nf0(weight), icon: Icons.scale_outlined),
-                      KpiCard(label: 'Витрати, грн', value: money0(spend), icon: Icons.account_balance_wallet_outlined),
-                      KpiCard(label: 'Продажі, грн', value: money0(sales), icon: Icons.payments_outlined),
-                      KpiCard(label: '1 ТТ, грн', value: tt == 0 ? '0' : money2(spend / tt), icon: Icons.calculate_outlined),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(18),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Останні маршрути', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
-                          const SizedBox(height: 10),
-                          ...routes.take(4).map((r) => ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: CircleAvatar(backgroundColor: const Color(0xFFE7F0FF), child: Text('${r.points}')),
-                            title: Text('ID ${r.routeDeliveryId}', style: const TextStyle(fontWeight: FontWeight.w700)),
-                            subtitle: Text('${r.expeditor} · ${r.wave ?? 'Хвиля не вказана'}'),
-                            trailing: Text(money0(r.tariff ?? 0)),
-                          )),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           );
         },
       ),
@@ -586,7 +560,8 @@ class DashboardPage extends StatelessWidget {
 }
 
 class KpiCard extends StatelessWidget {
-  const KpiCard({required this.label, required this.value, required this.icon, super.key});
+  const KpiCard(
+      {required this.label, required this.value, required this.icon, super.key});
   final String label;
   final String value;
   final IconData icon;
@@ -601,9 +576,15 @@ class KpiCard extends StatelessWidget {
           children: [
             Icon(icon, color: const Color(0xFF1677FF), size: 20),
             const Spacer(),
-            Text(value, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
+            Text(value,
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w900)),
             const SizedBox(height: 2),
-            Text(label, style: const TextStyle(color: Color(0xFF6C778A), fontSize: 12)),
+            Text(label,
+                style: const TextStyle(
+                    color: Color(0xFF6C778A), fontSize: 12)),
           ],
         ),
       ),
@@ -612,7 +593,8 @@ class KpiCard extends StatelessWidget {
 }
 
 class RoutesPage extends StatefulWidget {
-  const RoutesPage({required this.repo, required this.date, required this.demo, super.key});
+  const RoutesPage(
+      {required this.repo, required this.date, required this.demo, super.key});
   final RouteRepository repo;
   final DateTime date;
   final bool demo;
@@ -623,12 +605,26 @@ class RoutesPage extends StatefulWidget {
 
 class _RoutesPageState extends State<RoutesPage> {
   late Future<List<RouteModel>> future;
+  final search = TextEditingController();
   String filter = 'Всі';
+  bool groupByExpeditor = false;
 
   @override
   void initState() {
     super.initState();
     future = widget.repo.loadRoutes(widget.date);
+    search.addListener(_searchChanged);
+  }
+
+  void _searchChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    search.removeListener(_searchChanged);
+    search.dispose();
+    super.dispose();
   }
 
   @override
@@ -641,21 +637,76 @@ class _RoutesPageState extends State<RoutesPage> {
 
   void reload() => setState(() => future = widget.repo.loadRoutes(widget.date));
 
+  List<RouteModel> _filtered(List<RouteModel> source) {
+    var routes = List<RouteModel>.from(source);
+    if (filter == 'Заповнено') {
+      routes = routes.where((r) => r.completed).toList();
+    }
+    if (filter == 'Без тарифу') {
+      routes = routes.where((r) => r.tariff == null || r.tariffUnknown).toList();
+    }
+    final q = search.text.trim().toLowerCase();
+    if (q.isNotEmpty) {
+      routes = routes.where((r) {
+        return r.expeditor.toLowerCase().contains(q) ||
+            r.routeDeliveryId.toLowerCase().contains(q) ||
+            r.warehouse.toLowerCase().contains(q) ||
+            shippingRegion(r.warehouse).toLowerCase().contains(q);
+      }).toList();
+    }
+    return routes;
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       child: Column(
         children: [
-          PageHeader(title: 'Маршрути', subtitle: DateFormat('dd.MM.yyyy').format(widget.date), trailing: IconButton(onPressed: reload, icon: const Icon(Icons.refresh))),
+          PageHeader(
+            title: 'Маршрути',
+            subtitle: DateFormat('dd.MM.yyyy').format(widget.date),
+            trailing: IconButton(
+                onPressed: reload, icon: const Icon(Icons.refresh)),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+            child: TextField(
+              controller: search,
+              decoration: InputDecoration(
+                hintText: 'Пошук: експедитор, ID, склад, регіон',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: search.text.isEmpty
+                    ? null
+                    : IconButton(
+                        onPressed: search.clear,
+                        icon: const Icon(Icons.close),
+                      ),
+              ),
+            ),
+          ),
           SizedBox(
             height: 42,
             child: ListView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              children: ['Всі', 'Заповнено', 'Без тарифу'].map((f) => Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: ChoiceChip(label: Text(f), selected: filter == f, onSelected: (_) => setState(() => filter = f)),
-              )).toList(),
+              children: [
+                ...['Всі', 'Заповнено', 'Без тарифу'].map(
+                  (f) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(f),
+                      selected: filter == f,
+                      onSelected: (_) => setState(() => filter = f),
+                    ),
+                  ),
+                ),
+                FilterChip(
+                  avatar: const Icon(Icons.groups_2_outlined, size: 18),
+                  label: const Text('По експедитору'),
+                  selected: groupByExpeditor,
+                  onSelected: (v) => setState(() => groupByExpeditor = v),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 8),
@@ -663,22 +714,65 @@ class _RoutesPageState extends State<RoutesPage> {
             child: FutureBuilder<List<RouteModel>>(
               future: future,
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-                if (snapshot.hasError) return Center(child: Text('Помилка: ${snapshot.error}'));
-                var routes = snapshot.data ?? const <RouteModel>[];
-                if (filter == 'Заповнено') routes = routes.where((r) => r.completed).toList();
-                if (filter == 'Без тарифу') routes = routes.where((r) => r.tariff == null || r.tariffUnknown).toList();
-                return ListView.separated(
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(child: Text('Помилка: ${snapshot.error}'));
+                }
+                final routes = _filtered(snapshot.data ?? const <RouteModel>[]);
+                if (routes.isEmpty) {
+                  return const Center(child: Text('Маршрути не знайдено'));
+                }
+                if (!groupByExpeditor) {
+                  return ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                    itemCount: routes.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (context, i) => _routeCard(routes[i]),
+                  );
+                }
+                final grouped = <String, List<RouteModel>>{};
+                for (final route in routes) {
+                  final key = route.expeditor.trim().isEmpty
+                      ? 'Без експедитора'
+                      : route.expeditor.trim();
+                  grouped.putIfAbsent(key, () => <RouteModel>[]).add(route);
+                }
+                final names = grouped.keys.toList()
+                  ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+                return ListView(
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-                  itemCount: routes.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, i) {
-                    final r = routes[i];
-                    return RouteCard(route: r, onTap: () async {
-                      final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => RouteDetailsPage(route: r, repo: widget.repo, demo: widget.demo)));
-                      if (saved == true) reload();
-                    });
-                  },
+                  children: [
+                    for (final name in names) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(4, 8, 4, 10),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.person_outline,
+                                size: 19, color: Color(0xFF1677FF)),
+                            const SizedBox(width: 7),
+                            Expanded(
+                              child: Text(name,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 16)),
+                            ),
+                            Text('${grouped[name]!.length} марш.',
+                                style: const TextStyle(
+                                    color: Color(0xFF6C778A),
+                                    fontWeight: FontWeight.w700)),
+                          ],
+                        ),
+                      ),
+                      ...grouped[name]!.map(
+                        (r) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _routeCard(r),
+                        ),
+                      ),
+                    ],
+                  ],
                 );
               },
             ),
@@ -687,6 +781,53 @@ class _RoutesPageState extends State<RoutesPage> {
       ),
     );
   }
+
+  Widget _routeCard(RouteModel r) {
+    return RouteCard(
+      route: r,
+      onTap: () async {
+        final saved = await Navigator.of(context).push<bool>(
+          MaterialPageRoute(
+            builder: (_) => RouteDetailsPage(
+                route: r, repo: widget.repo, demo: widget.demo),
+          ),
+        );
+        if (saved == true) reload();
+      },
+    );
+  }
+}
+
+String shippingRegion(String warehouse) {
+  final w = warehouse.trim().toLowerCase();
+  if (w.isEmpty) return 'Регіон не визначено';
+  if (w.contains('льв')) return 'Львів';
+  if (w.contains('одес')) return 'Одеса';
+  if (w.contains('дніпр') || w.contains('днепр')) return 'Дніпро';
+  if (w.contains('харків') || w.contains('харьков')) return 'Харків';
+  if (w.contains('вінниц') || w.contains('винниц')) return 'Вінниця';
+  if (w.contains('черкас')) return 'Черкаси';
+  if (w.contains('черніг') || w.contains('черниг')) return 'Чернігів';
+  if (w.contains('полтав')) return 'Полтава';
+  if (w.contains('хмельниц')) return 'Хмельницький';
+  if (w.contains('рівн') || w.contains('ровн')) return 'Рівне';
+  if (w.contains('луцьк') || w.contains('волин')) return 'Луцьк';
+  if (w.contains('ужгород') || w.contains('закарпат')) return 'Ужгород';
+  if (w.contains('франків') || w.contains('франков')) {
+    return 'Івано-Франківськ';
+  }
+  if (w.contains('чернів') || w.contains('чернов')) return 'Чернівці';
+  if (w.contains('терноп')) return 'Тернопіль';
+  if (w.contains('кременч')) return 'Кременчук';
+  if (w.contains('розум') ||
+      w.contains('чайк') ||
+      w.contains('білогород') ||
+      w.contains('белогород') ||
+      w.contains('київ') ||
+      w.contains('киев')) {
+    return 'Київ';
+  }
+  return warehouse;
 }
 
 class RouteCard extends StatelessWidget {
@@ -696,7 +837,9 @@ class RouteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = route.completed ? const Color(0xFF1A9B5A) : const Color(0xFFE9A20B);
+    final statusColor = route.completed
+        ? const Color(0xFF1A9B5A)
+        : const Color(0xFFE9A20B);
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
@@ -706,33 +849,108 @@ class RouteCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(children: [
-                Expanded(child: Text('ID ${route.routeDeliveryId}', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900))),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(color: statusColor.withValues(alpha: .12), borderRadius: BorderRadius.circular(10)),
-                  child: Text(route.completed ? 'Заповнено' : 'В роботі', style: TextStyle(color: statusColor, fontWeight: FontWeight.w700, fontSize: 12)),
-                ),
-              ]),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text('ID ${route.routeDeliveryId}',
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleLarge
+                            ?.copyWith(fontWeight: FontWeight.w900)),
+                  ),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: .12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(route.completed ? 'Заповнено' : 'В роботі',
+                        style: TextStyle(
+                            color: statusColor,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12)),
+                  ),
+                ],
+              ),
               const SizedBox(height: 5),
               Text('${route.expeditor} · ${route.carrier ?? 'Перевізник не вказаний'}'),
+              const SizedBox(height: 9),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  RouteInfoBadge(
+                    icon: Icons.warehouse_outlined,
+                    text: route.warehouse.isEmpty
+                        ? 'Склад не вказаний'
+                        : route.warehouse,
+                  ),
+                  RouteInfoBadge(
+                    icon: Icons.location_city_outlined,
+                    text: shippingRegion(route.warehouse),
+                  ),
+                ],
+              ),
               const SizedBox(height: 14),
-              Row(children: [
-                RouteMetric(icon: Icons.storefront_outlined, text: '${route.points} ТТ'),
-                RouteMetric(icon: Icons.grid_view_rounded, text: '${nf0(route.pallets)} пал.'),
-                RouteMetric(icon: Icons.scale_outlined, text: '${nf0(route.weight)} кг'),
-              ]),
+              Row(
+                children: [
+                  RouteMetric(
+                      icon: Icons.storefront_outlined,
+                      text: '${route.points} ТТ'),
+                  RouteMetric(
+                      icon: Icons.grid_view_rounded,
+                      text: '${nf0(route.pallets)} пал.'),
+                  RouteMetric(
+                      icon: Icons.scale_outlined,
+                      text: '${nf0(route.weight)} кг'),
+                ],
+              ),
               const Divider(height: 24),
-              Row(children: [
-                const Icon(Icons.account_balance_wallet_outlined, size: 18),
-                const SizedBox(width: 7),
-                Text(route.tariffUnknown ? 'Тариф невідомий' : '${money0(route.tariff ?? 0)} грн', style: const TextStyle(fontWeight: FontWeight.w800)),
-                const Spacer(),
-                const Icon(Icons.chevron_right),
-              ]),
+              Row(
+                children: [
+                  const Icon(Icons.account_balance_wallet_outlined, size: 18),
+                  const SizedBox(width: 7),
+                  Text(
+                    route.tariffUnknown
+                        ? 'Тариф невідомий'
+                        : '${money0(route.tariff ?? 0)} грн',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  const Spacer(),
+                  const Icon(Icons.chevron_right),
+                ],
+              ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class RouteInfoBadge extends StatelessWidget {
+  const RouteInfoBadge({required this.icon, required this.text, super.key});
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF2F6FC),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: const Color(0xFF1677FF)),
+          const SizedBox(width: 5),
+          Text(text,
+              style:
+                  const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+        ],
       ),
     );
   }
@@ -742,12 +960,24 @@ class RouteMetric extends StatelessWidget {
   const RouteMetric({required this.icon, required this.text, super.key});
   final IconData icon;
   final String text;
+
   @override
-  Widget build(BuildContext context) => Expanded(child: Row(children: [Icon(icon, size: 17, color: const Color(0xFF6C778A)), const SizedBox(width: 5), Flexible(child: Text(text, style: const TextStyle(fontSize: 12)))]));
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Row(
+        children: [
+          Icon(icon, size: 17, color: const Color(0xFF6C778A)),
+          const SizedBox(width: 5),
+          Flexible(child: Text(text, style: const TextStyle(fontSize: 12))),
+        ],
+      ),
+    );
+  }
 }
 
 class RouteDetailsPage extends StatefulWidget {
-  const RouteDetailsPage({required this.route, required this.repo, required this.demo, super.key});
+  const RouteDetailsPage(
+      {required this.route, required this.repo, required this.demo, super.key});
   final RouteModel route;
   final RouteRepository repo;
   final bool demo;
@@ -760,7 +990,8 @@ class _RouteDetailsPageState extends State<RouteDetailsPage> {
   late final driver = TextEditingController(text: widget.route.driver ?? '');
   late final vehicle = TextEditingController(text: widget.route.vehicle ?? '');
   late final carrier = TextEditingController(text: widget.route.carrier ?? '');
-  late final tariff = TextEditingController(text: widget.route.tariff?.toStringAsFixed(0) ?? '');
+  late final tariff =
+      TextEditingController(text: widget.route.tariff?.toStringAsFixed(0) ?? '');
   final comment = TextEditingController();
   String wave = '24';
   bool tariffUnknown = false;
@@ -775,7 +1006,11 @@ class _RouteDetailsPageState extends State<RouteDetailsPage> {
 
   @override
   void dispose() {
-    driver.dispose(); vehicle.dispose(); carrier.dispose(); tariff.dispose(); comment.dispose();
+    driver.dispose();
+    vehicle.dispose();
+    carrier.dispose();
+    tariff.dispose();
+    comment.dispose();
     super.dispose();
   }
 
@@ -795,7 +1030,10 @@ class _RouteDetailsPageState extends State<RouteDetailsPage> {
       );
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
+      }
     } finally {
       if (mounted) setState(() => saving = false);
     }
@@ -809,30 +1047,75 @@ class _RouteDetailsPageState extends State<RouteDetailsPage> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('ID ${r.routeDeliveryId}', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
-            const SizedBox(height: 5),
-            Text('${r.expeditor} · ${r.warehouse}'),
-            const SizedBox(height: 16),
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              Chip(label: Text('${r.points} ТТ')), Chip(label: Text('${nf0(r.pallets)} палет')), Chip(label: Text('${nf0(r.weight)} кг')), Chip(label: Text('${r.documents} накладних')),
-            ]),
-            const SizedBox(height: 10),
-            Text('Продажі: ${money0(r.orderAmount)} грн', style: const TextStyle(fontWeight: FontWeight.w700)),
-          ]))),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('ID ${r.routeDeliveryId}',
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 5),
+                  Text('${r.expeditor} · ${r.warehouse}'),
+                  const SizedBox(height: 8),
+                  Text('Регіон: ${shippingRegion(r.warehouse)}',
+                      style: const TextStyle(color: Color(0xFF6C778A))),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      Chip(label: Text('${r.points} ТТ')),
+                      Chip(label: Text('${nf0(r.pallets)} палет')),
+                      Chip(label: Text('${nf0(r.weight)} кг')),
+                      Chip(label: Text('${r.documents} накладних')),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text('Продажі: ${money0(r.orderAmount)} грн',
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
-          Text('Фактичні дані логіста', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
+          Text('Фактичні дані логіста',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w900)),
           const SizedBox(height: 12),
-          TextField(controller: driver, decoration: const InputDecoration(labelText: 'Водій')),
+          TextField(
+              controller: driver,
+              decoration: const InputDecoration(labelText: 'Водій')),
           const SizedBox(height: 12),
-          TextField(controller: vehicle, decoration: const InputDecoration(labelText: 'Номер авто')),
+          TextField(
+              controller: vehicle,
+              decoration: const InputDecoration(labelText: 'Номер авто')),
           const SizedBox(height: 12),
-          TextField(controller: carrier, decoration: const InputDecoration(labelText: 'Перевізник')),
+          TextField(
+              controller: carrier,
+              decoration: const InputDecoration(labelText: 'Перевізник')),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
-            value: wave,
+            initialValue: wave,
             decoration: const InputDecoration(labelText: 'Хвиля'),
-            items: const ['24', '48', 'Мережа', 'Пекарня', 'Пекарня Заморозка', 'FRESH', 'ОЗ', 'Повернення', 'Інше'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+            items: const [
+              '24',
+              '48',
+              'Мережа',
+              'Пекарня',
+              'Пекарня Заморозка',
+              'FRESH',
+              'ОЗ',
+              'Повернення',
+              'Інше'
+            ]
+                .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                .toList(),
             onChanged: (v) => setState(() => wave = v ?? wave),
           ),
           const SizedBox(height: 12),
@@ -842,14 +1125,29 @@ class _RouteDetailsPageState extends State<RouteDetailsPage> {
             value: tariffUnknown,
             onChanged: (v) => setState(() => tariffUnknown = v),
           ),
-          if (!tariffUnknown) TextField(controller: tariff, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Тариф, грн')),
+          if (!tariffUnknown)
+            TextField(
+              controller: tariff,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(labelText: 'Тариф, грн'),
+            ),
           const SizedBox(height: 12),
-          TextField(controller: comment, maxLines: 3, decoration: const InputDecoration(labelText: 'Коментар')),
+          TextField(
+              controller: comment,
+              maxLines: 3,
+              decoration: const InputDecoration(labelText: 'Коментар')),
           const SizedBox(height: 22),
           FilledButton(
             onPressed: saving ? null : save,
-            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(54), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-            child: saving ? const CircularProgressIndicator(strokeWidth: 2) : const Text('Зберегти маршрут'),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(54),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
+            ),
+            child: saving
+                ? const CircularProgressIndicator(strokeWidth: 2)
+                : const Text('Зберегти маршрут'),
           ),
         ],
       ),
@@ -874,23 +1172,43 @@ class ReportsPage extends StatelessWidget {
           final weight = routes.fold<double>(0, (s, r) => s + r.weight);
           final spend = routes.fold<double>(0, (s, r) => s + (r.tariff ?? 0));
           final sales = routes.fold<double>(0, (s, r) => s + r.orderAmount);
-          final noTariff = routes.where((r) => r.tariff == null || r.tariffUnknown).length;
+          final noTariff =
+              routes.where((r) => r.tariff == null || r.tariffUnknown).length;
           return ListView(
             padding: const EdgeInsets.only(bottom: 24),
             children: [
-              PageHeader(title: 'Звіти', subtitle: 'Підсумок за ${DateFormat('dd.MM.yyyy').format(date)}'),
+              PageHeader(
+                  title: 'Звіти',
+                  subtitle:
+                      'Підсумок за ${DateFormat('dd.MM.yyyy').format(date)}'),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(children: [
-                  ReportRow(label: 'ТТ', value: '$tt'),
-                  ReportRow(label: 'Палет', value: nf0(pallets)),
-                  ReportRow(label: 'Вага, кг', value: nf0(weight)),
-                  ReportRow(label: 'Витрати, грн', value: money0(spend)),
-                  ReportRow(label: 'Продажі, грн', value: money0(sales)),
-                  ReportRow(label: 'Вартість 1 ТТ, грн', value: tt == 0 ? '0' : money2(spend / tt)),
-                  ReportRow(label: '% логістики', value: sales == 0 ? '0%' : '${(spend / sales * 100).toStringAsFixed(2)}%'),
-                  ReportRow(label: 'Без тарифу', value: '$noTariff авто', last: true),
-                ]))),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      children: [
+                        ReportRow(label: 'ТТ', value: '$tt'),
+                        ReportRow(label: 'Палет', value: nf0(pallets)),
+                        ReportRow(label: 'Вага, кг', value: nf0(weight)),
+                        ReportRow(label: 'Витрати, грн', value: money0(spend)),
+                        ReportRow(label: 'Продажі, грн', value: money0(sales)),
+                        ReportRow(
+                            label: 'Вартість 1 ТТ, грн',
+                            value: tt == 0 ? '0' : money2(spend / tt)),
+                        ReportRow(
+                            label: '% логістики',
+                            value: sales == 0
+                                ? '0%'
+                                : '${(spend / sales * 100).toStringAsFixed(2)}%'),
+                        ReportRow(
+                            label: 'Без тарифу',
+                            value: '$noTariff авто',
+                            last: true),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ],
           );
@@ -901,15 +1219,32 @@ class ReportsPage extends StatelessWidget {
 }
 
 class ReportRow extends StatelessWidget {
-  const ReportRow({required this.label, required this.value, this.last = false, super.key});
+  const ReportRow(
+      {required this.label, required this.value, this.last = false, super.key});
   final String label;
   final String value;
   final bool last;
+
   @override
-  Widget build(BuildContext context) => Column(children: [
-    Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Row(children: [Expanded(child: Text(label)), Text(value, style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF137A49)))])),
-    if (!last) const Divider(height: 1),
-  ]);
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Row(
+            children: [
+              Expanded(child: Text(label)),
+              Text(value,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF137A49))),
+            ],
+          ),
+        ),
+        if (!last) const Divider(height: 1),
+      ],
+    );
+  }
 }
 
 class MorePage extends StatelessWidget {
@@ -921,21 +1256,42 @@ class MorePage extends StatelessWidget {
     return SafeArea(
       child: ListView(
         children: [
-          const PageHeader(title: 'Ще', subtitle: 'Керування Transport Report'),
+          const PageHeader(
+              title: 'Ще', subtitle: 'Керування Transport Report TS'),
           if (demo)
-            const ListTile(leading: Icon(Icons.science_outlined), title: Text('Demo mode'), subtitle: Text('Supabase ключі не передані. Інтерфейс працює на тестових даних.')),
-          const ListTile(leading: Icon(Icons.people_outline), title: Text('Користувачі та ролі'), subtitle: Text('Admin · Керівник · Логіст')),
-          const ListTile(leading: Icon(Icons.local_shipping_outlined), title: Text('Водії та авто')),
-          const ListTile(leading: Icon(Icons.business_outlined), title: Text('Перевізники')),
-          const ListTile(leading: Icon(Icons.history), title: Text('Історія маршрутів')),
+            const ListTile(
+              leading: Icon(Icons.science_outlined),
+              title: Text('Demo mode'),
+              subtitle: Text('Supabase ключі не передані.'),
+            ),
+          const ListTile(
+              leading: Icon(Icons.people_outline),
+              title: Text('Користувачі та ролі'),
+              subtitle: Text('Admin · Керівник · Логіст')),
+          const ListTile(
+              leading: Icon(Icons.local_shipping_outlined),
+              title: Text('Водії та авто')),
+          const ListTile(
+              leading: Icon(Icons.business_outlined),
+              title: Text('Перевізники')),
+          const ListTile(
+              leading: Icon(Icons.history), title: Text('Історія маршрутів')),
           if (!demo)
-            ListTile(leading: const Icon(Icons.logout), title: const Text('Вийти'), onTap: () => Supabase.instance.client.auth.signOut()),
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: const Text('Вийти'),
+              onTap: () => Supabase.instance.client.auth.signOut(),
+            ),
         ],
       ),
     );
   }
 }
 
-String nf0(num value) => NumberFormat('#,##0', 'uk_UA').format(value).replaceAll('\u00A0', ' ');
-String money0(num value) => NumberFormat('#,##0', 'uk_UA').format(value).replaceAll('\u00A0', ' ');
-String money2(num value) => NumberFormat('#,##0.00', 'uk_UA').format(value).replaceAll('\u00A0', ' ');
+String nf0(num value) =>
+    NumberFormat('#,##0', 'uk_UA').format(value).replaceAll('\u00A0', ' ');
+String money0(num value) =>
+    NumberFormat('#,##0', 'uk_UA').format(value).replaceAll('\u00A0', ' ');
+String money2(num value) => NumberFormat('#,##0.00', 'uk_UA')
+    .format(value)
+    .replaceAll('\u00A0', ' ');
