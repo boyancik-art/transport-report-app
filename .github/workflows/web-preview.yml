@@ -1,0 +1,37 @@
+name: Web Preview
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Ensure web platform exists
+        run: flutter create . --platforms=web --project-name transport_report_app --org com.transportreport
+      - name: Remove generated default test
+        run: rm -rf test
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Build web preview
+        run: flutter build web --release --base-href /transport-report-app/
+      - name: Disable Jekyll
+        run: touch build/web/.nojekyll
+      - name: Publish to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./build/web
+          publish_branch: gh-pages
+          force_orphan: true
