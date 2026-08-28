@@ -410,6 +410,7 @@ class RouteModel {
 class RoutePointModel {
   RoutePointModel({
     required this.id,
+    required this.addressId,
     required this.customer,
     required this.address,
     required this.settlement,
@@ -426,6 +427,7 @@ class RoutePointModel {
   });
 
   final int id;
+  final String addressId;
   final String customer;
   final String address;
   final String settlement;
@@ -838,7 +840,7 @@ class RouteRepository {
   Future<List<RoutePointModel>> loadRoutePoints(RouteModel route, {String? autoCarrier}) async {
     if (demo) {
       return [
-        RoutePointModel(id: 1, customer: 'ТОВ Приклад', address: 'вул. Центральна, 1', settlement: 'Сквира', district: 'Сквирський', region: 'Київська', documents: 5, weight: 340, pallets: .5, bottles: 96, places: 12, amount: 8400),
+        RoutePointModel(id: 1, addressId: 'A1', customer: 'ТОВ Приклад', address: 'вул. Центральна, 1', settlement: 'Сквира', district: 'Сквирський', region: 'Київська', documents: 5, weight: 340, pallets: .5, bottles: 96, places: 12, amount: 8400),
       ];
     }
     final rows = await db
@@ -854,6 +856,7 @@ class RouteRepository {
       final loc = locRaw is Map ? Map<String, dynamic>.from(locRaw) : <String, dynamic>{};
       final p = RoutePointModel(
         id: (r['id'] as num).toInt(),
+        addressId: '${loc['address_id'] ?? r['address_id'] ?? ''}',
         customer: '${r['customer_name'] ?? loc['customer_name'] ?? ''}',
         address: '${loc['delivery_address'] ?? ''}',
         settlement: '${loc['settlement'] ?? ''}',
@@ -2207,7 +2210,9 @@ class PointCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pointDocs = documents.where((d) => d.customer == point.customer || d.addressId.isEmpty).toList();
+    final pointDocs = point.addressId.isNotEmpty
+        ? documents.where((d) => d.addressId == point.addressId).toList()
+        : documents.where((d) => d.customer == point.customer).toList();
     return Card(
       child: ExpansionTile(
         tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
