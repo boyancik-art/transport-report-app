@@ -21,6 +21,8 @@ jobs:
         run: flutter --version
       - name: Ensure platform folders exist
         run: flutter create . --platforms=android,ios --project-name transport_report_app --org com.transportreport
+      - name: Apply Transport Report TS branding
+        run: bash tool/apply_branding.sh
       - name: Remove generated default test
         run: rm -rf test
       - name: Install dependencies
@@ -49,6 +51,8 @@ jobs:
         run: flutter --version
       - name: Ensure iOS platform exists
         run: flutter create . --platforms=ios --project-name transport_report_app --org com.transportreport
+      - name: Apply Transport Report TS branding
+        run: bash tool/apply_branding.sh
       - name: Remove generated default test
         run: rm -rf test
       - name: Install dependencies
