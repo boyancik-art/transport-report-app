@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ICON_B64="$ROOT/assets/app_icon.png.b64"
 TMP_ICON="${RUNNER_TEMP:-/tmp}/transport_report_ts_icon.png"
+IOS_BUNDLE_ID="com.transportreport.transportreportts"
 
 if [ ! -f "$ICON_B64" ]; then
   echo "Brand icon not found: $ICON_B64"
@@ -124,6 +125,24 @@ PY
   if [ -f "$plist" ] && [ -x /usr/libexec/PlistBuddy ]; then
     /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Transport Report TS" "$plist" 2>/dev/null || true
     /usr/libexec/PlistBuddy -c "Set :CFBundleName Transport Report TS" "$plist" 2>/dev/null || true
+  fi
+
+  pbx="$ROOT/ios/Runner.xcodeproj/project.pbxproj"
+  if [ -f "$pbx" ]; then
+    python3 - "$pbx" "$IOS_BUNDLE_ID" <<'PY'
+import pathlib, re, sys
+p = pathlib.Path(sys.argv[1])
+bundle = sys.argv[2]
+text = p.read_text()
+lines = []
+for line in text.splitlines(True):
+    if 'PRODUCT_BUNDLE_IDENTIFIER =' in line:
+        suffix = '.RunnerTests' if 'RunnerTests' in line else ''
+        line = re.sub(r'PRODUCT_BUNDLE_IDENTIFIER = [^;]+;', f'PRODUCT_BUNDLE_IDENTIFIER = {bundle}{suffix};', line)
+    lines.append(line)
+p.write_text(''.join(lines))
+print(f'iOS Bundle ID pinned to {bundle}')
+PY
   fi
 fi
 
