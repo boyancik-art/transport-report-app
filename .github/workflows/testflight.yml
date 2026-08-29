@@ -116,6 +116,7 @@ jobs:
             -destination 'generic/platform=iOS' \
             -archivePath "$PWD/build/Runner.xcarchive" \
             -allowProvisioningUpdates \
+            -allowProvisioningDeviceRegistration \
             -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8" \
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
@@ -124,15 +125,6 @@ jobs:
             CODE_SIGN_STYLE=Automatic \
             archive 2>&1 | tee "$RUNNER_TEMP/xcode-archive.log"
           test ${PIPESTATUS[0]} -eq 0
-
-      - name: Upload archive diagnostics
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: testflight-xcode-archive-log
-          path: ${{ runner.temp }}/xcode-archive.log
-          if-no-files-found: ignore
-          retention-days: 90
 
       - name: Export signed IPA
         env:
@@ -147,6 +139,7 @@ jobs:
             -exportPath "$PWD/build/ipa" \
             -exportOptionsPlist "$PWD/ios/ExportOptions.plist" \
             -allowProvisioningUpdates \
+            -allowProvisioningDeviceRegistration \
             -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8" \
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
@@ -155,12 +148,14 @@ jobs:
           ls -la build/ipa
           test -n "$(find build/ipa -maxdepth 1 -name '*.ipa' -print -quit)"
 
-      - name: Upload export diagnostics
-        if: failure()
+      - name: Upload Xcode diagnostics
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: testflight-xcode-export-log
-          path: ${{ runner.temp }}/xcode-export.log
+          name: testflight-xcode-diagnostics
+          path: |
+            ${{ runner.temp }}/xcode-archive.log
+            ${{ runner.temp }}/xcode-export.log
           if-no-files-found: ignore
           retention-days: 90
 
