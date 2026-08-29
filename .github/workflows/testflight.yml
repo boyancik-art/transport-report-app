@@ -1,5 +1,5 @@
 name: TestFlight
-# retrigger after App Store Connect key rotation
+# build latest main for TestFlight/App Store
 
 on:
   workflow_dispatch:
@@ -43,11 +43,16 @@ jobs:
             flutter create . --platforms=ios --project-name transport_report_app --org com.transportreport
           fi
 
-      - name: Apply Transport Report TS branding
+      - name: Apply Transport Report TS branding and iOS icon
         run: |
           set -euo pipefail
-          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName ${APP_NAME}" ios/Runner/Info.plist || \
-          /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string ${APP_NAME}" ios/Runner/Info.plist
+          chmod +x tool/apply_branding.sh
+          ./tool/apply_branding.sh
+          test -f ios/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json
+          ICON_COUNT="$(/usr/bin/find ios/Runner/Assets.xcassets/AppIcon.appiconset -type f -name '*.png' | wc -l | tr -d ' ')"
+          echo "Generated iOS app icons: $ICON_COUNT"
+          test "$ICON_COUNT" -ge 1
+          /usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" ios/Runner/Info.plist
 
       - name: Install dependencies
         run: flutter pub get
