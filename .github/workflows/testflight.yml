@@ -92,6 +92,10 @@ jobs:
             <string>${APPLE_TEAM_ID}</string>
             <key>destination</key>
             <string>export</string>
+            <key>manageAppVersionAndBuildNumber</key>
+            <false/>
+            <key>stripSwiftSymbols</key>
+            <true/>
             <key>uploadSymbols</key>
             <true/>
           </dict>
@@ -118,7 +122,8 @@ jobs:
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
             CODE_SIGN_STYLE=Automatic \
-            archive | tee "$RUNNER_TEMP/xcode-archive.log"
+            archive 2>&1 | tee "$RUNNER_TEMP/xcode-archive.log"
+          test ${PIPESTATUS[0]} -eq 0
 
       - name: Upload archive diagnostics
         if: failure()
@@ -144,7 +149,8 @@ jobs:
             -allowProvisioningUpdates \
             -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8" \
             -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID" 2>&1 | tee "$RUNNER_TEMP/xcode-export.log"
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            2>&1 | tee "$RUNNER_TEMP/xcode-export.log"
           test ${PIPESTATUS[0]} -eq 0
           ls -la build/ipa
           test -n "$(find build/ipa -maxdepth 1 -name '*.ipa' -print -quit)"
