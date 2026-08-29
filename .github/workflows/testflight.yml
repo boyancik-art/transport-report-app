@@ -68,7 +68,7 @@ jobs:
             <key>method</key>
             <string>app-store-connect</string>
             <key>destination</key>
-            <string>upload</string>
+            <string>export</string>
             <key>signingStyle</key>
             <string>automatic</string>
             <key>teamID</key>
@@ -116,12 +116,13 @@ jobs:
           path: build/diagnostics/xcode-archive.log
           if-no-files-found: warn
 
-      - name: Upload archive to TestFlight
+      - name: Export signed IPA
         env:
           ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
           set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/build/diagnostics"
           xcodebuild \
             -exportArchive \
             -archivePath "$GITHUB_WORKSPACE/build/ios/archive/Runner.xcarchive" \
@@ -130,4 +131,35 @@ jobs:
             -allowProvisioningUpdates \
             -authenticationKeyPath "$ASC_KEY_PATH" \
             -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            2>&1 | tee "$GITHUB_WORKSPACE/build/diagnostics/xcode-export.log"
+          IPA_PATH="$(find "$GITHUB_WORKSPACE/build/ios/export" -maxdepth 1 -name '*.ipa' -print -quit)"
+          test -n "$IPA_PATH"
+          echo "IPA_PATH=$IPA_PATH" >> "$GITHUB_ENV"
+
+      - name: Upload export diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testflight-xcode-export-log
+          path: build/diagnostics/xcode-export.log
+          if-no-files-found: warn
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: transport-report-testflight-ipa
+          path: build/ios/export/*.ipa
+          if-no-files-found: error
+
+      - name: Upload to TestFlight
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          xcrun altool --upload-app \
+            --type ios \
+            --file "$IPA_PATH" \
+            --apiKey "$ASC_KEY_ID" \
+            --apiIssuer "$ASC_ISSUER_ID"
