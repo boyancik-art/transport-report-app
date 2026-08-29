@@ -121,7 +121,7 @@ jobs:
           ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
-          set -euo pipefail
+          set -o pipefail
           mkdir -p "$GITHUB_WORKSPACE/build/diagnostics"
           xcodebuild \
             -exportArchive \
@@ -133,6 +133,10 @@ jobs:
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             2>&1 | tee "$GITHUB_WORKSPACE/build/diagnostics/xcode-export.log"
+          export_status=${PIPESTATUS[0]}
+          if [ "$export_status" -ne 0 ]; then
+            exit "$export_status"
+          fi
           IPA_PATH="$(find "$GITHUB_WORKSPACE/build/ios/export" -maxdepth 1 -name '*.ipa' -print -quit)"
           test -n "$IPA_PATH"
           echo "IPA_PATH=$IPA_PATH" >> "$GITHUB_ENV"
