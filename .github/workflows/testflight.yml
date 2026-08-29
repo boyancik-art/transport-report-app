@@ -159,8 +159,11 @@ jobs:
             -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             2>&1 | tee "$RUNNER_TEMP/xcode-export.log"
           test ${PIPESTATUS[0]} -eq 0
-          find build/ios/ipa -maxdepth 1 -name '*.ipa' -print
-          test -n "$(find build/ios/ipa -maxdepth 1 -name '*.ipa' -print -quit)"
+          echo "Exported files:"
+          /usr/bin/find build/ios/ipa -type f -print
+          IPA_PATH="$(/usr/bin/find build/ios/ipa -type f -name '*.ipa' -print -quit)"
+          test -n "$IPA_PATH"
+          echo "IPA_PATH=$IPA_PATH" >> "$GITHUB_ENV"
 
       - name: Upload build diagnostics
         if: always()
@@ -177,7 +180,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: transport-report-ts-ipa
-          path: build/ios/ipa/*.ipa
+          path: ${{ env.IPA_PATH }}
           if-no-files-found: error
           retention-days: 30
 
@@ -187,6 +190,6 @@ jobs:
           ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
           set -euo pipefail
-          IPA_PATH="$(find build/ios/ipa -maxdepth 1 -name '*.ipa' -print -quit)"
           test -n "$IPA_PATH"
+          test -f "$IPA_PATH"
           xcrun altool --upload-app --type ios --file "$IPA_PATH" --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
