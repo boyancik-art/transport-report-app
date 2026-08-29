@@ -189,7 +189,19 @@ jobs:
           ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
-          set -euo pipefail
+          set -o pipefail
           test -n "$IPA_PATH"
           test -f "$IPA_PATH"
-          xcrun altool --upload-app --type ios --file "$IPA_PATH" --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+          xcrun altool --upload-app --type ios --file "$IPA_PATH" \
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID" \
+            2>&1 | tee "$RUNNER_TEMP/altool-upload.log"
+          test ${PIPESTATUS[0]} -eq 0
+
+      - name: Upload TestFlight diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testflight-upload-diagnostics
+          path: ${{ runner.temp }}/altool-upload.log
+          if-no-files-found: ignore
+          retention-days: 90
