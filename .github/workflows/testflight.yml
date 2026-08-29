@@ -69,10 +69,9 @@ jobs:
           ASC_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
         run: |
           set -euo pipefail
-          if [ -z "$ASC_KEY_ID" ] || [ -z "$ASC_ISSUER_ID" ] || [ -z "$ASC_PRIVATE_KEY" ]; then
-            echo "Missing App Store Connect API secrets."
-            exit 1
-          fi
+          test -n "$ASC_KEY_ID"
+          test -n "$ASC_ISSUER_ID"
+          test -n "$ASC_PRIVATE_KEY"
           mkdir -p "$HOME/.appstoreconnect/private_keys"
           printf '%s' "$ASC_PRIVATE_KEY" > "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
           chmod 600 "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
@@ -93,7 +92,7 @@ jobs:
             <key>destination</key>
             <string>export</string>
             <key>manageAppVersionAndBuildNumber</key>
-            <false/>
+            <true/>
             <key>stripSwiftSymbols</key>
             <true/>
             <key>uploadSymbols</key>
@@ -102,60 +101,35 @@ jobs:
           </plist>
           PLIST
 
-      - name: Archive signed iOS app
+      - name: Configure automatic signing
+        run: |
+          set -euo pipefail
+          sed -i '' "s/PRODUCT_BUNDLE_IDENTIFIER = com\.transportreport\.transportReportApp;/PRODUCT_BUNDLE_IDENTIFIER = ${BUNDLE_ID};/g" ios/Runner.xcodeproj/project.pbxproj || true
+          sed -i '' "s/PRODUCT_BUNDLE_IDENTIFIER = com\.transportreport\.transport_report_app;/PRODUCT_BUNDLE_IDENTIFIER = ${BUNDLE_ID};/g" ios/Runner.xcodeproj/project.pbxproj || true
+
+      - name: Build signed IPA
         env:
           ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
           set -o pipefail
-          rm -rf build/Runner.xcarchive build/ipa
-          xcodebuild \
-            -workspace ios/Runner.xcworkspace \
-            -scheme Runner \
-            -configuration Release \
-            -destination 'generic/platform=iOS' \
-            -archivePath "$PWD/build/Runner.xcarchive" \
-            -allowProvisioningUpdates \
-            -allowProvisioningDeviceRegistration \
-            -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8" \
-            -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
-            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
-            CODE_SIGN_STYLE=Automatic \
-            archive 2>&1 | tee "$RUNNER_TEMP/xcode-archive.log"
+          export FLUTTER_XCODE_CODE_SIGN_STYLE=Automatic
+          flutter build ipa \
+            --release \
+            --build-name=1.0.0 \
+            --build-number="${GITHUB_RUN_NUMBER}" \
+            --export-options-plist=ios/ExportOptions.plist \
+            2>&1 | tee "$RUNNER_TEMP/flutter-ipa.log"
           test ${PIPESTATUS[0]} -eq 0
+          find build/ios/ipa -maxdepth 1 -name '*.ipa' -print
+          test -n "$(find build/ios/ipa -maxdepth 1 -name '*.ipa' -print -quit)"
 
-      - name: Export signed IPA
-        env:
-          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-        run: |
-          set -o pipefail
-          mkdir -p build/ipa
-          xcodebuild \
-            -exportArchive \
-            -archivePath "$PWD/build/Runner.xcarchive" \
-            -exportPath "$PWD/build/ipa" \
-            -exportOptionsPlist "$PWD/ios/ExportOptions.plist" \
-            -allowProvisioningUpdates \
-            -allowProvisioningDeviceRegistration \
-            -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8" \
-            -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
-            2>&1 | tee "$RUNNER_TEMP/xcode-export.log"
-          test ${PIPESTATUS[0]} -eq 0
-          ls -la build/ipa
-          test -n "$(find build/ipa -maxdepth 1 -name '*.ipa' -print -quit)"
-
-      - name: Upload Xcode diagnostics
+      - name: Upload build diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: testflight-xcode-diagnostics
-          path: |
-            ${{ runner.temp }}/xcode-archive.log
-            ${{ runner.temp }}/xcode-export.log
+          name: testflight-build-diagnostics
+          path: ${{ runner.temp }}/flutter-ipa.log
           if-no-files-found: ignore
           retention-days: 90
 
@@ -163,7 +137,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: transport-report-ts-ipa
-          path: build/ipa/*.ipa
+          path: build/ios/ipa/*.ipa
           if-no-files-found: error
           retention-days: 30
 
@@ -173,6 +147,6 @@ jobs:
           ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
           set -euo pipefail
-          IPA_PATH="$(find build/ipa -maxdepth 1 -name '*.ipa' -print -quit)"
+          IPA_PATH="$(find build/ios/ipa -maxdepth 1 -name '*.ipa' -print -quit)"
           test -n "$IPA_PATH"
           xcrun altool --upload-app --type ios --file "$IPA_PATH" --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
