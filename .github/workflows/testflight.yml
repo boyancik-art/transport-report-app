@@ -108,14 +108,6 @@ jobs:
             CODE_SIGN_STYLE=Automatic \
             archive 2>&1 | tee "$GITHUB_WORKSPACE/build/diagnostics/xcode-archive.log"
 
-      - name: Upload archive diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: testflight-xcode-archive-log
-          path: build/diagnostics/xcode-archive.log
-          if-no-files-found: warn
-
       - name: Export signed IPA
         env:
           ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
@@ -141,12 +133,12 @@ jobs:
           test -n "$IPA_PATH"
           echo "IPA_PATH=$IPA_PATH" >> "$GITHUB_ENV"
 
-      - name: Upload export diagnostics
+      - name: Upload diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: testflight-xcode-export-log
-          path: build/diagnostics/xcode-export.log
+          name: testflight-xcode-diagnostics
+          path: build/diagnostics/*.log
           if-no-files-found: warn
 
       - name: Upload IPA artifact
