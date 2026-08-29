@@ -197,10 +197,35 @@ jobs:
           set -o pipefail
           test -n "$IPA_PATH"
           test -f "$IPA_PATH"
-          xcrun altool --upload-app --type ios --file "$IPA_PATH" \
-            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID" \
-            2>&1 | tee "$RUNNER_TEMP/altool-upload.log"
-          test ${PIPESTATUS[0]} -eq 0
+
+          : > "$RUNNER_TEMP/altool-upload.log"
+          upload_ok=0
+          for attempt in 1 2 3; do
+            echo "=== TestFlight upload attempt ${attempt}/3 ===" | tee -a "$RUNNER_TEMP/altool-upload.log"
+            set +e
+            xcrun altool --upload-app --type ios --file "$IPA_PATH" \
+              --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID" \
+              2>&1 | tee -a "$RUNNER_TEMP/altool-upload.log"
+            rc=${PIPESTATUS[0]}
+            set -e
+
+            if [ "$rc" -eq 0 ]; then
+              upload_ok=1
+              echo "TestFlight upload succeeded on attempt ${attempt}." | tee -a "$RUNNER_TEMP/altool-upload.log"
+              break
+            fi
+
+            echo "TestFlight upload failed on attempt ${attempt} with exit code ${rc}." | tee -a "$RUNNER_TEMP/altool-upload.log"
+            if [ "$attempt" -lt 3 ]; then
+              echo "Retrying in 30 seconds..." | tee -a "$RUNNER_TEMP/altool-upload.log"
+              sleep 30
+            fi
+          done
+
+          if [ "$upload_ok" -ne 1 ]; then
+            echo "TestFlight upload failed after 3 attempts." | tee -a "$RUNNER_TEMP/altool-upload.log"
+            exit 1
+          fi
 
       - name: Upload TestFlight diagnostics
         if: always()
