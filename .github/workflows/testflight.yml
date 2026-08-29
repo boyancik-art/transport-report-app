@@ -68,7 +68,7 @@ jobs:
             <key>method</key>
             <string>app-store-connect</string>
             <key>destination</key>
-            <string>export</string>
+            <string>upload</string>
             <key>signingStyle</key>
             <string>automatic</string>
             <key>teamID</key>
@@ -116,38 +116,18 @@ jobs:
           path: build/diagnostics/xcode-archive.log
           if-no-files-found: warn
 
-      - name: Export signed IPA
+      - name: Upload archive to TestFlight
         env:
           ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
           set -euo pipefail
-          mkdir -p "$GITHUB_WORKSPACE/build/ios/ipa"
           xcodebuild \
             -exportArchive \
             -archivePath "$GITHUB_WORKSPACE/build/ios/archive/Runner.xcarchive" \
-            -exportPath "$GITHUB_WORKSPACE/build/ios/ipa" \
+            -exportPath "$GITHUB_WORKSPACE/build/ios/export" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
             -allowProvisioningUpdates \
             -authenticationKeyPath "$ASC_KEY_PATH" \
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID"
-
-      - name: Upload IPA artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: transport-report-testflight-ipa
-          path: build/ios/ipa/*.ipa
-          if-no-files-found: error
-
-      - name: Upload to TestFlight
-        env:
-          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-        run: |
-          set -euo pipefail
-          IPA_PATH="$(find "$GITHUB_WORKSPACE/build/ios/ipa" -maxdepth 1 -name '*.ipa' -print -quit)"
-          test -n "$IPA_PATH"
-          mkdir -p "$HOME/.appstoreconnect/private_keys"
-          cp "$ASC_KEY_PATH" "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
-          xcrun altool --upload-app --type ios --file "$IPA_PATH" --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
