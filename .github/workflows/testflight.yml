@@ -1,4 +1,5 @@
 name: TestFlight
+# retrigger after App Store Connect key rotation
 
 on:
   workflow_dispatch:
