@@ -1,0 +1,1 @@
+import {mkdir,readFile,writeFile,copyFile} from 'node:fs/promises';await mkdir('dist',{recursive:true});for(const f of ['index.html','manifest.webmanifest','sw.js'])await copyFile(f,'dist/'+f);const b64=(await readFile('../assets/app_icon.png.b64','utf8')).trim();await writeFile('dist/icon.png',Buffer.from(b64,'base64'));console.log('Transport Report TS PWA built');
