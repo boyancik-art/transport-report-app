@@ -1,0 +1,92 @@
+name: Generate PWA icons
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  icons:
+    if: ${{ !contains(github.event.head_commit.message, '[icons-generated]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Generate static icons from approved artwork
+        run: |
+          python -m pip install pillow
+          python - <<'PY'
+          import base64, io, pathlib
+          from PIL import Image, ImageChops
+
+          root = pathlib.Path('.')
+          b64 = (root/'assets/app_icon.png.b64').read_text().strip()
+          img = Image.open(io.BytesIO(base64.b64decode(b64))).convert('RGBA')
+
+          # Crop to the actual blue/dark artwork so the logo is visible on iOS.
+          rgb = img.convert('RGB')
+          px = rgb.load(); w,h = rgb.size
+          xs=[]; ys=[]
+          for y in range(h):
+            for x in range(w):
+              r,g,b = px[x,y]
+              if min(r,g,b) < 215 or (max(r,g,b)-min(r,g,b)) > 35:
+                xs.append(x); ys.append(y)
+          if xs:
+            x0,x1=min(xs),max(xs); y0,y1=min(ys),max(ys)
+            pad=max(4, int(max(x1-x0+1,y1-y0+1)*0.06))
+            box=(max(0,x0-pad),max(0,y0-pad),min(w,x1+pad+1),min(h,y1+pad+1))
+            art=img.crop(box)
+          else:
+            art=img
+
+          def make(size, name):
+            canvas=Image.new('RGB',(size,size),'white')
+            max_side=int(size*0.90)
+            a=art.copy().convert('RGBA')
+            a.thumbnail((max_side,max_side), Image.Resampling.LANCZOS)
+            x=(size-a.width)//2; y=(size-a.height)//2
+            canvas.paste(a,(x,y),a)
+            canvas.save(root/'web'/name,'PNG',optimize=True)
+
+          make(180,'apple-touch-icon-v13.png')
+          make(192,'icon-192-v13.png')
+          make(512,'icon-512-v13.png')
+          PY
+      - name: Patch web build and manifest
+        run: |
+          python - <<'PY'
+          import pathlib, json, re
+          p=pathlib.Path('web/build.mjs')
+          s=p.read_text()
+          # replace icon generation/copy block with direct copy of generated static icons
+          start=s.index("// Keep the Vercel build deterministic")
+          end=s.index("let html=", start)
+          new="""// Copy pre-generated static icon files.\nfor(const f of ['apple-touch-icon-v13.png','icon-192-v13.png','icon-512-v13.png']) await copyFile(f,'dist/'+f);\n\n"""
+          s=s[:start]+new+s[end:]
+          s=re.sub(r'/manifest\.webmanifest\?v=\d+', '/manifest.webmanifest?v=13', s)
+          s=re.sub(r'/apple-touch-icon[^\"\']*\.png\?v=\d+', '/apple-touch-icon-v13.png', s)
+          s=s.replace("<link rel=\"apple-touch-icon-precomposed\" href=\"/apple-touch-icon-precomposed.png?v=11\">","")
+          p.write_text(s)
+
+          m=pathlib.Path('web/manifest.webmanifest')
+          data=json.loads(m.read_text())
+          data['icons']=[
+            {'src':'/icon-192-v13.png','sizes':'192x192','type':'image/png','purpose':'any'},
+            {'src':'/icon-512-v13.png','sizes':'512x512','type':'image/png','purpose':'any maskable'}
+          ]
+          m.write_text(json.dumps(data,ensure_ascii=False,separators=(',',':')))
+          PY
+      - name: Commit generated icons
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add web/apple-touch-icon-v13.png web/icon-192-v13.png web/icon-512-v13.png web/build.mjs web/manifest.webmanifest
+          git commit -m "fix(web): add visible static iOS icons [icons-generated]" || exit 0
+          git push
