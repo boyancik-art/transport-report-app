@@ -1,0 +1,34 @@
+name: Install Retail v1.2
+
+on:
+  push:
+    branches: [transport-control-retail-v1]
+    paths:
+      - 'tool/install_retail_v12.py'
+      - '.github/workflows/install-retail-v12.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: transport-control-retail-v1
+          fetch-depth: 0
+      - name: Install Retail v1.2 source
+        run: python3 tool/install_retail_v12.py
+      - name: Commit generated Retail source
+        run: |
+          if git diff --quiet -- lib/retail_main.dart; then
+            echo "Retail source is already current"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/retail_main.dart
+          git commit -m "feat: Retail v1.2 templates and extra tasks"
+          git push origin HEAD:transport-control-retail-v1
