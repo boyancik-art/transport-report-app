@@ -1,0 +1,1 @@
+(()=>{let n=0;const t=setInterval(()=>{n++;const retail=tabs?.querySelector('[data-tab="Retail"]');const isRetail=!!retail?.classList.contains('active');if(!isRetail&&content?.querySelector('.retail-v7')&&typeof window.render==='function')window.render();if(n>12)clearInterval(t)},180)})();
