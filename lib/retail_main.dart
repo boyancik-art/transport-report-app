@@ -496,7 +496,7 @@ class Repo {
     VehicleModel(id:2,plate:'Корпоратура 20 т.',carrier:'ТОВ Корпоратура',palletCapacity:33,maxWeightKg:20000),
   ];
   static const demoDrivers = [DriverModel(id:1,name:'Руденко Петро',defaultVehicleId:1)];
-  static const demoTemplates = [
+  static final demoTemplates = [
     TemplateModel(id:1,name:'Бажана + Соборний',warehouse:'Розумовського',temperature:'FRESH',useCount:3,stores:[demoStores[0],demoStores[1]])
   ];
   static final demoRoutes = [
