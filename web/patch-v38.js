@@ -16,7 +16,6 @@
     password.setAttribute('autocomplete','current-password');
   }
 
-  // Browsers/password managers recognize an actual form more reliably than loose inputs.
   if(formBox && !formBox.querySelector('form')){
     const fields=[email,password,formBox.querySelector('button.btn')].filter(Boolean);
     if(fields.length){
@@ -37,10 +36,15 @@
     }
   }
 
-  // Keep the existing Supabase access token between app launches.
   try{
     if(window.token && !localStorage.getItem('trts_token')) localStorage.setItem('trts_token',window.token);
   }catch(e){}
+
+  const updateBtn=document.getElementById('trts-update');
+  if(updateBtn){
+    const span=updateBtn.querySelector('span');
+    if(span) span.textContent='TEST · '+BUILD;
+  }
 
   document.documentElement.dataset.trtsBuild=BUILD;
 })();
