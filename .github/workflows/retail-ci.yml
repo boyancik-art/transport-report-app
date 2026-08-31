@@ -1,0 +1,30 @@
+name: Retail Transport Control CI
+
+on:
+  push:
+    branches: [transport-control-retail-v1]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Ensure web platform exists
+        run: flutter create . --platforms=web --project-name transport_report_app --org com.transportreport
+      - name: Remove generated test
+        run: rm -rf test
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Analyze Retail app
+        run: flutter analyze lib/main.dart lib/retail_main.dart --no-fatal-warnings --no-fatal-infos
+      - name: Build Retail web demo
+        run: flutter build web --release
