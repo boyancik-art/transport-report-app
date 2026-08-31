@@ -11,40 +11,21 @@ permissions:
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: actions/setup-node@v4
         with:
-          channel: stable
-          cache: true
-      - name: Ensure web platform exists
-        run: flutter create . --platforms=web --project-name transport_report_app --org com.transportreport
-      - name: Apply Transport Report TS branding
-        run: bash tool/apply_branding.sh
-      - name: Remove generated default test
-        run: rm -rf test
-      - name: Install dependencies
-        run: flutter pub get
-      - name: Build web preview
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-        run: |
-          if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_ANON_KEY" ]; then
-            flutter build web --release --base-href /transport-report-app/ \
-              --dart-define=SUPABASE_URL="$SUPABASE_URL" \
-              --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
-          else
-            echo "Supabase secrets are not set; building demo mode."
-            flutter build web --release --base-href /transport-report-app/
-          fi
+          node-version: 22
+      - name: Build Transport Report TS PWA
+        working-directory: web
+        run: npm run build
       - name: Disable Jekyll
-        run: touch build/web/.nojekyll
+        run: touch web/dist/.nojekyll
       - name: Publish to gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./build/web
+          publish_dir: ./web/dist
           publish_branch: gh-pages
           force_orphan: true
