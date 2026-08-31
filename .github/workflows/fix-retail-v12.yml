@@ -1,0 +1,39 @@
+name: Fix Retail v1.2 build
+
+on:
+  push:
+    branches: [transport-control-retail-v1]
+    paths: ['.github/workflows/fix-retail-v12.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: transport-control-retail-v1
+      - name: Fix demo template initializer
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('lib/retail_main.dart')
+          s=p.read_text()
+          old='  static const demoTemplates = ['
+          new='  static final demoTemplates = ['
+          if old not in s:
+              print('Already fixed')
+          else:
+              p.write_text(s.replace(old,new,1))
+          PY
+      - name: Commit fix
+        run: |
+          if git diff --quiet -- lib/retail_main.dart; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/retail_main.dart
+          git commit -m "fix: Retail v1.2 demo template initializer"
+          git push origin HEAD:transport-control-retail-v1
