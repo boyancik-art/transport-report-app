@@ -26,6 +26,21 @@ jobs:
           cache: true
       - name: Ensure web platform exists
         run: flutter create . --platforms=web --project-name transport_report_app --org com.transportreport
+      - name: Prepare Flutter base href placeholder
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('web/index.html')
+          s=p.read_text()
+          if '$FLUTTER_BASE_HREF' not in s:
+              if '<base href="/">' in s:
+                  s=s.replace('<base href="/">','<base href="$FLUTTER_BASE_HREF">',1)
+              elif '<head>' in s:
+                  s=s.replace('<head>','<head>\n  <base href="$FLUTTER_BASE_HREF">',1)
+              else:
+                  raise SystemExit('Cannot add Flutter base href placeholder')
+              p.write_text(s)
+          PY
       - name: Remove generated test
         run: rm -rf test
       - name: Install dependencies
