@@ -1,0 +1,29 @@
+(()=>{
+const css=`
+body{background:radial-gradient(circle at 15% 0%,#f7f2ef 0,#f2f0ee 28%,#eceff2 70%,#e8ebee 100%)!important;background-attachment:fixed!important}
+.top{background:linear-gradient(135deg,#17191d 0%,#252a31 72%,#3a2027 100%)!important;box-shadow:0 10px 30px #11131820!important}
+.card,.route-card,.route-card-v19,.fact-editor,.address-card,.cost-card,.day-card,.tt-card,.doc-card-v17{background:rgba(255,255,255,.94)!important;border-color:#ffffffb8!important;box-shadow:0 14px 35px #1b202912,0 2px 8px #1b20290a!important;backdrop-filter:blur(12px)}
+.filters .data-controls select,.filters .data-controls input{background:rgba(255,255,255,.94)!important;box-shadow:0 7px 20px #1b20290a!important}
+.route-card-v19{position:relative!important}.route-select{position:absolute;top:12px;right:12px;width:23px;height:23px;accent-color:var(--accent);z-index:5}.route-card-v19.has-picker .route-top{padding-right:38px}.tariff-group-badge{display:inline-flex;margin-top:7px;padding:5px 8px;border-radius:999px;background:#efe6e8;color:#8b2030;font-size:10px;font-weight:900}.group-tariff-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:67px;width:min(538px,calc(100% - 22px));z-index:45;background:#191c21f2;color:#fff;border:1px solid #ffffff18;border-radius:18px;padding:11px;box-shadow:0 18px 45px #0004;backdrop-filter:blur(18px);display:none}.group-tariff-bar.show{display:block}.group-tariff-top{display:flex;justify-content:space-between;gap:8px;align-items:center}.group-tariff-top b{font-size:13px}.group-tariff-actions{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:8px}.group-tariff-actions input{width:100%;border:1px solid #ffffff26;border-radius:11px;padding:11px;background:#ffffff12;color:#fff}.group-tariff-actions input::placeholder{color:#ffffff88}.group-tariff-actions button{border:0;border-radius:11px;padding:0 14px;background:var(--accent);color:#fff;font-weight:900}.group-clear{border:0;background:transparent;color:#ffffffaa;font-size:12px;cursor:pointer}
+`;
+const st=document.createElement('style');st.textContent=css;document.head.appendChild(st);
+
+// Compatibility for older renderers that still reference the original global `date` element.
+const oldGo=go;
+go=function(...args){const d=document.getElementById('d20')||document.getElementById('date');if(d)window.date=d;else if(!window.date)window.date={value:new Date().toISOString().slice(0,10)};return oldGo(...args)};
+const oldLoadAll=loadAll;
+loadAll=async function(...args){const d=document.getElementById('d20')||document.getElementById('date');if(d)window.date=d;else if(!window.date)window.date={value:new Date().toISOString().slice(0,10)};return oldLoadAll(...args)};
+
+const selected=new Set();
+function factByRoute(id){return (D.facts||[]).find(f=>Number(f.route_id)===Number(id))||{}}
+function ensureBar(){let bar=document.getElementById('tariffGroupBar');if(bar)return bar;bar=document.createElement('div');bar.id='tariffGroupBar';bar.className='group-tariff-bar';bar.innerHTML=`<div class="group-tariff-top"><b id="tariffGroupCount">0 маршрутів вибрано</b><button class="group-clear" onclick="clearTariffSelection()">Очистити</button></div><div class="group-tariff-actions"><input id="sharedTariff" type="number" inputmode="decimal" step="0.01" placeholder="Спільний тариф, грн"><button onclick="combineTariffRoutes()">Об’єднати</button></div>`;document.body.appendChild(bar);return bar}
+function refreshBar(){const bar=ensureBar(),n=selected.size;bar.classList.toggle('show',n>0);const c=document.getElementById('tariffGroupCount');if(c)c.textContent=`${n} маршрут${n===1?'':'ів'} вибрано`}
+window.clearTariffSelection=function(){selected.clear();document.querySelectorAll('.route-select').forEach(x=>x.checked=false);refreshBar()};
+function decorateRoutes(){ensureBar();document.querySelectorAll('.route-card-v19').forEach(card=>{if(card.querySelector('.route-select'))return;const m=(card.getAttribute('onclick')||'').match(/routeCard\((\d+)\)/);if(!m)return;const id=Number(m[1]);card.classList.add('has-picker');const cb=document.createElement('input');cb.type='checkbox';cb.className='route-select';cb.checked=selected.has(id);cb.onclick=e=>{e.stopPropagation();cb.checked?selected.add(id):selected.delete(id);refreshBar()};card.appendChild(cb);const f=factByRoute(id);if(f.tariff_group_id){const b=document.createElement('div');b.className='tariff-group-badge';b.textContent='Спільний тариф';const top=card.querySelector('.route-top');(top||card).after(b)}});refreshBar()}
+const oldLogistics=logistics;
+logistics=function(){const r=oldLogistics();decorateRoutes();return r};
+
+window.combineTariffRoutes=async function(){try{const ids=[...selected];if(ids.length<2){alert('Оберіть щонайменше 2 маршрути');return}const routes=(D.routes||[]).filter(r=>ids.includes(Number(r.id))),dates=[...new Set(routes.map(r=>r.route_date))];if(dates.length>1){alert('Об’єднувати під один тариф можна маршрути одного дня');return}const tariff=Number(document.getElementById('sharedTariff')?.value);if(!Number.isFinite(tariff)||tariff<=0){alert('Вкажіть спільний тариф');return}const groupId=crypto.randomUUID();const rows=ids.map(route_id=>{const f=factByRoute(route_id);return{route_id,tariff_group_id:groupId,tariff,driver_name:f.driver_name||null,vehicle_number:f.vehicle_number||null,carrier_name:f.carrier_name||null,wave:f.wave||null,tariff_unknown:false}});await api('/rest/v1/route_facts?on_conflict=route_id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify(rows)});selected.clear();await loadAll();alert('Маршрути об’єднано під один тариф')}catch(e){alert('Не вдалося об’єднати маршрути: '+e.message)}};
+
+setTimeout(()=>{const d=document.getElementById('d20')||document.getElementById('date');if(d)window.date=d;if(page==='logistics')decorateRoutes()},0);
+})();
