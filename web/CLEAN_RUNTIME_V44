@@ -1,0 +1,4 @@
+clean-runtime-v44
+source-build=43.7
+legacy-origin-cache=isolated
+service-worker=disabled
