@@ -60,8 +60,16 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy web/dist --project-name=transport-report-ts-web --branch=cloudflare-migration
 
-      - name: Verify current production HTTPS site
+      - name: Verify production is v43.7
         run: |
-          curl --fail --show-error --silent --location --retry 6 --retry-all-errors --retry-delay 10 --connect-timeout 10 --max-time 20 https://transport-report-ts-web.pages.dev/ -o /tmp/pages-index.html
-          grep -qi 'Transport Report' /tmp/pages-index.html
-          echo 'Current Cloudflare production verified: https://transport-report-ts-web.pages.dev'
+          for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+            curl --fail --show-error --silent --location --connect-timeout 10 --max-time 20 "https://transport-report-ts-web.pages.dev/?verify=437-${GITHUB_SHA}-${i}" -o /tmp/pages-index.html || true
+            if grep -q '<meta name="trts-build" content="43.7">' /tmp/pages-index.html; then
+              echo 'Cloudflare production verified: v43.7'
+              exit 0
+            fi
+            echo "Production not v43.7 yet; retry ${i}/12"
+            sleep 10
+          done
+          echo 'ERROR: Cloudflare production did not switch to v43.7'
+          exit 1
