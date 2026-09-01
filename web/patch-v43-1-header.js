@@ -1,7 +1,7 @@
 (()=>{
 const fmt=s=>{const m=String(s||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?`${m[3]}.${m[2]}.${m[1]}`:String(s||'')};
 function clean(){
- const old=document.querySelector('#v43-period');if(old)old.style.display='none';
+ const legacyDate=document.getElementById('date');if(document.getElementById('v43-period'))legacyDate?.closest('.filters')?.classList.add('v435-legacy-period');
  const view=document.getElementById('view')||document.getElementById('content');if(!view)return;
  const screen=view.querySelector('.v43-screen');if(screen){screen.querySelectorAll('.v43-head small').forEach(x=>{if(/Реальні дані/i.test(x.textContent||''))x.style.display='none'})}
  const date=document.querySelector('input[type="date"]');
@@ -9,11 +9,38 @@ function clean(){
  if(legacy){const next=legacy.textContent.replace(/(\d{4})-(\d{2})-(\d{2})/g,(_,y,m,d)=>`${d}.${m}.${y}`);if(legacy.textContent!==next)legacy.textContent=next;legacy.classList.add('v431-realdata')}
  const upd=[...document.querySelectorAll('button')].find(x=>/^Оновити$/i.test((x.textContent||'').trim()));if(upd)upd.classList.add('v431-refresh');
  if(date){date.setAttribute('lang','uk-UA');date.classList.add('v431-date')}
- const b=document.getElementById('trts-update');if(b&&b.textContent!=='TEST · v43.4')b.textContent='TEST · v43.4';
+ const b=document.getElementById('trts-update');if(b&&b.textContent!=='TEST · v43.5')b.textContent='TEST · v43.5';
 }
 const css=`.v431-refresh{background:linear-gradient(135deg,#7040ff,#994cff)!important;border-color:#8552ff!important;color:#fff!important}.v431-realdata{background:#111925!important;color:#c7b5ff!important;border:1px solid #30394a!important;border-radius:12px!important;box-shadow:none!important}.v431-date{color-scheme:dark}.v43-head>div>small{display:none!important}`;
 const formsCss='.trts-modal-open{overflow:hidden!important}\n.trts-modal-open header.top,.trts-modal-open #trts-update{visibility:hidden!important}\n#v43-modal,#v431-modal{position:fixed;inset:0;z-index:200000;isolation:isolate}\n.v43-modal-bg,.v431-modal-bg{inset:0;align-items:flex-end;padding-top:env(safe-area-inset-top)}\n.v43-modal,.v431-modal{height:auto;max-height:calc(var(--trts-viewport-height,100dvh) - 12px);display:flex;flex-direction:column;overflow:hidden;min-height:0;padding:16px 16px max(12px,env(safe-area-inset-bottom));border-radius:22px 22px 0 0}\n.v43-modal-head,.v431-modal-head,.v43-modal-actions,.v431-modal-actions{flex:none;background:#101722;position:relative;z-index:1}\n.v43-modal-body,.v431-modal-body{min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;flex:1 1 auto;margin:12px 0;padding-bottom:14px;scroll-padding:12px}\n.v43-modal-actions,.v431-modal-actions{padding-top:10px;border-top:1px solid #303a4a;flex-wrap:wrap}\n.v43-modal button,.v431-modal button{min-height:44px;cursor:pointer}\n.v43-modal input,.v43-modal select,.v431-modal input,.v431-modal select{font-size:16px!important}\n.v43-modal button:disabled,.v431-modal button:disabled{opacity:.5;cursor:wait}\n.v433-full,.v433-error{grid-column:1/-1}\n.v433-error{color:#ffabab;font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0}\n.v433-label{color:#a8b1c0;font-size:11px}\n.v433-select{background:#0d131d;margin-top:5px;padding:0!important;border:1px solid #303a4a;border-radius:11px}\n.v433-select summary{padding:12px;color:#fff;font-size:16px;cursor:pointer;overflow-wrap:anywhere}\n.v433-select .v43-checks{border:0;max-height:220px;margin:0;box-shadow:none}\n.v433-select .v43-checks label{min-height:44px}\n.v433-select>button{margin:8px;width:calc(100% - 16px)}\n.v433-edit,.v431-edit-transport{display:block;width:100%;margin-top:12px;min-height:44px;font-size:12px!important}\n.v433-delivery>label{display:grid;gap:6px;color:#a8b1c0}\n.v433-delivery select,.v433-tariff-row input{width:100%;min-width:0;box-sizing:border-box;background:#0d131d;border:1px solid #303a4a;color:#fff;border-radius:11px;padding:11px}\n.v433-tariff-group{border:1px solid #303a4a;border-radius:14px;padding:12px;margin:10px 0}\n.v433-tariff-row{display:grid;grid-template-columns:minmax(0,1fr) 112px;gap:10px;align-items:center}\n.v433-tariff-row b,.v433-members b{font-size:13px;overflow-wrap:anywhere}\n.v433-tariff-row small,.v433-members small,.v433-delivery-choice small{display:block;color:#a8b1c0;font-size:11px;margin-top:4px}\n.v433-tariff-row label{font-size:11px;color:#a8b1c0}\n.v433-tariff-row input{margin-top:5px}\n.v433-add-shared,.v433-open-delivery{margin-top:10px;width:100%;border:1px solid #644691;border-radius:10px;color:#e4d3ff;background:#171326;padding:10px;font-size:12px}\n.v433-members>div{border-top:1px solid #303a4a;margin-top:10px;padding-top:9px}\n.v433-shared-options{border-top:1px solid #303a4a;margin-top:10px;padding-top:10px}\n.v433-shared-options label{display:flex;gap:9px;align-items:center;padding:9px 0;min-height:44px}\n.v433-shared-options input{width:20px;flex:none}\n.v433-shared-options small{display:block;color:#a8b1c0;font-size:10px}\n.v433-shared-options>button{width:100%;margin-top:8px}\n.v433-delivery-choice{width:100%;display:block;text-align:left;border:1px solid #303a4a;border-radius:12px;background:#0d131d;color:#fff;padding:12px;margin-bottom:9px}\n.v431-ckpi{position:static!important;z-index:auto!important}\n.v433-tariff-row>div,.v43-two>div{min-width:0;overflow-wrap:anywhere}\n@media(max-width:360px){.v433-tariff-row{grid-template-columns:1fr}.v43-modal,.v431-modal{padding-left:12px;padding-right:12px}}\n';
-let s=document.createElement('style');s.textContent=css+formsCss;document.head.appendChild(s);
+const layoutCss=`.v435-legacy-period{display:none!important}
+#v43-period{display:block;position:static;box-sizing:border-box}
+.v43-custom{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.v43-custom label{display:grid;gap:5px;font-size:12px;color:#a8b1c0;min-width:0}
+.v43-custom input{box-sizing:border-box;min-width:0;font-size:16px;min-height:44px;color-scheme:dark}
+.v43-custom button{grid-column:1/-1;min-height:44px}
+.v435-period-status{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:8px}
+.v435-period-status small{font-size:12px;margin:0}
+.v435-period-status button{min-height:40px}
+.v43-period-buttons button{min-height:44px}
+.v435-delivered-edit{display:block;width:100%;margin-top:10px;min-height:44px;padding:11px;border:1px solid #446f5d!important;border-radius:12px;background:#11281f!important;color:#9ae5be!important;font-size:13px;font-weight:700;cursor:pointer}
+.v435-tt-address{font-size:14px;line-height:1.5;color:#aab5c6;margin:8px 0 14px;overflow-wrap:anywhere;white-space:normal}
+.v43-route-detail h2{overflow-wrap:anywhere;margin-bottom:8px}
+.pk-detail-head+.pk-route{padding:16px!important;border-radius:20px;cursor:default}
+.pk-detail-head+.pk-route .pk-topline{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12px;margin-bottom:12px;align-items:baseline}
+.pk-detail-head+.pk-route .pk-topline b{font-size:17px;overflow-wrap:anywhere}
+.pk-detail-head+.pk-route .pk-exp{font-size:18px!important;line-height:1.35;padding:14px 52px 14px 13px;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;border-radius:13px}
+.pk-detail-head+.pk-route .pk-switch{width:38px;height:38px;font-size:22px;border-radius:10px}
+.pk-detail-head+.pk-route .pk-warehouse,.pk-detail-head+.pk-route .pk-three>div,.pk-detail-head+.pk-route .pk-sum{padding:12px!important;border-radius:12px;min-width:0}
+.pk-detail-head+.pk-route .pk-warehouse,.pk-detail-head+.pk-route .pk-three,.pk-detail-head+.pk-route .pk-sum{margin-top:10px}
+.pk-detail-head+.pk-route .pk-three{gap:8px;grid-template-columns:repeat(3,minmax(0,1fr))}
+.pk-detail-head+.pk-route .pk-lab{font-size:11px;line-height:1.3}
+.pk-detail-head+.pk-route .pk-val{font-size:18px;line-height:1.3;margin-top:5px;overflow-wrap:anywhere}
+.pk-detail-head+.pk-route .pk-sum .pk-val{font-size:22px}
+.pk-detail-head .pk-detail-title{font-size:18px}
+.pk-detail-head .pk-detail-id{font-size:12px;margin-top:3px}
+`;
+let s=document.createElement('style');s.textContent=css+formsCss+layoutCss;document.head.appendChild(s);
 let scheduled=false;const schedule=()=>{if(scheduled)return;scheduled=true;setTimeout(()=>{scheduled=false;clean()},40)};
 const viewport=()=>document.documentElement.style.setProperty('--trts-viewport-height',(window.visualViewport?.height||innerHeight)+'px');viewport();window.visualViewport?.addEventListener('resize',viewport);
 new MutationObserver(schedule).observe(document.body,{childList:true,subtree:true});setTimeout(clean,250);
