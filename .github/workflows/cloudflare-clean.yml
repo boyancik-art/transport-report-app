@@ -1,0 +1,75 @@
+name: Cloudflare Clean Runtime
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - clean-runtime-v44
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build web app
+        working-directory: web
+        run: npm run build
+
+      - name: Disable legacy service worker in clean stream
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('web/dist/index.html')
+          s=p.read_text()
+          s=s.replace("navigator.serviceWorker.register('./sw.js?v=4373')","navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister()))")
+          s=s.replace("navigator.serviceWorker.register('/sw.js')","navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister()))")
+          s=s.replace('<meta name="trts-runtime-lock" content="4373">','<meta name="trts-runtime-lock" content="clean-v44">')
+          p.write_text(s)
+          PY
+
+      - name: Create clean Cloudflare Pages project if needed
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          node --input-type=module <<'NODE'
+          const base='https://api.cloudflare.com/client/v4/accounts/'+process.env.CLOUDFLARE_ACCOUNT_ID+'/pages/projects';
+          const headers={Authorization:'Bearer '+process.env.CLOUDFLARE_API_TOKEN,'Content-Type':'application/json'};
+          const name='transport-report-ts-clean';
+          const r=await fetch(base+'/'+name,{headers});
+          const j=await r.json();
+          if(r.ok&&j.success){console.log('Clean Pages project exists');process.exit(0)}
+          const c=await fetch(base,{method:'POST',headers,body:JSON.stringify({name,production_branch:'clean-runtime-v44'})});
+          const cj=await c.json();
+          if(!c.ok||!cj.success)throw new Error(JSON.stringify(cj.errors));
+          console.log('Clean Pages project created');
+          NODE
+
+      - name: Deploy isolated clean production
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy web/dist --project-name=transport-report-ts-clean
+
+      - name: Verify clean runtime
+        run: |
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            curl --fail --silent --location -H 'Cache-Control: no-cache, no-store' \
+              "https://transport-report-ts-clean.pages.dev/?verify=clean-v44-${GITHUB_SHA}-${i}" -o /tmp/clean.html || true
+            if grep -q '<meta name="trts-build" content="43.7">' /tmp/clean.html \
+              && grep -q '<meta name="trts-runtime-lock" content="clean-v44">' /tmp/clean.html; then
+              echo 'Clean runtime verified'; exit 0
+            fi
+            sleep 8
+          done
+          echo 'Clean runtime verification failed'; exit 1
