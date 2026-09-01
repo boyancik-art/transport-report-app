@@ -1,4 +1,4 @@
-const CACHE='transport-report-ts-v43-7-pickup';
+const CACHE='transport-report-ts-v43-7-pickup-cf2';
 const ASSETS=['./manifest.webmanifest?v=437','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).catch(()=>{}));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));self.clients.claim()});
