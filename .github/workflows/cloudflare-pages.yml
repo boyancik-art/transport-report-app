@@ -53,3 +53,12 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy web/dist --project-name=transport-report-ts-web --branch=cloudflare-migration
+
+      - name: Verify published HTTPS site
+        run: |
+          curl --fail --show-error --silent --location --retry 6 --retry-all-errors --retry-delay 10 --connect-timeout 10 --max-time 20 https://transport-report-ts-web.pages.dev/ -o /tmp/pages-index.html
+          grep -qi 'Transport Report' /tmp/pages-index.html
+          echo 'HTTPS and application HTML verified: https://transport-report-ts-web.pages.dev'
+          curl --fail --show-error --silent --location --connect-timeout 10 --max-time 20 https://937024cd.transport-report-ts-web.pages.dev/ -o /tmp/original-deploy.html
+          grep -qi 'Transport Report' /tmp/original-deploy.html
+          echo 'Original deployment HTTPS verified'
