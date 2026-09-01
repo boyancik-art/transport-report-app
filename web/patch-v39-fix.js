@@ -42,8 +42,6 @@
     if(l&&a&&hasToken){l.classList.add('hide');l.style.display='none';a.classList.remove('hide')}
     if(!hasToken&&l){l.style.removeProperty('display');l.classList.remove('hide')}
     fixLogo();
-    const u=document.getElementById('trts-update');
-    if(u){const s=u.querySelector('span');if(s)s.textContent='TEST · v39'}
   }
 
   async function fallbackLoad(){
