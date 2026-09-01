@@ -24,6 +24,12 @@ jobs:
         working-directory: web
         run: npm run build
 
+      - name: Test mobile operation flows
+        run: |
+          npm install --prefix /tmp/trts-ui-tests --no-package-lock playwright@1.58.2
+          /tmp/trts-ui-tests/node_modules/.bin/playwright install --with-deps chromium
+          TRTS_PLAYWRIGHT_MODULE=/tmp/trts-ui-tests/node_modules/playwright node tool/mobile-regression.cjs
+
       - name: Ensure Cloudflare Pages project exists
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -62,3 +68,4 @@ jobs:
           curl --fail --show-error --silent --location --connect-timeout 10 --max-time 20 https://937024cd.transport-report-ts-web.pages.dev/ -o /tmp/original-deploy.html
           grep -qi 'Transport Report' /tmp/original-deploy.html
           echo 'Original deployment HTTPS verified'
+

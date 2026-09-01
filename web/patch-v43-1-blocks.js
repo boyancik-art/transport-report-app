@@ -1,5 +1,5 @@
 (()=>{
-const BUILD='v43.1';
+const BUILD='v43.3';
 const T=v=>String(v??'').trim();
 const E=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const N=v=>{const x=Number(String(v??'').replace(',','.'));return Number.isFinite(x)?x:0};
@@ -12,7 +12,7 @@ function isPickup(r){return /самовивіз/i.test(cov(r))}
 function pts(r){return(dat().points||[]).filter(p=>+p.route_id===+r.id)}
 function docs(r){return(dat().docs||[]).filter(d=>T(d.route_delivery_id)===T(r.route_delivery_id))}
 function metrics(r){const ds=docs(r),ps=pts(r);return{tt:ps.length,pal:ds.reduce((s,x)=>s+N(x.pallets),0)||ps.reduce((s,x)=>s+N(x.pallets),0),bottles:ds.reduce((s,x)=>s+N(x.bottles),0)||ps.reduce((s,x)=>s+N(x.bottles),0),weight:ds.reduce((s,x)=>s+N(x.weight),0)||ps.reduce((s,x)=>s+N(x.weight),0),sum:ds.reduce((s,x)=>s+N(x.order_amount),0)||N(r.total_order_amount)}}
-function pickupCard(r){const m=metrics(r),wh=T(r.warehouse)||'—';return`<article class="v431-pickup-card" onclick="${typeof window.v412Route==='function'?`v412Route(${r.id})`:'void 0'}"><div class="v431-cardtop"><div><small>${E(r.route_date||'')}</small><b>${E(r.route_delivery_id||r.id)}</b></div><span>Самовивіз</span></div><div class="v431-exp"><small>Експедитор</small><b>${E(r.expeditor_name||'Самовивіз')}</b></div><div class="v431-cell"><small>Склад відвантаження</small><b>${E(wh)}</b></div><div class="v431-four"><div><small>ТТ</small><b>${m.tt}</b></div><div><small>Пал</small><b>${F(m.pal,3)}</b></div><div><small>Пляшки</small><b>${F(m.bottles)}</b></div><div><small>КГ</small><b>${F(m.weight,1)}</b></div></div><div class="v431-sum"><small>Сума маршруту</small><b>${M(m.sum)}</b></div></article>`}
+function pickupCard(r){const m=metrics(r),wh=window.v433Warehouse?.(r.warehouse)||T(r.warehouse)||'—';return`<article class="v431-pickup-card" onclick="${typeof window.v412Route==='function'?`v412Route(${r.id})`:'void 0'}"><div class="v431-cardtop"><div><small>${E(r.route_date||'')}</small><b>${E(r.route_delivery_id||r.id)}</b></div><span>Самовивіз</span></div><div class="v431-exp"><small>Експедитор</small><b>${E(r.expeditor_name||'Самовивіз')}</b></div><div class="v431-cell"><small>Склад відвантаження</small><b>${E(wh)}</b></div><div class="v431-four"><div><small>ТТ</small><b>${m.tt}</b></div><div><small>Пал</small><b>${F(m.pal,3)}</b></div><div><small>Пляшки</small><b>${F(m.bottles)}</b></div><div><small>КГ</small><b>${F(m.weight,1)}</b></div></div><div class="v431-sum"><small>Сума маршруту</small><b>${M(m.sum)}</b></div></article>`}
 function blockHeader(key,title,count){return`<button class="v431-block-head" onclick="v431Toggle('${key}')"><div><b>${title}</b><small>${count} за вибраний період</small></div><span>${state[key]?'Згорнути ︿':'Розгорнути ﹀'}</span></button>`}
 window.v431Toggle=key=>{state[key]=!state[key];localStorage['v431_'+key]=state[key]?'1':'0';enhance(true)};
 function enhance(force=false){const screen=document.querySelector('.v43-screen');if(!screen)return;if(screen.dataset.v431==='1'&&!force)return;
