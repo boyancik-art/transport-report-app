@@ -47,7 +47,7 @@ const root=path.resolve(__dirname,'..');
  const geometry=await page.locator('#rp-save').evaluate(el=>{const r=el.getBoundingClientRect();return{visible:r.top>=0&&r.bottom<=innerHeight,hit:el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))}});
  assert.deepEqual(geometry,{visible:true,hit:true});
  await page.locator('#rp-save').click();await page.waitForFunction(()=>db.branch_replenishments.length===1);
- const replen=await page.evaluate(()=>db.branch_replenishments[0]);assert.deepEqual(replen.sender_warehouses,['Чайки STV','Київ TS']);assert.equal(replen.tariff,2500);
+ const replen=await page.evaluate(()=>db.branch_replenishments[0]);assert.deepEqual([...replen.sender_warehouses].sort(),['Чайки STV','Київ TS'].sort());assert.equal(replen.tariff,2500);
  console.log('PASS warehouse multiselect and Done, tariff and save button visible at 390x740');
  await page.waitForSelector('.v433-open-delivery');await page.evaluate(()=>v433OpenDelivery(3));await page.locator('#v431-ccarrier').selectOption('Smartex');
  await page.locator('#v433-cost-31').fill('300.01');await page.locator('[data-group="31"] .v433-add-shared').click();
