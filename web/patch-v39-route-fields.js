@@ -1,0 +1,12 @@
+(()=>{
+ const txt=v=>String(v??'').trim();
+ const coverage=r=>window.TRTS_V39_EXPEDITOR_COVERAGE?.[txt(r?.expeditor_name)]||'';
+ const section=r=>{const c=coverage(r);if(c==='STV'||c==='SAV')return c;if(c==='ФОП'||c==='TS')return'ФОП/TS';if(['Пекарня','Фреш','TS/Пекарня'].includes(c))return'Пекарня/Фреш';if(c==="Кур'єр"||c==='Кур’єр')return'Кур’єрські відправлення';if(c==='Самовивіз')return'Самовивози';return'База'};
+ const warehouse=r=>txt(r?.warehouse)||'—';
+ const region=r=>{const s=section(r),w=warehouse(r),e=txt(r?.expeditor_name);if(/Київ/i.test(w)||/м\.\s*Київ/i.test(e))return'Київ';if(s==='SAV'){if(/Біл[ао] Церк/i.test(w)||/Біл[ао] Церк/i.test(e))return'Білоцерківський район';if(/Уман/i.test(e))return'Уманський район'}return'—'};
+ function appendInfo(root,r){if(!root||root.querySelector('.v39-extra-route'))return;const box=document.createElement('div');box.className='grid39 v39-extra-route';box.innerHTML=`<div class="mini39"><label>Склад відвантаження</label><b>${warehouse(r)}</b></div><div class="mini39"><label>Регіон покриття</label><b>${region(r)}</b></div>`;const exp=root.querySelector('.exp39');if(exp)exp.insertAdjacentElement('afterend',box)}
+ function fixRoute(rid){const r=(window.D?.routes||[]).find(x=>+x.id===+rid);if(!r)return;const root=document.querySelector('.route39');if(!root)return;const exp=root.querySelector('.exp39 b');if(exp)exp.textContent=txt(r.expeditor_name)||'—';appendInfo(root,r);const s=section(r);if(['STV','SAV','Самовивози','Кур’єрські відправлення'].includes(s)){root.querySelectorAll('.grid39 .mini39').forEach(x=>{const l=txt(x.querySelector('label')?.textContent);if(['Водій','Авто','Хвиля'].includes(l))x.remove()})}}
+ function fixList(){const routes=(window.D?.routes||[]).filter(r=>section(r)===(window.section||'База'));document.querySelectorAll('.route39').forEach((root,i)=>{const r=routes[i];if(!r)return;const exp=root.querySelector('.exp39 b');if(exp)exp.textContent=txt(r.expeditor_name)||'—';appendInfo(root,r);const s=section(r);if(['STV','SAV','Самовивози','Кур’єрські відправлення'].includes(s)){root.querySelectorAll('.grid39 .mini39').forEach(x=>{const l=txt(x.querySelector('label')?.textContent);if(['Водій','Авто','Хвиля'].includes(l))x.remove()})}})}
+ const oldRoute=window.v39Route;if(typeof oldRoute==='function')window.v39Route=function(id){const x=oldRoute(id);setTimeout(()=>fixRoute(id),0);return x};
+ const oldLog=window.logistics;if(typeof oldLog==='function')window.logistics=function(){const x=oldLog();setTimeout(fixList,0);return x};
+})();
