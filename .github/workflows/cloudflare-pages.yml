@@ -30,7 +30,7 @@ jobs:
           /tmp/trts-ui-tests/node_modules/.bin/playwright install --with-deps chromium
           TRTS_CAPTURE=1 TRTS_PLAYWRIGHT_MODULE=/tmp/trts-ui-tests/node_modules/playwright node tool/mobile-regression.cjs
 
-      - name: Ensure Cloudflare Pages project exists
+      - name: Ensure Cloudflare Pages production branch
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -39,37 +39,58 @@ jobs:
           const base = 'https://api.cloudflare.com/client/v4/accounts/' + process.env.CLOUDFLARE_ACCOUNT_ID + '/pages/projects';
           const headers = { Authorization: 'Bearer ' + process.env.CLOUDFLARE_API_TOKEN, 'Content-Type': 'application/json' };
           const name = 'transport-report-ts-web';
+          const desiredBranch = 'cloudflare-migration';
           const check = await fetch(base + '/' + name, { headers });
           const current = await check.json();
           if (check.ok && current.success) {
-            console.log('Pages project already exists');
+            const actual = current.result?.production_branch || '';
+            console.log('Current Pages production branch:', actual || '(unset)');
+            if (actual !== desiredBranch) {
+              const updated = await fetch(base + '/' + name, {
+                method: 'PATCH', headers,
+                body: JSON.stringify({ production_branch: desiredBranch })
+              });
+              const result = await updated.json();
+              if (!updated.ok || !result.success) throw new Error('Pages production branch update failed: ' + JSON.stringify(result.errors));
+              console.log('Pages production branch updated to', desiredBranch);
+            } else {
+              console.log('Pages production branch already correct');
+            }
           } else if (current.errors?.some(e => e.code === 8000007)) {
-            const created = await fetch(base, { method: 'POST', headers, body: JSON.stringify({ name, production_branch: 'cloudflare-migration' }) });
+            const created = await fetch(base, { method: 'POST', headers, body: JSON.stringify({ name, production_branch: desiredBranch }) });
             const result = await created.json();
             if (!created.ok || !result.success) throw new Error('Pages project creation failed: ' + JSON.stringify(result.errors));
-            console.log('Pages project created');
+            console.log('Pages project created with production branch', desiredBranch);
           } else {
             throw new Error('Pages project lookup failed: ' + JSON.stringify(current.errors));
           }
           NODE
 
-      - name: Deploy to Cloudflare Pages
+      - name: Deploy to Cloudflare Pages production
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy web/dist --project-name=transport-report-ts-web --branch=cloudflare-migration
+          command: pages deploy web/dist --project-name=transport-report-ts-web
 
-      - name: Verify production is v43.7
+      - name: Verify production is exact v43.7 runtime
         run: |
+          rm -f /tmp/pages-index.html
           for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
-            curl --fail --show-error --silent --location --connect-timeout 10 --max-time 20 "https://transport-report-ts-web.pages.dev/?verify=437-${GITHUB_SHA}-${i}" -o /tmp/pages-index.html || true
-            if grep -q '<meta name="trts-build" content="43.7">' /tmp/pages-index.html; then
-              echo 'Cloudflare production verified: v43.7'
+            curl --fail --show-error --silent --location --connect-timeout 10 --max-time 20 \
+              -H 'Cache-Control: no-cache, no-store, must-revalidate' \
+              "https://transport-report-ts-web.pages.dev/?verify=4372-${GITHUB_SHA}-${i}" \
+              -o /tmp/pages-index.html || true
+            if grep -q '<meta name="trts-build" content="43.7">' /tmp/pages-index.html \
+              && grep -q '<meta name="trts-runtime-lock" content="4372">' /tmp/pages-index.html \
+              && grep -q 'patch-v43-7-pickup-cards.js?v=4372' /tmp/pages-index.html; then
+              echo 'Cloudflare production verified: exact v43.7 runtime 4372'
               exit 0
             fi
-            echo "Production not v43.7 yet; retry ${i}/12"
+            echo "Production not exact v43.7 runtime yet; retry ${i}/12"
             sleep 10
           done
-          echo 'ERROR: Cloudflare production did not switch to v43.7'
+          echo 'ERROR: Cloudflare production did not switch to exact v43.7 runtime'
+          echo 'Received markers:'
+          grep -Eo 'trts-(build|runtime-lock)[^>]*|patch-v43-7-pickup-cards.js[^\"<]*' /tmp/pages-index.html || true
           exit 1
