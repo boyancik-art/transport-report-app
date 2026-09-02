@@ -157,7 +157,20 @@ async function dashboard(frame,label){
     await frame.locator('#trts-update').waitFor();
     servedScripts.length=0;
     await Promise.all([frame.waitForNavigation({waitUntil:'load'}),frame.locator('#trts-update').click()]);
-    await frame.waitForFunction(build=>document.documentElement.dataset.trtsBuild===build,expected);
+    // Pages can switch the HTML edge before the runtime asset edge. Never accept
+    // a mixed release: retry a fresh document + the real Update action, then
+    // retain exact byte checks and every functional assertion below.
+    for(let attempt=0;attempt<4;attempt++){
+     try{await frame.waitForFunction(build=>document.documentElement.dataset.trtsBuild===build,expected);break}
+     catch(error){
+      console.log('Deployment propagation diagnostic',await frame.evaluate(()=>({runtime:document.documentElement.dataset.trtsBuild,meta:document.querySelector('meta[name="trts-build"]')?.content,scripts:[...document.scripts].filter(s=>s.src.includes('runtime')).map(s=>s.src)})));
+      if(attempt===3)throw error;
+      const fresh=new URL(frame.url());fresh.searchParams.set('release-check',Date.now());
+      await frame.goto(fresh.href,{waitUntil:'load'});await frame.locator('#trts-update').waitFor();
+      servedScripts.length=0;
+      await Promise.all([frame.waitForNavigation({waitUntil:'load'}),frame.locator('#trts-update').click()]);
+     }
+    }
     console.log('PASS deployed Update button reaches exact '+expected+' on '+scenario.name);
     for(const response of servedScripts){const file=path.join(dist,new URL(response.url()).pathname);if(fs.existsSync(file)){const delivered=await response.body(),built=fs.readFileSync(file);assert.ok(delivered.equals(built),'Deployed script differs from tested build: '+new URL(response.url()).pathname)}}
    }
