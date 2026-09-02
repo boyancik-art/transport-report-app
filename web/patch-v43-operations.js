@@ -147,7 +147,7 @@ window.v43SaveGroup=async()=>{
    if(!saved?.length)throw Error('Не підтверджено маршрут '+id);
    if(existing)Object.assign(existing,saved[0]);else (dat().facts??=[]).push(saved[0]);
   }
-  pendingGroup=null;selected.clear();selectGroup=false;v43CloseModal();await loadRange();
+  pendingGroup=null;selected.clear();selectGroup=false;await loadRange();v43CloseModal();
  }catch(e){err.textContent='Не завершено: '+e.message+'. Повторіть «Об’єднати».'}
  finally{groupSaving=false;if($('#tg-save'))$('#tg-save').disabled=false}
 };
