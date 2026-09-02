@@ -99,6 +99,12 @@ async function dashboard(frame,label){
  assert.equal(await frame.locator('#rp-receiver option').count(),3);
  assert.ok(await frame.locator('#rp-carrier option').count()>1);
  await frame.locator('#v43-modal').getByRole('button',{name:'Скасувати',exact:true}).click();
+ await frame.locator('#v442-nav').getByRole('button',{name:'Аналітика',exact:true}).click();await frame.locator('[data-analytics=local]').waitFor({state:'visible'});
+ assert.match(await frame.locator('#view').innerText(),/Самовивіз не включено/);await healthy(frame,label+' analytics');
+ await frame.locator('#v442-nav').getByRole('button',{name:'Довідник витрат',exact:true}).click();assert.equal(await frame.locator('#v441-finance-panel button').count(),4);
+ await frame.locator('#v442-nav').getByRole('button',{name:'Меню',exact:true}).click();assert.equal(await frame.locator('.v442-menu').count(),1);
+ await frame.locator('#v442-nav').getByRole('button',{name:'Дашборд',exact:true}).click();assert.equal(await frame.locator('.v442-dashboard-placeholder').count(),1);
+ await frame.locator('#v442-nav').getByRole('button',{name:'Маршрути',exact:true}).click();await frame.locator('.v431-fop').waitFor({state:'visible'});
 }
 (async()=>{
  const server=live?null:http.createServer((req,res)=>{
