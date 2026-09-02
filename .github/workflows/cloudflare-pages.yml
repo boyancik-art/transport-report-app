@@ -6,6 +6,10 @@ on:
     branches:
       - cloudflare-migration
 
+concurrency:
+  group: cloudflare-migration-test-deploy
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -28,6 +32,7 @@ jobs:
 
       - name: Test mobile operation flows
         run: |
+          node tool/logout-core.test.cjs
           node tool/release-boot.test.cjs
           node tool/xlsx-core.test.cjs
           node tool/finance-core.test.cjs

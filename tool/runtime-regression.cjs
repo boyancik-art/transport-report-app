@@ -185,7 +185,7 @@ async function dashboard(frame,label){
     await require('./security-flows.cjs')({page,context,frame:reloaded,handler:securityFixture.handle});
    }
    const logoutBaseline=logoutCalls;logoutFault=true;
-   await reloaded.evaluate(()=>logout());
+   await Promise.all([reloaded.waitForNavigation({waitUntil:'load'}),reloaded.evaluate(()=>{void logout()})]);
    await reloaded.locator('#loginForm').waitFor({state:'visible'});
    assert.equal(await reloaded.locator('#app').isVisible(),false);
    assert.equal(await reloaded.evaluate(()=>localStorage.getItem('trts_token')),null);

@@ -87,9 +87,11 @@
  }
  async function enroll(pin){
   if(!/^\d{4}$/.test(pin))throw Error('PIN має містити 4 цифри');
+  if(signingOut)throw Error('Сесію завершено');const generation=epoch;
   await identify();await refresh();if(!session)session={access_token:token,refresh_token:localStorage.trts_refresh||null};
   const old=vault(),secret=url64(crypto.getRandomValues(new Uint8Array(32))),result=await security('enroll',{pin,secret});
   const oldKey=key,newKey=await crypto.subtle.importKey('raw',un64(result.key),'AES-GCM',false,['encrypt','decrypt']);
+  if(signingOut||generation!==epoch)throw Error('Сесію завершено');
   try{key=newKey;localStorage.setItem(VAULT,JSON.stringify({id:result.id,secret,biometric:false}));await saveSession();window.TRTS_UNLOCKED=true;if(old){try{await security('disable',{deviceId:old.id,secret:old.secret})}catch{ /* Old key has no local ciphertext after successful rotation. */ }}}
   catch(e){key=oldKey;if(old)localStorage.setItem(VAULT,JSON.stringify(old));else localStorage.removeItem(VAULT);throw e}
  }
@@ -105,6 +107,6 @@
  setInterval(()=>{if(vault()&&!locked()&&Date.now()-activity>=config().minutes*60000)lock()},10000);
  window.TRTS_SECURITY={identify,profile:()=>profile,user:()=>userInfo,isAdmin:()=>profile?.active&&profile.role==='admin',isLocked:locked,enroll,changePin:async(oldPin,pin)=>{if(vault())await security("unlock",{pin:oldPin});return enroll(pin)},biometric,supported,vault,config,lock,saveConfig:value=>localStorage.setItem(CONFIG,JSON.stringify(value))};
  const startOriginal=window.start;
- window.start=async()=>{if(locked()){showLock();return}if(!profile)await identify();return startOriginal()};
+ window.start=async()=>{if(signingOut)return;if(locked()){showLock();return}if(!profile)await identify();return startOriginal()};
  if(locked())showLock();else if(typeof token!=='undefined'&&token){session={access_token:token,refresh_token:localStorage.trts_refresh||null};identify().catch(e=>{TRTS_OPS.view().innerHTML='<p class="v442-warning">'+E(e.message)+'</p>'})}
 })();
