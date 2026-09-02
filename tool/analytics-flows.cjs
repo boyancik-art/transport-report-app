@@ -27,6 +27,7 @@ module.exports=async({page,capture})=>{
  await page.locator('[data-section=sav]').getByRole('button',{name:'Без зони · 1',exact:true}).click();
  assert.equal(await page.locator('[data-section=sav] [data-route-id]').count(),1);
  assert.equal(await page.locator('[data-section=sav]').getByRole('button',{name:'Без зони · 1',exact:true}).getAttribute('aria-pressed'),'true');
+ const courierHead=page.locator('#v431-courier>.v431-courier-head');if(await courierHead.getAttribute('aria-expanded')==='false')await courierHead.click();
  for(const [key,carrier] of [['fop','ФОП Діденко'],['bakery','ФОП Різун'],['courier','Нова Пошта']]){await page.locator('[data-carrier-filter='+key+']').selectOption(carrier);await page.locator('[data-carrier-filter='+key+']').waitFor();assert.equal(await page.locator('[data-carrier-filter='+key+']').inputValue(),carrier);await page.locator('[data-carrier-filter='+key+']').selectOption('')}
  assert.match(await page.locator('#v431-courier .v436-route time').innerText(),/\d{2}\.\d{2}\.\d{4}/);
  await page.locator('#v442-nav').getByRole('button',{name:'Аналітика',exact:true}).click();await page.locator('[data-analytics=local]').waitFor();

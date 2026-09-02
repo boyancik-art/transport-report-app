@@ -130,6 +130,7 @@ async function loadRange(){
   if(request!==rangeSequence)return;lastImport=imported;importUnavailable=unavailable;lastLoaded=new Date().toISOString();periodBar();if(window.TRTS_APP)await window.TRTS_APP.afterLoad();else renderDashboard();return{ok:true,from:rangeFrom,to:rangeTo};
  }catch(e){
   if(request!==rangeSequence)return;
+  window.TRTS_APP?.failed(e.message);
   if(vv)vv.innerHTML='<div class="v43-empty" role="alert">Не вдалося завантажити вибраний період. '+E(e.message)+'<br><button onclick="v435Refresh()">Спробувати ще раз</button></div>';return{ok:false,error:e.message};
  }
 }
