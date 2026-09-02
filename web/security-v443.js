@@ -78,7 +78,7 @@
   await identify();await refresh();if(!session)session={access_token:token,refresh_token:localStorage.trts_refresh||null};
   const old=vault(),secret=url64(crypto.getRandomValues(new Uint8Array(32))),result=await security('enroll',{pin,secret});
   const oldKey=key,newKey=await crypto.subtle.importKey('raw',un64(result.key),'AES-GCM',false,['encrypt','decrypt']);
-  try{key=newKey;localStorage.setItem(VAULT,JSON.stringify({id:result.id,secret,biometric:false}));await saveSession();window.TRTS_UNLOCKED=true;if(old)await security('disable',{deviceId:old.id,secret:old.secret})}
+  try{key=newKey;localStorage.setItem(VAULT,JSON.stringify({id:result.id,secret,biometric:false}));await saveSession();window.TRTS_UNLOCKED=true;if(old){try{await security('disable',{deviceId:old.id,secret:old.secret})}catch{ /* Old key has no local ciphertext after successful rotation. */ }}}
   catch(e){key=oldKey;if(old)localStorage.setItem(VAULT,JSON.stringify(old));else localStorage.removeItem(VAULT);throw e}
  }
  async function biometric(enable){

@@ -20,3 +20,8 @@ html[data-theme=light] :is(.v43-screen,.v43-period-inner) :is(small,dt,p){color:
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
 
 .v436-detail-head,.v437-detail-head{grid-template-columns:38px minmax(0,1fr) auto!important}.v443-delete{font-size:12px!important;padding:8px!important;border:1px solid #934657!important;border-radius:10px;min-height:38px;background:#2b1925!important}
+
+html[data-theme=light] .v437-screen,html[data-theme=light] .v437-title,html[data-theme=light] .v437-detail-head{color:var(--v-text)!important}html[data-theme=light] .v437-screen :is(b,strong,button){color:var(--v-text)!important}
+
+#v43-period .v443-global-period .v43-period-buttons{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px!important}#v43-period .v443-global-period .v43-period-buttons button{padding:7px 4px!important;min-height:36px!important;font-size:12px!important}#v43-period .v443-global-period{padding:12px!important}.v443-report .v442-title{margin:8px 0 14px}.v443-report .v442-title h2{font-size:24px}.v443-report .v443-compare{margin:8px 0 12px}.v443-report .v443-overview{margin:12px 0}
+@media(min-width:650px){#v43-period .v443-global-period .v43-period-buttons{grid-template-columns:repeat(6,minmax(0,1fr))!important}}
