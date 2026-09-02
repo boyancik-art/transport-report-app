@@ -1,0 +1,42 @@
+(()=>{
+ const O=TRTS_OPS,E=O.E,S=TRTS_SECURITY,$=s=>document.querySelector(s),icon=TRTS_SHELL.icon;
+ let sub='',busy=false,people=[];
+ const sections=[['profile','Профіль','person'],['security','Безпека','fleet'],['theme','Тема','dashboard'],['ideas','Ідеї та побажання','bakery'],['users','Користувачі та права','person',true],['directories','Довідники','base',true],['sync','Синхронізація даних','refresh'],['audit','Журнал змін','analytics',true],['about','Про застосунок / версія','dashboard'],['logout','Вийти','logout']];
+ const field=(id,label,value,type='text')=>'<label>'+label+'<input id="'+id+'" type="'+type+'" value="'+E(value||'')+'" '+(type==='password'?'inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off"':'')+' required></label>';
+ const button=(action,label,cls='')=>'<button type="button" class="'+cls+'" onclick="'+action+'">'+label+'</button>';
+ const status=()=>'<p id="v443-settings-status" class="v443-status" role="status"></p>';
+ async function render(page=''){
+  sub=page;O.screenLayout(true);const title=sections.find(([id])=>id===page)?.[1]||'Меню';
+  let content='';
+  if(!page)content=sections.filter(x=>!x[3]||S.isAdmin()).map(([id,label,key])=>button("v443Settings('"+id+"')",icon(key)+'<span>'+label+'</span><b aria-hidden="true">›</b>',id==='logout'?'v443-danger':'')).join('');
+  else if(page==='profile'){const p=S.profile();content='<form onsubmit="event.preventDefault();v443SaveProfile()">'+field('v443-full-name','ПІБ',p?.full_name)+'<p>'+E(S.user()?.email||'')+'</p><p>Роль: '+E(p?.role==='admin'?'Administrator':p?.role||'—')+'</p><button type="submit">Зберегти</button></form>'}
+  else if(page==='security'){
+   const v=S.vault(),c=S.config();content='<p class="v443-status">PIN і захист пристрою розблоковують уже авторизовану сесію. Пароль не зберігається. Після завершення сесії потрібен email і пароль.</p><form onsubmit="event.preventDefault();v443SavePIN()">'+(v?field('v443-old-pin','Поточний PIN','','password'):'')+field('v443-new-pin',v?'Новий PIN':'4-значний PIN','','password')+field('v443-repeat-pin','Повторіть PIN','','password')+'<button type="submit">'+(v?'Змінити PIN':'Увімкнути PIN')+'</button></form>'+(v?'<section><h3>Захист пристрою</h3><p class="v443-status">Face ID / Touch ID / відбиток або системний спосіб підтвердження — залежно від пристрою. Після зміни PIN налаштуйте біометрію повторно.</p>'+button('v443ToggleBiometric()',v.biometric?'Вимкнути біометрію':'Увімкнути біометрію')+button('TRTS_SECURITY.lock()','Заблокувати зараз')+'</section>':'')+'<section><h3>Автоматичне блокування</h3><label>Після неактивності<select id="v443-lock-minutes" onchange="v443LockSettings()">'+[1,5,15].map(n=>'<option value="'+n+'" '+(n===c.minutes?'selected':'')+'>'+n+' хв.</option>').join('')+'</select></label><label><input id="v443-lock-leave" type="checkbox" '+(c.leave?'checked':'')+' onchange="v443LockSettings()">Блокувати при переході з застосунку</label><small>Працює після налаштування PIN. Після закриття або перезавантаження застосунок завжди заблокований.</small></section>';
+  }else if(page==='theme'){const current=localStorage.trts_theme||'dark';content='<label>Тема застосунку<select id="v443-theme" onchange="v443Theme(this.value)">'+[['dark','Темна'],['light','Світла'],['system','Системна']].map(([key,label])=>'<option value="'+key+'" '+(key===current?'selected':'')+'>'+label+'</option>').join('')+'</select></label>'}
+  else if(page==='ideas')content='<form onsubmit="event.preventDefault();v443SaveIdea()"><label>Ідея або побажання<textarea id="v443-idea" minlength="5" maxlength="4000" required placeholder="Що варто покращити?"></textarea></label><button type="submit">Надіслати</button></form>';
+  else if(page==='sync')content='<p class="v443-status">Оберіть дату або період оновлення. Час імпорту бази показується окремо від часу завантаження звіту.</p>'+button('v441RefreshDialog()','Оновити дані')+button("document.getElementById('trts-update')?.click()", 'Оновити застосунок');
+  else if(page==='about')content='<section><h3>Transport Report TS</h3><p>Версія '+E(window.TRTS_BUILD||'v44.3')+'</p><p class="v443-status">Логістика та управлінська аналітика. Чинний розподіл витрат v44.0.</p></section>';
+  else if(page==='directories'&&S.isAdmin())content=button('v43CarrierDirectory()','Перевізники')+button('v44ZoneDirectory()','Покриття та зони SAV / STV')+button("v44OpenCosts('fleet')",'Власний парк')+button('v44Interbranch()','Філії STV');
+  else if(['users','audit'].includes(page)&&S.isAdmin()){
+   O.view().innerHTML='<p class="v43-loading">Завантаження…</p>';
+   try{if(page==='users'){people=await api('/rest/v1/profiles?select=id,full_name,role,active&order=full_name');content=people.map((p,i)=>'<section><h3>'+E(p.full_name||'Без ПІБ')+'</h3>'+field('v443-user-name-'+i,'ПІБ',p.full_name)+'<label>Роль<select id="v443-role-'+i+'">'+[['admin','Administrator'],['manager','Manager'],['logistician','Logistician']].map(([role,label])=>'<option value="'+role+'" '+(p.role===role?'selected':'')+'>'+label+'</option>').join('')+'</select></label><label><input type="checkbox" id="v443-active-'+i+'" '+(p.active?'checked':'')+'>Активний</label>'+button('v443SaveUser('+i+')','Зберегти права')+'</section>').join('')||'<p>Користувачів немає</p>'}
+    else{const rows=await api('/rest/v1/transport_audit_log?select=*&order=created_at.desc&limit=100');content='<p class="v443-status">Останні 100 змін. Журнал ведеться з v44.3.</p>'+rows.map(x=>'<section><time>'+E(new Date(x.created_at).toLocaleString('uk-UA'))+'</time><h3>'+E(x.action)+'</h3><p>'+E(x.entity+' · '+(x.entity_key||''))+'</p><small>Користувач: '+E(x.actor_id||'Системна операція')+'</small></section>').join('')}
+   }catch(e){content='<p role="alert">'+E(e.message)+'</p>'}
+  }else if(page==='logout'){if(confirm('Вийти з застосунку та завершити поточну сесію?'))return logout();return render()}
+  else content='<p>Розділ недоступний</p>';
+  if(sub!==page||TRTS_APP.current()!=='menu')return;
+  O.view().innerHTML='<div class="v43-screen">'+(page?button("v443Settings('')",'‹ Меню'):'')+TRTS_APP.title(title)+'<div class="v443-settings">'+content+status()+'</div></div>';
+ }
+ async function action(fn,success){if(busy)return;busy=true;const box=$('#v443-settings-status');if(box)box.textContent='Збереження…';try{await fn();if(box)box.textContent=success}catch(e){if(box)box.textContent=e.message}finally{busy=false}}
+ window.v443Settings=render;
+ window.v443SaveProfile=()=>action(async()=>{const p=S.profile();await api('/rest/v1/rpc/transport_update_profile',{method:'POST',body:JSON.stringify({target_user_id:p.id,new_name:$('#v443-full-name').value,new_role:p.role,new_active:p.active})});await S.identify()},'Профіль збережено');
+ window.v443SaveUser=i=>action(async()=>{const p=people[i];if(!S.isAdmin())throw Error('Доступ заборонений');await api('/rest/v1/rpc/transport_update_profile',{method:'POST',body:JSON.stringify({target_user_id:p.id,new_name:$('#v443-user-name-'+i).value,new_role:$('#v443-role-'+i).value,new_active:$('#v443-active-'+i).checked})});await S.identify()},'Права збережено');
+ window.v443SaveIdea=()=>action(async()=>{await api('/rest/v1/transport_feedback',{method:'POST',body:JSON.stringify({message:$('#v443-idea').value.trim()})});$('#v443-idea').value=''},'Побажання збережене');
+ window.v443SavePIN=()=>action(async()=>{const pin=$('#v443-new-pin').value;if(pin!==$('#v443-repeat-pin').value)throw Error('PIN-коди не збігаються');await S.changePin($('#v443-old-pin')?.value,pin);await render('security');$('#v443-settings-status').textContent='PIN налаштовано'},'PIN налаштовано');
+ window.v443ToggleBiometric=()=>action(async()=>{await S.biometric(!S.vault()?.biometric);await render('security');$('#v443-settings-status').textContent='Налаштування збережене'},'Налаштування збережене');
+ window.v443LockSettings=()=>S.saveConfig({minutes:Number($('#v443-lock-minutes').value),leave:$('#v443-lock-leave').checked});
+ window.v443Theme=value=>{if(!['dark','light','system'].includes(value))return;localStorage.trts_theme=value;applyTheme()};
+ function applyTheme(){const value=localStorage.trts_theme||'dark';document.documentElement.dataset.theme=value==='system'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):value}
+ matchMedia('(prefers-color-scheme: light)').addEventListener('change',applyTheme);
+ window.TRTS_SETTINGS={render,back:()=>{if(!sub)return false;render();return true}};applyTheme();
+})();

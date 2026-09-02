@@ -1,13 +1,14 @@
 const {chromium}=require(process.env.TRTS_PLAYWRIGHT_MODULE||'playwright');
 const fs=require('node:fs'),http=require('node:http'),path=require('node:path'),assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'..'),dist=path.join(root,'web/dist');
-const expected='v44.2',live=process.env.TRTS_BASE_URL;
+const expected='v44.3',live=process.env.TRTS_BASE_URL;
 const reference=JSON.parse(fs.readFileSync(path.join(root,'web/reference-v39.js'),'utf8').match(/TRTS_V39_EXPEDITOR_COVERAGE=(\{[^\n]*?\});/)[1]);
 const date=new Date().toISOString().slice(0,10);
 const types=['ФОП','Самовивіз',"Кур'єр",'STV','SAV','Пекарня'];
 const names=types.map(t=>Object.keys(reference).find(n=>reference[n]===t));
 assert.ok(names.every(Boolean),'Fixture categories must exist in the system reference');
 const db={
+ profiles:[{id:'00000000-0000-0000-0000-000000000443',full_name:'Тестовий користувач',role:'admin',active:true}],
  routes:names.map((name,i)=>({id:i+1,route_date:date,route_delivery_id:'TEST-'+(i+1),expeditor_name:name,warehouse:i===1?'Львівська обл., Жовківський р-н, с.Малехів, вул. Тараса Дороша 20 А':'Чайки STV',total_points:1,total_documents:1,total_weight:6.2,total_pallets:.011,total_bottles:5,total_order_amount:1000})),
  route_points:[1,2,3,4,5,6].map(id=>({id:id*10,route_id:id,customer_id:'customer-'+id,customer_name:'Тестова ТТ '+id,location_id:id,documents_count:1,weight:6.2,pallets:.011,bottles:5,order_amount:1000})),
  locations:[1,2,3,4,5,6].map(id=>({id,address_id:'address-'+id,delivery_address:'Тестова адреса '+id})),
@@ -24,6 +25,8 @@ async function mockApi(route){
  if(u.pathname==='/auth/v1/token'){
   return route.fulfill({json:{access_token:'isolated-runtime-fixture',token_type:'bearer',expires_in:3600}});
  }
+ if(u.pathname==='/auth/v1/user')return route.fulfill({json:{id:'00000000-0000-0000-0000-000000000443',email:'test@example.invalid'}});
+ if(u.pathname==='/auth/v1/logout')return route.fulfill({status:204});
  if(req.headers()['authorization']!=='Bearer isolated-runtime-fixture')return route.fulfill({status:401,json:{message:'Authentication required'}});
  assert.equal(req.method(),'GET','Runtime fixture must never write real data');
  // Delayed legacy metadata must never replace the modern screen after it has rendered.
@@ -69,7 +72,7 @@ async function healthy(frame,label){
  console.log('PASS full runtime responsive: '+label+'; idle mutations='+mutations);
 }
 async function dashboard(frame,label){
- await frame.locator('.v442-dashboard-placeholder').waitFor({state:'visible'});
+ await frame.locator('[data-summary=local]').waitFor({state:'visible'});
  assert.equal(await frame.locator('#v442-nav button').count(),5);
  assert.deepEqual(await frame.locator('#v442-nav button>span:last-child').allTextContents(),['Дашборд','Аналітика','Маршрути','Довідник витрат','Меню']);
  await frame.locator('#v442-nav').getByRole('button',{name:'Маршрути',exact:true}).click();
@@ -99,11 +102,11 @@ async function dashboard(frame,label){
  assert.equal(await frame.locator('#rp-receiver option').count(),3);
  assert.ok(await frame.locator('#rp-carrier option').count()>1);
  await frame.locator('#v43-modal').getByRole('button',{name:'Скасувати',exact:true}).click();
- await frame.locator('#v442-nav').getByRole('button',{name:'Аналітика',exact:true}).click();await frame.locator('[data-analytics=local]').waitFor({state:'visible'});
+ await frame.locator('#v442-nav').getByRole('button',{name:'Аналітика',exact:true}).click();await frame.locator('[data-summary=local]').waitFor({state:'visible'});
  assert.match(await frame.locator('#view').innerText(),/Самовивіз не включено/);await healthy(frame,label+' analytics');
  await frame.locator('#v442-nav').getByRole('button',{name:'Довідник витрат',exact:true}).click();assert.equal(await frame.locator('#v441-finance-panel button').count(),4);
- await frame.locator('#v442-nav').getByRole('button',{name:'Меню',exact:true}).click();assert.equal(await frame.locator('.v442-menu').count(),1);
- await frame.locator('#v442-nav').getByRole('button',{name:'Дашборд',exact:true}).click();assert.equal(await frame.locator('.v442-dashboard-placeholder').count(),1);
+ await frame.locator('#v442-nav').getByRole('button',{name:'Меню',exact:true}).click();assert.equal(await frame.locator('.v443-settings').count(),1);
+ await frame.locator('#v442-nav').getByRole('button',{name:'Дашборд',exact:true}).click();assert.equal(await frame.locator('[data-summary=local]').count(),1);
  await frame.locator('#v442-nav').getByRole('button',{name:'Маршрути',exact:true}).click();await frame.locator('.v431-fop').waitFor({state:'visible'});
 }
 (async()=>{
@@ -112,12 +115,12 @@ async function dashboard(frame,label){
   if(!file.startsWith(dist+path.sep)){res.writeHead(403).end();return}
   fs.readFile(file,(err,body)=>{
    if(err){res.writeHead(404).end();return}
-   const mime={'.html':'text/html','.js':'application/javascript','.webmanifest':'application/manifest+json','.png':'image/png'};
+   const mime={'.css':'text/css','.html':'text/html','.js':'application/javascript','.webmanifest':'application/manifest+json','.png':'image/png'};
    res.writeHead(200,{'Content-Type':mime[path.extname(file)]||'application/octet-stream','Cache-Control':'no-store'}).end(body);
   });
  });
  if(server)await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
- const base=live||'http://127.0.0.1:'+server.address().port;
+ const localBase=server?'http://127.0.0.1:'+server.address().port:null,base=live||'https://transport-report-ts-web.pages.dev';
  const browser=await chromium.launch({headless:true,...(process.env.TRTS_CHROME?{executablePath:process.env.TRTS_CHROME}:{})});
  try{
   for(const scenario of [
@@ -126,10 +129,11 @@ async function dashboard(frame,label){
    {name:'phone-preview',url:'/phone-preview.html',width:1360,height:1000}
   ]){
    const context=await browser.newContext({viewport:{width:scenario.width,height:scenario.height},serviceWorkers:'block'});
-   const errors=[];
+   const errors=[],securityFixture=await require('./security-edge-fixture.cjs')();
+   if(!live)await context.route('https://transport-report-ts-web.pages.dev/**',async route=>{const u=new URL(route.request().url()),r=await fetch(localBase+u.pathname+u.search);await route.fulfill({status:r.status,headers:{'content-type':r.headers.get('content-type')||'text/html'},body:Buffer.from(await r.arrayBuffer())})});
    await context.addInitScript(runtimeProbe);
    // All backend traffic is isolated, even when checking the live deployed frontend.
-   await context.route('https://*.supabase.co/**',mockApi);
+   await context.route('https://*.supabase.co/**',async route=>{if(route.request().url().includes('/functions/v1/transport-security')){const req=route.request(),r=await securityFixture.handle(new Request(req.url(),{method:req.method(),headers:req.headers(),body:req.postData()||undefined}));return route.fulfill({status:r.status,headers:Object.fromEntries(r.headers),body:await r.text()})}return mockApi(route)});
    const page=await context.newPage();page.setDefaultTimeout(15000);
    page.on('pageerror',e=>errors.push(e.message));
    const servedScripts=[];
@@ -153,7 +157,8 @@ async function dashboard(frame,label){
    await dashboard(reloaded,scenario.name+' stored session');
    assert.ok(await reloaded.locator('header.top .logo').evaluate(el=>getComputedStyle(el).objectFit==='contain'&&el.getBoundingClientRect().height>0));
    assert.ok(await reloaded.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'No full runtime horizontal overflow');
-   await reloaded.locator('header.top').getByRole('button',{name:'Вийти',exact:true}).click();
+   if(scenario.name==='mobile')await require('./security-flows.cjs')({page,context,frame:reloaded,handler:securityFixture.handle});
+   await reloaded.evaluate(()=>logout());
    await reloaded.locator('#loginForm').waitFor({state:'visible'});
    assert.equal(await reloaded.locator('#app').isVisible(),false);
    assert.equal(await reloaded.evaluate(()=>localStorage.getItem('trts_token')),null);

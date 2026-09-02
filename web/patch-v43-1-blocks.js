@@ -9,7 +9,7 @@ function enhance(){
  const oldSections=[...screen.querySelectorAll(':scope > .v43-section')],replen=oldSections.find(s=>s.querySelector('h2')?.textContent.includes('Поповнення'));
  const frag=document.createDocumentFragment();
  for(const [key,title,icon] of defs){
-  const routes=(data().routes||[]).filter(r=>key==='base'||window.v436SectionKey(r)===key);
+  const routes=(data().routes||[]).filter(r=>(key==='base'?window.v436SectionKey(r)==='other':window.v436SectionKey(r)===key));
   if(key==='other'&&!routes.length)continue;
   if(key==='courier'){const anchor=document.createElement('div');anchor.id='v436-courier-anchor';frag.append(anchor);continue}
   const sec=document.createElement('section');sec.className='v431-block'+(key==='fop'?' v431-fop':'');sec.dataset.section=key;

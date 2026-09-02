@@ -1,6 +1,6 @@
 (()=>{
 const $=s=>document.querySelector(s), T=v=>String(v??'').trim(), N=v=>{const n=Number(String(v??'').replace(',','.'));return Number.isFinite(n)?n:0}, E=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])), M=v=>new Intl.NumberFormat('uk-UA',{maximumFractionDigits:0}).format(N(v))+' ₴', P=v=>N(v).toLocaleString('uk-UA',{minimumFractionDigits:2,maximumFractionDigits:2})+'%';
-const dat=()=>typeof D!=='undefined'?D:(window.D||{});
+const dat=()=>window.TRTS_OPS.dat();
 const cov=r=>window.v436Coverage?.(r)||window.TRTS_V39_EXPEDITOR_COVERAGE?.[T(r?.expeditor_name)]||'';
 const isCourier=r=>/кур.?єр/i.test(cov(r));
 const points=r=>(dat().points||[]).filter(p=>+p.route_id===+r.id);
@@ -28,13 +28,15 @@ async function loadCourier(){
  const source=dat().routes,period=window.v435ReportPeriod?.(),key=JSON.stringify(period);
  if(loading){await loading;if(loadedSource!==dat().routes||loadedKey!==JSON.stringify(window.v435ReportPeriod?.()))return loadCourier();return}
  loading=(async()=>{const cr=(source||[]).filter(isCourier),ids=cr.map(r=>r.id),rid=ids.length?`(${ids.join(',')})`:'(0)',dates=cr.map(r=>r.route_date).filter(Boolean).sort(),from=period?.from||dates[0]||new Date().toISOString().slice(0,10),to=period?.to||dates.at(-1)||from,read=window.v435ReadRange||api;
- const [s,l,c]=await Promise.all([read(`/rest/v1/courier_shipments?select=*&shipment_date=gte.${from}&shipment_date=lte.${to}&order=created_at.desc`),read(`/rest/v1/courier_shipment_points?select=*&route_id=in.${rid}`),api('/rest/v1/courier_carriers?select=*&active=eq.true&order=name')]);
+ const [s,l,c]=await Promise.all([read(`/rest/v1/courier_shipments?select=*&shipment_date=gte.${from}&shipment_date=lte.${to}&order=created_at.desc`),window.TRTS_OPS.byIds('courier_shipment_points','route_id',ids),api('/rest/v1/courier_carriers?select=*&active=eq.true&order=name')]);
  if(source===dat().routes&&key===JSON.stringify(window.v435ReportPeriod?.())){cdata={shipments:s||[],links:l||[],carriers:c||[]};loadedSource=source;loadedKey=key}
  })();try{await loading}finally{loading=false}
  if(source!==dat().routes||key!==JSON.stringify(window.v435ReportPeriod?.()))return loadCourier();
 }
 
-window.TRTS_COURIER={load:loadCourier,snapshot:()=>cdata};
+async function readSnapshot(dataset,from,to){const [shipments,links,carriers]=await Promise.all([window.TRTS_OPS.apiRange('/rest/v1/courier_shipments?select=*&shipment_date=gte.'+from+'&shipment_date=lte.'+to+'&order=created_at.desc'),window.TRTS_OPS.byIds('courier_shipment_points','route_id',dataset.routes.map(r=>r.id)),api('/rest/v1/courier_carriers?select=*&active=eq.true&order=name')]);return{shipments,links,carriers}}
+function withSnapshot(snapshot,fn){const old=cdata;cdata=snapshot;try{const result=fn();if(result?.then)throw Error('Synchronous courier snapshot required');return result}finally{cdata=old}}
+window.TRTS_COURIER={readSnapshot,withSnapshot,load:loadCourier,snapshot:()=>cdata};
 const routeFact=r=>(dat().facts||[]).find(f=>+f.route_id===+r.id)||{};
 const linkFor=p=>cdata.links.find(l=>+l.route_point_id===+p.id);
 function defaultCarrier(r){
@@ -120,7 +122,7 @@ window.v433OpenDelivery=async (rid,focusPid=null)=>{
  }
  const prior=[...new Set(groups.map(g=>g.original.carrier).filter(Boolean))];
  draft={rid:+rid,groups,expectedLinks:cdata.links.map(x=>({...x})),carrier:defaultCarrier(r)||(prior.length===1?prior[0]:''),date:r.route_date,backPid:focusPid};draft.groups.forEach(g=>{if(groupOwn(g))g.tariff='0'});
- showModal('Кур’єрська доставка',`<div class="v433-delivery"><p>${E(r.route_delivery_id||r.id)} · ${E(r.expeditor_name)}</p><label>Перевізник<select id="v431-ccarrier" onchange="v433CourierCarrier(this.value)"><option value="">Оберіть перевізника</option>${[...new Set([...cdata.carriers.map(c=>c.name),...prior,draft.carrier])].map(n=>`<option ${n===draft.carrier?'selected':''}>${E(n)}</option>`).join('')}</select></label><p class="v431-note">Вкажіть тариф навпроти ТТ. Кнопка «+ ТТ під цей тариф» об’єднує точки в один тариф. Спільна сума розподіляється за 30% палет / 50% пляшок / 20% ваги, далі — між накладними кожної ТТ. Кількість місць не змінюється.</p><div id="v433-courier-rows"></div><p id="v433-courier-error" class="v433-error" role="alert"></p></div>`,'<button onclick="v431CloseModal()">Скасувати</button><button id="v433-courier-save" class="primary" onclick="v431SaveCourier()">Готово</button>');
+ showModal('Кур’єрська доставка',`<div class="v433-delivery"><p class="v443-delivery-date">Дата доставки: <time datetime="${E(draft.date)}">${E(draft.date.split('-').reverse().join('.'))}</time></p><p>${E(r.route_delivery_id||r.id)} · ${E(r.expeditor_name)}</p><label>Перевізник<select id="v431-ccarrier" onchange="v433CourierCarrier(this.value)"><option value="">Оберіть перевізника</option>${[...new Set([...cdata.carriers.map(c=>c.name),...prior,draft.carrier])].map(n=>`<option ${n===draft.carrier?'selected':''}>${E(n)}</option>`).join('')}</select></label><p class="v431-note">Вкажіть тариф навпроти ТТ. Кнопка «+ ТТ під цей тариф» об’єднує точки в один тариф. Спільна сума розподіляється за 30% палет / 50% пляшок / 20% ваги, далі — між накладними кожної ТТ. Кількість місць не змінюється.</p><div id="v433-courier-rows"></div><p id="v433-courier-error" class="v433-error" role="alert"></p></div>`,'<button onclick="v431CloseModal()">Скасувати</button><button id="v433-courier-save" class="primary" onclick="v431SaveCourier()">Готово</button>');
  renderDraft();if(focusPid){const group=groups.find(g=>g.ids.includes(+focusPid));if(group)$('#v433-cost-'+group.key)?.focus()}
  }catch(e){showModal('Кур’єрська доставка','<p class="v433-error">'+E(e.message)+'</p>','<button onclick="v431CloseModal()">Закрити</button>')}
 };
@@ -147,7 +149,7 @@ window.v433ApplyShared=key=>{
 };
 window.v431CreateCourier=()=>{
  const routes=(dat().routes||[]).filter(isCourier);
- showModal('Оберіть доставку',routes.map(r=>`<button class="v433-delivery-choice" onclick="v433OpenDelivery(${r.id})">${E(r.route_delivery_id||r.id)}<small>${E(r.expeditor_name)} · ${points(r).length} ТТ</small></button>`).join('')||'<p>Кур’єрських доставок за період немає.</p>','<button onclick="v431CloseModal()">Готово</button>');
+ showModal('Оберіть доставку',routes.map(r=>`<button class="v433-delivery-choice" onclick="v433OpenDelivery(${r.id})">${E(r.route_delivery_id||r.id)}<small>${E(r.expeditor_name)} · <time datetime="${E(r.route_date)}">${E(r.route_date.split("-").reverse().join("."))}</time> · ${points(r).length} ТТ</small></button>`).join('')||'<p>Кур’єрських доставок за період немає.</p>','<button onclick="v431CloseModal()">Готово</button>');
 };
 window.v431SaveCourier=async()=>{
  if(courierSaving||!draft)return;const err=$('#v433-courier-error');err.textContent='';

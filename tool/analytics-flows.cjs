@@ -20,8 +20,8 @@ module.exports=async({page,capture})=>{
  const before=await page.evaluate(()=>({writes:writes.length,db:JSON.stringify(db),costs:D.routes.filter(r=>['fop','bakery','stv','sav'].includes(TRTS_OPS.sectionKey(r))).map(r=>v437AllocationSnapshot(r.id))}));
  assert.deepEqual(await page.locator('#view [data-section]').evaluateAll(es=>es.map(e=>e.dataset.section)),['base','fop','bakery','courier','replen','sav','stv','pickup']);
  const base=page.locator('[data-section=base]');if(await base.locator('button.v431-block-head').getAttribute('aria-expanded')==='false')await base.locator('button.v431-block-head').click();
- assert.equal(await base.locator('[data-base-route]').count(),7);assert.match(await base.innerText(),/Блок не визначено/);
- await base.locator('[data-base-route="502"]').click();await page.locator('.v436-detail').waitFor();assert.match(await page.locator('.v43-route-detail').innerText(),/Нова Пошта/);assert.match(await page.locator('.v436-detail time').innerText(),/\d{2}\.\d{2}\.\d{4}/);await page.getByRole('button',{name:'Назад до маршрутів',exact:true}).click();await page.locator('#v431-courier').waitFor({state:'attached'});
+ assert.equal(await base.locator('[data-base-route]').count(),1);assert.match(await base.innerText(),/Блок не визначено/);
+ await page.evaluate(()=>v43OpenRoute(502));await page.locator('.v436-detail').waitFor();assert.match(await page.locator('.v43-route-detail').innerText(),/Нова Пошта/);assert.match(await page.locator('.v436-detail time').innerText(),/\d{2}\.\d{2}\.\d{4}/);await page.getByRole('button',{name:'Назад до маршрутів',exact:true}).click();await page.locator('#v431-courier').waitFor({state:'attached'});
  for(const key of ['fop','bakery','sav','stv']){const head=page.locator('[data-section='+key+']>.v431-block-head');if(await head.getAttribute('aria-expanded')==='false')await head.click()}
  assert.equal(await page.locator('[data-section=stv]').getByRole('button',{name:/Без зони/}).count(),0,'A resolved zone with missing monthly tariff must not be a missing zone');
  assert.equal(await page.locator('[data-section=sav]').getByRole('button',{name:'Без зони · 1',exact:true}).count(),1);

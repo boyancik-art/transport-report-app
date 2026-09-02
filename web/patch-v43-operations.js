@@ -11,7 +11,8 @@ const monday=d=>{const x=new Date(d+'T12:00:00'),n=x.getDay()||7;x.setDate(x.get
 const addDays=(d,k)=>{const x=new Date(d+'T12:00:00');x.setDate(x.getDate()+k);return x.toISOString().slice(0,10)};
 let mode='today',from=today(),to=today(),filter='all',groupExp=false,selectGroup=false,selected=new Set();
 let meta={people:new Map(),carriers:[],warehouses:[],whMap:[],extras:[],manual:[],groups:[],replenishments:[],rules:new Map()};
-const dat=()=>typeof D!=='undefined'?D:(window.D||{}), v=()=>document.getElementById('view')||document.getElementById('content');
+let snapshotData=null;
+const dat=()=>snapshotData||(typeof D!=='undefined'?D:(window.D||{})), v=()=>document.getElementById('view')||document.getElementById('content');
 function norm(s){return T(s).toLocaleLowerCase('uk-UA').replace(/[’']/g,'').replace(/[\s.,;:()\-\/\\]+/g,' ').replace(/\b(обл|область|р н|район)\b/g,' ').replace(/\s+/g,' ').trim()}
 function coverage(r){return T(facts(r).section_override)||meta.rules.get(norm(r?.expeditor_name))||window.TRTS_V39_EXPEDITOR_COVERAGE?.[T(r?.expeditor_name)]||window.TRTS_FINANCE?.autoCarrier(r)||''}
 function isFop(r){return /^(фоп|ts|тс)$/i.test(T(coverage(r)))}
@@ -75,6 +76,7 @@ const displayDate=d=>d.split('-').reverse().join('.');
 let lastLoaded=null,lastImport=null,importUnavailable=false;
 const timeText=value=>{const date=new Date(value);return Number.isNaN(date.getTime())?'—':new Intl.DateTimeFormat('uk-UA',{dateStyle:'short',timeStyle:'short',timeZone:'Europe/Kyiv'}).format(date)};
 function periodBar(){
+ if(window.TRTS_DASHBOARD)return window.TRTS_DASHBOARD.periodBar({from,to,mode,lastLoaded,lastImport,importUnavailable});
  let el=$('#v43-period');if(!el){el=document.createElement('div');el.id='v43-period';const target=v();target?.parentNode?.insertBefore(el,target)}if(!el)return;
  const importFrom=lastImport?.details?.start_date,importTo=lastImport?.details?.end_date;
  const importRange=window.TRTS_UI.validDate(importFrom)&&window.TRTS_UI.validDate(importTo)?' · '+displayDate(importFrom)+(importFrom===importTo?'':' — '+displayDate(importTo)):'';
@@ -102,17 +104,14 @@ let rangeSequence=0;
 window.v435ReportPeriod=()=>({from,to});
 window.v435ReadRange=apiRange;
 function screenLayout(detail=false){document.body.classList.add('pk-only');document.body.classList.toggle('trts-route-view',detail)}
-async function loadRange(){
- window.TRTS_APP?.loading();screenLayout();
- const request=++rangeSequence,rangeFrom=from,rangeTo=to,vv=v();
- if(vv)vv.innerHTML='<div class="v43-loading">Оновлення реальних даних…</div>';
- try{
-  const routes=await apiRange(`/rest/v1/routes?select=*&route_date=gte.${rangeFrom}&route_date=lte.${rangeTo}&order=route_date,route_delivery_id,id`),ids=routes.map(x=>x.id),rid=ids.length?`(${ids.join(',')})`:'(0)';
+async function byIds(table,column,ids){const result=[];for(let i=0;i<ids.length;i+=150)result.push(...await apiRange('/rest/v1/'+table+'?select=*&'+column+'=in.('+ids.slice(i,i+150).join(',')+')'));return result}
+async function readSnapshot(rangeFrom,rangeTo){
+  const routes=await apiRange(`/rest/v1/routes?select=*&route_date=gte.${rangeFrom}&route_date=lte.${rangeTo}&order=route_date,route_delivery_id,id`),ids=routes.map(x=>x.id);
   const [pts,ff,dd,ee,pp,cc,wm,gg,mm,rr,ru]=await Promise.all([
-   apiRange(`/rest/v1/route_points?select=*&route_id=in.${rid}`),
-   apiRange(`/rest/v1/route_facts?select=*&route_id=in.${rid}`),
+   byIds('route_points','route_id',ids),
+   byIds('route_facts','route_id',ids),
    apiRange(`/rest/v1/source_documents?select=*&document_date=gte.${rangeFrom}&document_date=lte.${rangeTo}`),
-   apiRange(`/rest/v1/route_extra_points?select=*&route_id=in.${rid}`),
+   byIds('route_extra_points','route_id',ids),
    apiRange('/rest/v1/employee_directory?select=employee_id,employee_name&order=employee_id'),
    apiRange('/rest/v1/transport_carriers?select=id,name,carrier_type&active=eq.true&order=name'),
    apiRange('/rest/v1/warehouse_display_map?select=source_warehouse,display_name&active=eq.true&order=id'),
@@ -121,11 +120,20 @@ async function loadRange(){
    apiRange(`/rest/v1/branch_replenishments?select=*&shipment_date=gte.${rangeFrom}&shipment_date=lte.${rangeTo}&order=shipment_date.desc,id`),
    apiSafe('/rest/v1/expeditor_section_rules?select=expeditor_name,coverage&active=eq.true')
   ]);
-  const lids=[...new Set(pts.map(x=>x.location_id).filter(Boolean))],lid=lids.length?`(${lids.join(',')})`:'(0)',pids=pts.map(x=>x.id),pid=pids.length?`(${pids.join(',')})`:'(0)';
-  const [ll,aa]=await Promise.all([apiRange(`/rest/v1/locations?select=*&id=in.${lid}`),apiRange(`/rest/v1/route_business_allocations?select=*&route_point_id=in.${pid}`)]);
+  const lids=[...new Set(pts.map(x=>x.location_id).filter(Boolean))],pids=pts.map(x=>x.id);
+  const [ll,aa]=await Promise.all([byIds("locations","id",lids),byIds("route_business_allocations","route_point_id",pids)]);
+  return{data:{routes,points:pts,facts:ff,docs:dd,locations:ll,alloc:aa},meta:{people:new Map(pp.map(x=>[T(x.employee_id),T(x.employee_name)])),carriers:cc.filter(x=>!['stv','sav'].includes(x.carrier_type)),whMap:wm,warehouses:[...new Set(wm.map(x=>T(x.display_name)).filter(Boolean))].sort(),extras:ee,groups:gg,manual:mm,replenishments:rr,rules:new Map(ru.map(x=>[norm(x.expeditor_name),T(x.coverage)]))}};
+}
+function withSnapshot(snapshot,fn){const oldData=snapshotData,oldMeta=meta;snapshotData=snapshot.data;meta=snapshot.meta;try{const result=fn();if(result?.then)throw Error('Snapshot calculation must be synchronous');return result}finally{snapshotData=oldData;meta=oldMeta}}
+async function loadRange(){
+ window.TRTS_APP?.loading();screenLayout();
+ const request=++rangeSequence,rangeFrom=from,rangeTo=to,vv=v();
+ if(vv)vv.innerHTML='<div class="v43-loading">Оновлення реальних даних…</div>';
+ try{
+  const snapshot=await readSnapshot(rangeFrom,rangeTo);
   if(request!==rangeSequence)return;
-  if(typeof D!=='undefined'){D.routes=routes;D.points=pts;D.facts=ff;D.docs=dd;D.locations=ll;D.alloc=aa}else window.D={routes,points:pts,facts:ff,docs:dd,locations:ll,alloc:aa};
-  meta.people=new Map(pp.map(x=>[T(x.employee_id),T(x.employee_name)]));meta.carriers=cc.filter(x=>!['stv','sav'].includes(x.carrier_type));meta.whMap=wm;meta.warehouses=[...new Set(wm.map(x=>T(x.display_name)).filter(Boolean))].sort();meta.extras=ee;meta.groups=gg;meta.manual=mm;meta.replenishments=rr;meta.rules=new Map(ru.map(x=>[norm(x.expeditor_name),T(x.coverage)]));await window.TRTS_FINANCE?.load(rangeFrom,rangeTo);if(request!==rangeSequence)return;
+  if(typeof D!=='undefined')Object.assign(D,snapshot.data);else window.D=snapshot.data;
+  meta=snapshot.meta;await window.TRTS_FINANCE?.load(rangeFrom,rangeTo);if(request!==rangeSequence)return;
   let imported=null,unavailable=false;try{const rows=await api('/rest/v1/cube_imports?select=imported_at,details&status=eq.completed&order=imported_at.desc&limit=1');if(!Array.isArray(rows))throw Error('Невірна відповідь');imported=rows[0]||null}catch(e){unavailable=true}
   if(request!==rangeSequence)return;lastImport=imported;importUnavailable=unavailable;lastLoaded=new Date().toISOString();periodBar();if(window.TRTS_APP)await window.TRTS_APP.afterLoad();else renderDashboard();return{ok:true,from:rangeFrom,to:rangeTo};
  }catch(e){
@@ -330,7 +338,7 @@ window.v439AddReplenCarrier=async()=>{
  }catch(e){err.textContent='Не збережено: '+e.message}finally{addingCarrier=false;if($('#rp-add-carrier'))$('#rp-add-carrier').disabled=false}
 };
 
-window.TRTS_OPS={dat,meta:()=>meta,points,docs,pointDocs,pointAddress,loc,facts,metrics,allocationMetrics,extraFor,extraAllocation,pointCost,pointMeasure,invoiceGroups,extraCost,displayWh,sectionKey,modal,E,F,M,M2,P,apiRange,refresh:loadRange,render:renderDashboard,screenLayout,view:v,manualCard};
+window.TRTS_OPS={readSnapshot,withSnapshot,byIds,dat,meta:()=>meta,points,docs,pointDocs,pointAddress,loc,facts,metrics,allocationMetrics,extraFor,extraAllocation,pointCost,pointMeasure,invoiceGroups,extraCost,displayWh,sectionKey,modal,E,F,M,M2,P,apiRange,refresh:loadRange,render:renderDashboard,screenLayout,view:v,manualCard};
 const css=`#v43-period{max-width:760px;margin:0 auto;padding:0 14px}.v43-period-inner{padding:10px 0 5px}.v43-period-buttons{display:flex;gap:7px}.v43-period button,.v43-period-inner button,.v43-actions button,.v43-filters button,.v43-groupbar button,.v43-route-detail button,.v43-section-title button,.v43-modal button{border:1px solid #2c3545;background:#111824;color:#dfe5ef;border-radius:12px;padding:10px 12px;font-weight:700}.v43-period-buttons button.on,.v43-filters button.on,.primary{background:linear-gradient(135deg,#7848ff,#9a4dff)!important;border-color:#8c55ff!important;color:white!important}.v43-period-inner small,.v43-head small{display:block;color:#7f8a9d;font-size:10px;margin-top:6px}.v43-custom{display:flex;gap:7px;align-items:center;margin-top:8px}.v43-custom.hide,.hide{display:none!important}.v43-custom input,.v43-form input,.v43-form select{width:100%;background:#0d131d;border:1px solid #303a4a;color:#fff;border-radius:11px;padding:11px}.v43-screen{max-width:760px;margin:auto;padding:8px 14px 100px}.v43-head,.v43-section-title{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:8px 0 12px}.v43-head h2,.v43-section h2{margin:0;font-size:23px}.v43-actions{display:flex;gap:6px}.v43-actions button{font-size:11px}.v43-filters{display:flex;gap:7px;overflow:auto;padding-bottom:8px}.v43-filters button{white-space:nowrap;font-size:11px}.v43-groupbar{display:flex;justify-content:space-between;gap:7px;margin:5px 0 12px}.v43-groupbar button{font-size:11px}.v43-stack{display:grid;gap:11px}.v43-route,.v43-route-detail,.v43-tt,.v43-invoice,.v43-replen{border:1px solid #253044;background:linear-gradient(145deg,#121a28,#0c121c);border-radius:18px;padding:14px;box-shadow:0 10px 30px #0003}.v43-route.warn{border-color:#6c3e48}.v43-route-top,.v43-tt-head{display:flex;justify-content:space-between;align-items:center;gap:9px}.v43-route-top>div:first-of-type{display:grid}.v43-route-top small,.v43-two small,.v43-four small,.v43-exp small,.v43-sales small,.v43-tt small,.v43-replen small{color:#7f8a9d;font-size:9px;display:block}.v43-route-top b{font-size:14px}.v43-exp{margin:11px 0;background:linear-gradient(135deg,#5220a6,#7d31ce);padding:11px 13px;border-radius:13px}.v43-exp b{font-size:16px}.v43-two{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.v43-two>div,.v43-four>div{background:#0d141f;border:1px solid #222d3e;border-radius:11px;padding:9px}.v43-four{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:8px}.v43-four b{font-size:12px}.purple{color:#c08bff}.v43-sales{margin-top:8px;border-top:1px solid #263044;padding-top:9px}.v43-sales b{font-size:18px;color:#79dfa0}.v43-pill{display:inline-block;border:1px solid #394457;border-radius:999px;padding:5px 7px;font-size:9px}.v43-pill.group{color:#b98aff;border-color:#7447aa}.v43-pill.bad{color:#ff9a9f;border-color:#7a4147}.v43-extra-mark{margin-top:8px;color:#b98aff;font-size:11px}.v43-exp-group h3{position:sticky;top:0;background:#090e16;padding:9px 2px;margin:7px 0;z-index:2}.v43-exp-group h3 span{color:#8c56ff}.v43-section{margin-top:22px;padding-top:15px;border-top:1px solid #202a38}.v43-empty,.v43-loading{border:1px dashed #303a49;border-radius:16px;padding:22px;text-align:center;color:#8c97a8}.v43-replen{margin-bottom:8px}.v43-back{border:0;background:transparent;color:#b98aff;padding:8px 0;font-weight:800}.v43-subtitle{font-size:11px;color:#828da0;letter-spacing:.08em;margin:18px 2px 8px}.v43-tt{margin-bottom:9px}.v43-tt-head>span{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;background:#6e3ac7}.v43-tt-head>div{flex:1}.v43-tt-head small{margin-top:3px;line-height:1.3}.v43-tt-head i{font-size:24px;color:#9a6df7}.v43-extra-row{display:flex;justify-content:space-between;border:1px solid #2c3545;border-radius:12px;padding:11px;margin:6px 0}.v43-invoice{margin-bottom:9px}.v43-modal-bg{position:fixed;inset:0;background:#000a;z-index:9999;display:flex;align-items:flex-end;justify-content:center}.v43-modal{width:min(620px,100%);max-height:88vh;overflow:auto;background:#101722;border:1px solid #2d384a;border-radius:24px 24px 0 0;padding:16px}.v43-modal-head,.v43-modal-actions{display:flex;justify-content:space-between;align-items:center;gap:8px}.v43-modal-head h3{margin:0}.v43-modal-head button{font-size:22px;padding:4px 10px}.v43-modal-body{margin:15px 0}.v43-modal-actions{justify-content:flex-end}.v43-form{display:grid;grid-template-columns:1fr 1fr;gap:10px}.v43-form label{font-size:11px;color:#a8b1c0}.v43-form input,.v43-form select{margin-top:5px}.v43-form details,.v43-info{grid-column:1/-1;border:1px solid #293446;border-radius:12px;padding:11px}.v43-checks{max-height:170px;overflow:auto;border:1px solid #293446;border-radius:12px;margin-top:5px;padding:7px}.v43-checks label{display:flex;gap:8px;align-items:center;padding:6px}.v43-checks input{width:auto;margin:0}.v43-directory{display:grid;gap:7px}.v43-directory>div{border:1px solid #2b3545;border-radius:11px;padding:10px}.manual{border-style:dashed}@media(max-width:520px){.v43-form{grid-template-columns:1fr}.v43-four{grid-template-columns:repeat(2,1fr)}.v43-head{align-items:flex-start;flex-direction:column}.v43-actions{width:100%}.v43-actions button{flex:1}.v43-period-buttons button{flex:1;font-size:11px;padding:9px 5px}.v43-custom input{min-width:0}.v43-two{grid-template-columns:1fr 1fr}}`;
 let st=document.createElement('style');st.textContent=css;document.head.appendChild(st);
 async function init(){
@@ -340,7 +348,7 @@ async function init(){
   window.go=window.home=window.analytics=window.ai=window.more=window.v39Section=window.logistics;
   window.loadAll=()=>loadRange();
   window.TRTS_APP?.init();
-  window.start=async()=>{window.TRTS_APP?.reset();const login=$('#login'),app=$('#app');login?.classList.add('hide');if(login)login.style.display='none';app?.classList.remove('hide');periodBar();await loadRange()};
+  window.start=async()=>{if(localStorage.trts_vault&&!window.TRTS_UNLOCKED)return;if(window.TRTS_SECURITY&&!window.TRTS_SECURITY.profile())await window.TRTS_SECURITY.identify();window.TRTS_APP?.reset();const login=$('#login'),app=$('#app');login?.classList.add('hide');if(login)login.style.display='none';app?.classList.remove('hide');periodBar();await loadRange()};
   if(typeof token!=='undefined'&&token)await window.start();
  }else{window.TRTS_APP?.init();periodBar();await loadRange()}
  badge();

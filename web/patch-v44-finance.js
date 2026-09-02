@@ -9,22 +9,23 @@
  const read=path=>O().apiRange('/rest/v1/'+path);
  const write=async(table,body,filter='',method='POST')=>{const rows=await api('/rest/v1/'+table+filter,{method,headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify(body)});if(!rows?.length)throw Error('Сервер не підтвердив збереження');return rows};
  const fact=(r,ds=O().dat())=>(ds.facts||[]).find(x=>+x.route_id===+r.id)||{};
- const block=(r,ds=O().dat())=>{const override=fact(r,ds).section_override,raw=override||O().meta().rules.get(T(r.expeditor_name).toLocaleLowerCase('uk-UA').replace(/[’']/g,'').replace(/[\s.,;:()\-\/\\]+/g,' ').trim())||window.TRTS_V39_EXPEDITOR_COVERAGE?.[r.expeditor_name]||autoCarrier(r);if(/^(ФОП|TS|ТС)$/i.test(raw))return'fop';if(/пекар|фреш|fresh/i.test(raw))return'bakery';return T(raw).toLowerCase()};
+ const block=(r,ds=O().dat(),reportState=state,rules=O().meta().rules)=>{const override=fact(r,ds).section_override,raw=override||rules.get(T(r.expeditor_name).toLocaleLowerCase('uk-UA').replace(/[’']/g,'').replace(/[\s.,;:()\-\/\\]+/g,' ').trim())||window.TRTS_V39_EXPEDITOR_COVERAGE?.[r.expeditor_name]||reportState.auto.find(x=>x.expeditor_name===r?.expeditor_name)?.auto_carrier;if(/^(ФОП|TS|ТС)$/i.test(raw))return'fop';if(/пекар|фреш|fresh/i.test(raw))return'bakery';return T(raw).toLowerCase()};
  function autoCarrier(r){return state.auto.find(x=>x.expeditor_name===r?.expeditor_name)?.auto_carrier||''}
  function carrierNames(section){
   const names=section==='bakery'?[...BAKERY,...state.scopes.filter(x=>x.block==='bakery').map(x=>x.name)]:O().meta().carriers.filter(x=>!['stv','sav','courier'].includes(x.carrier_type)&&!/^Нова\s*Пошта$/iu.test(x.name)).map(x=>x.name);
   return [...new Set(names)].filter(x=>x!=='ФМ Ложістік'||!names.includes('ФМ Ложистік'));
  }
- async function load(a,b){
-  const sequence=++loadSeq;from=a;to=b;
+ async function prepare(a,b,rules=O().meta().rules){
   const [zones,rates,entries,scopes,auto,branches,inter]=await Promise.all([
    read('transport_delivery_coverage?select=*&active=eq.true&order=carrier,region,district'),read('transport_monthly_rates?select=*&order=month,carrier'),
    read('fleet_cost_entries?select=*&month=gte.'+monthOf(a)+'&month=lte.'+monthOf(b)),read('transport_carrier_blocks?select=*&order=block,name'),
    read('expeditor_auto_carrier?select=expeditor_name,auto_carrier&active=eq.true&order=expeditor_name'),read('stv_branch_directory?select=*&active=eq.true&order=name'),
    read('stv_interbranch_months?select=*&month=gte.'+monthOf(a)+'&month=lte.'+monthOf(b))
   ]);
-  if(sequence!==loadSeq)return;state={zones,rates,entries,scopes,auto,branches,inter};await refreshFleet();
+  const reportState={zones,rates,entries,scopes,auto,branches,inter};return{state:reportState,...await calculateFleet(reportState,rules)};
  }
+ async function load(a,b){const sequence=++loadSeq;from=a;to=b;const context=await prepare(a,b);if(sequence===loadSeq){state=context.state;fleet=context.fleet;entryStats=context.entryStats;monthData=context.monthData}}
+ function withSnapshot(context,fn){const old={state,fleet};state=context.state;fleet=context.fleet;try{const result=fn();if(result?.then)throw Error('Synchronous finance snapshot required');return result}finally{state=old.state;fleet=old.fleet}}
  async function monthlyData(month){
   const d=new Date(month+'T12:00:00Z');d.setUTCMonth(d.getUTCMonth()+1);d.setUTCDate(0);const end=d.toISOString().slice(0,10),period='&route_date=gte.'+month+'&route_date=lte.'+end;
   const routes=await read('routes?select=*'+period+'&order=route_date,id'),ids=routes.map(r=>r.id),facts=[],points=[],extras=[];
@@ -38,18 +39,19 @@
   const base={...m};for(const x of ex){const count=N(x.tt_count)||1;m.tt+=count;for(const [k,f] of [['pals','pallets'],['bottles','bottles'],['weight','weight']])m[k]+=N(x[f])>0?N(x[f]):base.tt?base[k]/base.tt*count:0}
   return m;
  }
- async function refreshFleet(){
+ async function calculateFleet(reportState,rules){
   const next=new Map(),stats=new Map(),cache=new Map();
-  for(const month of [...new Set(state.entries.map(e=>e.month))])cache.set(month,await monthlyData(month));
-  for(const e of state.entries){const ds=cache.get(e.month),routes=ds.routes.filter(r=>block(r,ds)===e.block&&C.own(fact(r,ds).carrier_name)&&e.expeditor_names.includes(r.expeditor_name));
+  for(const month of [...new Set(reportState.entries.map(e=>e.month))])cache.set(month,await monthlyData(month));
+  for(const e of reportState.entries){const ds=cache.get(e.month),routes=ds.routes.filter(r=>block(r,ds,reportState,rules)===e.block&&C.own(fact(r,ds).carrier_name)&&e.expeditor_names.includes(r.expeditor_name));
    const items=routes.map(r=>routeVolume(r,ds)),base=items.reduce((a,x)=>{for(const k of ['pals','bottles','weight','tt'])a[k]+=x[k];return a},{pals:0,bottles:0,weight:0,tt:0});
    for(const r of ds.manual.filter(r=>(r.block||'fop')===e.block&&C.own(r.carrier_name)&&e.expeditor_names.includes(r.expeditor_name))){const x={id:'m:'+r.id,tt:N(r.tt_count),pals:0,bottles:0,weight:0};for(const k of ['pals','bottles','weight'])x[k]=base.tt?base[k]/base.tt*x.tt:0;items.push(x)}
    const eligible=items.filter(x=>x.tt>0),allocation=eligible.length?C.split(e.total,eligible):[];
    for(const x of allocation)next.set(String(x.id),Math.round(((next.get(String(x.id))||0)+x.cost)*100)/100);
    stats.set(e.id,{tt:eligible.reduce((n,x)=>n+x.tt,0),routes:eligible.length,allocated:allocation.reduce((n,x)=>n+x.cost,0)});
   }
-  fleet=next;entryStats=stats;monthData=cache;
+  return{fleet:next,entryStats:stats,monthData:cache};
  }
+ async function refreshFleet(){const result=await calculateFleet(state,O().meta().rules);fleet=result.fleet;entryStats=result.entryStats;monthData=result.monthData}
  function quote(r,p){const key=O().sectionKey(r);if(!['stv','sav'].includes(key))return null;const ds=O().pointDocs(r,p),pallets=ds.length?ds.reduce((s,d)=>s+N(d.pallets),0):N(p.pallets),g=C.geography(O().loc(p),O().pointAddress(r,p));return C.zoneQuote({carrier:key.toUpperCase(),month:monthOf(r.route_date),...g,pallets,zones:state.zones,rates:state.rates})}
  function routeCost(r){if(C.own(fact(r).carrier_name))return fleet.get(String(r.id))||0;if(['stv','sav'].includes(O().sectionKey(r)))return O().points(r).reduce((sum,p)=>sum+(quote(r,p)?.cost||0),0);return undefined}
  function pointCost(r,p){const q=quote(r,p);if(q)return q.cost??0;return undefined}
@@ -62,7 +64,7 @@
  }
  function blockControls(key){return ['stv','sav'].includes(key)?'<div class="v439-bakery-actions"><button onclick="v44ZoneDirectory(\''+key.toUpperCase()+'\')">Зони доставки</button></div>':''}
  function manualCards(section){return O().meta().manual.filter(x=>(x.block||'fop')===section).map(O().manualCard).join('')}
- window.TRTS_FINANCE={load,refreshFleet,autoCarrier,carrierNames,quote,routeCost,pointCost,routeFields,pointFields,blockControls,manualCards,fleetCost:id=>fleet.get(String(id))||0,snapshot:()=>({state,entryStats:[...entryStats],fleet:[...fleet]})};
+ window.TRTS_FINANCE={prepare,withSnapshot,load,refreshFleet,autoCarrier,carrierNames,quote,routeCost,pointCost,routeFields,pointFields,blockControls,manualCards,fleetCost:id=>fleet.get(String(id))||0,snapshot:()=>({state,entryStats:[...entryStats],fleet:[...fleet]})};
 
  const error=text=>'<p id="v44-error" class="v433-error" role="alert">'+E(text||'')+'</p>';
  const footer=(handler,label='Готово')=>'<button onclick="v43CloseModal()">Скасувати</button><button id="v44-save" class="primary" onclick="'+handler+'">'+label+'</button>';
