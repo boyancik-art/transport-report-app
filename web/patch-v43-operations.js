@@ -202,7 +202,7 @@ window.v436SaveSection=async id=>{
   const saved=await api('/rest/v1/route_facts'+(existing?'?route_id=eq.'+id:''),{method:existing?'PATCH':'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(existing?payload:{route_id:id,...payload})});
   if(!saved?.length)throw Error('Сервер не підтвердив зміну блоку');
   if(existing)Object.assign(existing,saved[0]);else (dat().facts??=[]).push(saved[0]);
-  v43CloseModal();renderDashboard();
+  await window.TRTS_FINANCE?.refreshFleet();v43CloseModal();renderDashboard();
  }catch(e){$('#v436-section-error').textContent='Не збережено: '+e.message}finally{sectionSaving=false;if($('#v436-section-save'))$('#v436-section-save').disabled=false}
 };
 window.v436AddAddress=id=>modal('Додати адресу',`<form id="v436-address-form" class="v43-form" onsubmit="event.preventDefault();v436SaveAddress(${id})"><label class="v433-full">Адреса або назва точки<input id="v436-address" required maxlength="500" placeholder="Місто, вулиця, будинок"></label><p id="v436-address-error" class="v433-error" role="alert"></p></form>`,'<button onclick="v43CloseModal()">Скасувати</button><button id="v436-address-save" class="primary" onclick="v436SaveAddress('+id+')">Готово</button>');

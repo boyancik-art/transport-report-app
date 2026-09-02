@@ -39,6 +39,10 @@ module.exports=async(page,capture)=>{
  await page.evaluate(()=>v435Refresh());await page.waitForSelector('.v431-fop');
  assert.equal(await page.evaluate(()=>TRTS_FINANCE.fleetCost(80)),200);assert.equal(await page.evaluate(()=>D.routes.some(r=>r.id===81)),false);
  const point=await page.evaluate(()=>v437AllocationSnapshot(80));assert.equal(point.tt,2);assert.equal(point.routeCost,200);assert.equal(point.points[0].cost,100);assert.equal(point.extras[0].cost,100);
+ await page.evaluate(()=>v436ChangeSection(80));await page.locator('#v436-section').selectOption('Пекарня/Фреш');await page.locator('#v436-section-save').click();await page.waitForFunction(()=>!document.body.classList.contains('trts-modal-open'));
+ assert.equal(await page.evaluate(()=>TRTS_FINANCE.fleetCost(80)),0);assert.equal(await page.evaluate(()=>TRTS_FINANCE.fleetCost(81)),500);
+ await page.evaluate(()=>v436ChangeSection(80));await page.locator('#v436-section').selectOption('ФОП');await page.locator('#v436-section-save').click();await page.waitForFunction(()=>!document.body.classList.contains('trts-modal-open'));
+ assert.equal(await page.evaluate(()=>TRTS_FINANCE.fleetCost(80)),200);
  console.log('PASS own fleet: full month regardless of dashboard day, five cost fields, FOP/bakery separation, exact extra-TT allocation, retry/edit without duplicates');
 
  await page.evaluate(()=>v43OpenRoute(90));assert.match(await page.locator('#view').innerText(),/Оновіть довідник/);
