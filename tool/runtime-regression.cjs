@@ -1,7 +1,7 @@
 const {chromium}=require(process.env.TRTS_PLAYWRIGHT_MODULE||'playwright');
 const fs=require('node:fs'),http=require('node:http'),path=require('node:path'),assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'..'),dist=path.join(root,'web/dist');
-const expected='v44.0',live=process.env.TRTS_BASE_URL;
+const expected='v44.1',live=process.env.TRTS_BASE_URL;
 const reference=JSON.parse(fs.readFileSync(path.join(root,'web/reference-v39.js'),'utf8').match(/TRTS_V39_EXPEDITOR_COVERAGE=(\{[^\n]*?\});/)[1]);
 const date=new Date().toISOString().slice(0,10);
 const types=['ФОП','Самовивіз',"Кур'єр",'STV','SAV','Пекарня'];
@@ -131,6 +131,8 @@ async function dashboard(frame,label){
    }
    const frame=scenario.url.includes('phone-preview')?await page.locator('iframe').elementHandle().then(el=>el.contentFrame()):page;
    await frame.locator('#loginForm').waitFor({state:'visible'});
+   assert.ok(await frame.locator('#loginForm button').evaluate(el=>getComputedStyle(el).display==='flex'),'Login button uses shared design');
+   assert.ok(await frame.locator('.loginbox .logo').evaluate(el=>getComputedStyle(el).objectFit==='contain'&&getComputedStyle(el).transform==='none'),'Logo must be contained without crop');
    await healthy(frame,scenario.name+' login');
    await frame.locator('#email').fill('runtime-test@example.invalid');
    await frame.locator('#password').fill('isolated-fixture-only');
@@ -139,6 +141,12 @@ async function dashboard(frame,label){
    await page.reload({waitUntil:'load'});
    const reloaded=scenario.url.includes('phone-preview')?await page.locator('iframe').elementHandle().then(el=>el.contentFrame()):page;
    await dashboard(reloaded,scenario.name+' stored session');
+   assert.ok(await reloaded.locator('header.top .logo').evaluate(el=>getComputedStyle(el).objectFit==='contain'&&el.getBoundingClientRect().height>0));
+   assert.ok(await reloaded.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'No full runtime horizontal overflow');
+   await reloaded.locator('header.top').getByRole('button',{name:'Вийти',exact:true}).click();
+   await reloaded.locator('#loginForm').waitFor({state:'visible'});
+   assert.equal(await reloaded.locator('#app').isVisible(),false);
+   assert.equal(await reloaded.evaluate(()=>localStorage.getItem('trts_token')),null);
    assert.deepEqual(errors,[],scenario.name+': uncaught browser errors');
    console.log('PASS complete built scripts, isolated login/reload, seven approved blocks: '+scenario.name);
    await context.close();

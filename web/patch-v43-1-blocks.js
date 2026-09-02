@@ -1,7 +1,7 @@
 (()=>{
 const data=()=>typeof D!=='undefined'?D:window.D||{};
-const defs=[['pickup','Самовивіз','truck'],['fop','ФОП / TS','truck'],['bakery','Пекарня / Фреш','truck'],['courier','Кур’єрські відправлення','box'],['sav','SAV','truck'],['stv','STV','truck'],['replen','Поповнення філій','warehouse']];
-const header=(key,title,count,icon)=>`<button class="v431-block-head" onclick="v431Toggle('${key}')" aria-expanded="true"><b>${window.TRTS_UI.icon(icon)}<span>${title} · ${count}</span></b><span class="v431-toggle-label">⌃</span></button>`;
+const defs=[['pickup','Самовивіз','truck'],['fop','ФОП / TS','truck'],['bakery','Пекарня / Fresh','truck'],['courier','Кур’єрські відправлення','box'],['replen','Поповнення філій','warehouse'],['sav','SAV','truck'],['stv','STV','truck']];
+const header=(key,title,count,icon)=>`<button class="v431-block-head" onclick="v431Toggle('${key}')" aria-expanded="true"><b>${window.TRTS_SHELL?.icon(key)||window.TRTS_UI.icon(icon)}<span>${title} · ${count}</span></b><span class="v431-toggle-label">⌃</span></button>`;
 function enhance(){
  const screen=document.querySelector('.v43-screen');if(!screen||screen.dataset.v431==='1')return;
  const head=screen.querySelector(':scope > .v43-head'),filters=screen.querySelector(':scope > .v43-filters'),groupbar=screen.querySelector(':scope > .v43-groupbar'),stack=screen.querySelector(':scope > .v43-stack');
@@ -21,7 +21,7 @@ function enhance(){
   else body.innerHTML=(key==='bakery'?(window.v439BakeryControls?.()||''):'')+(window.TRTS_FINANCE?.blockControls(key)||'')+(routes.map(r=>window.v436RouteCard(r)).join('')||'<div class="v43-empty">Маршрутів за вибраний період немає</div>');
   if(key==='bakery')body.insertAdjacentHTML('beforeend',window.TRTS_FINANCE?.manualCards('bakery')||'');sec.append(body);frag.append(sec);
  }
- const nav=document.createElement('div');nav.className='v44-finance-nav';nav.innerHTML='<button class="primary" onclick="v44OpenCosts()">Витрати власний парк · Тарифи SAV/STV</button>';frag.prepend(nav);oldSections.forEach(s=>s.remove());screen.append(frag);screen.dataset.v431='1';
+ oldSections.forEach(s=>s.remove());if(window.TRTS_SHELL)window.TRTS_SHELL.mount(screen,frag);else screen.append(frag);screen.dataset.v431='1';
 }
 const view=document.getElementById('view')||document.getElementById('content');
 if(view)new MutationObserver(enhance).observe(view,{childList:true,subtree:false});

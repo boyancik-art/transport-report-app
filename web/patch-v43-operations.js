@@ -72,12 +72,22 @@ window.v439TA=taName;
 function biz(r,p){const a=(dat().alloc||[]).filter(x=>+x.route_point_id===+p.id),raw=(a.length?a.map(x=>x.business_unit):pointDocs(r,p).map(x=>x.business_unit)).filter(Boolean);return [...new Set(raw.map(x=>window.TRTS_V39_BUSINESS?.[T(x)]||T(x)))].join(' / ')||'—'}
 function statusText(){return `Реальні дані · ${from===to?from:from+' — '+to} · оновлено ${new Date().toLocaleTimeString('uk-UA',{hour:'2-digit',minute:'2-digit'})}`}
 const displayDate=d=>d.split('-').reverse().join('.');
+let lastLoaded=null,lastImport=null,importUnavailable=false;
+const timeText=value=>{const date=new Date(value);return Number.isNaN(date.getTime())?'—':new Intl.DateTimeFormat('uk-UA',{dateStyle:'short',timeStyle:'short',timeZone:'Europe/Kyiv'}).format(date)};
 function periodBar(){
  let el=$('#v43-period');if(!el){el=document.createElement('div');el.id='v43-period';const target=v();target?.parentNode?.insertBefore(el,target)}if(!el)return;
- el.innerHTML=`<div class="v43-period-inner"><div class="v43-period-buttons" aria-label="Період звіту"><button class="${mode==='today'?'on':''}" onclick="v43SetPeriod('today')">Сьогодні</button><button class="${mode==='week'?'on':''}" onclick="v43SetPeriod('week')">Тиждень</button><button class="${mode==='custom'?'on':''}" onclick="v43SetPeriod('custom')">Свій період</button></div><form id="v435-period-form" class="v43-custom ${mode==='custom'?'':'hide'}" onsubmit="event.preventDefault();v43ApplyCustom()"><label>З${window.TRTS_UI.dateField('v43-from',from)}</label><label>По${window.TRTS_UI.dateField('v43-to',to)}</label><button type="submit">Застосувати</button></form><div class="v435-period-status"><small id="v435-period-range">${E(displayDate(from))}${from===to?'':' — '+E(displayDate(to))}</small><button onclick="v435Refresh()">Оновити</button></div></div>`;
+ const importFrom=lastImport?.details?.start_date,importTo=lastImport?.details?.end_date;
+ const importRange=window.TRTS_UI.validDate(importFrom)&&window.TRTS_UI.validDate(importTo)?' · '+displayDate(importFrom)+(importFrom===importTo?'':' — '+displayDate(importTo)):'';
+ el.innerHTML=`<div class="v43-period-inner"><div class="v43-period-buttons" aria-label="Період звіту">${[['today','Сьогодні'],['date','Дата'],['week','Тиждень'],['custom','Період']].map(([key,label])=>'<button type="button" class="'+(mode===key?'on':'')+'" aria-pressed="'+(mode===key)+'" onclick="v43SetPeriod(\''+key+'\')">'+label+'</button>').join('')}</div>
+ <form id="v441-date-form" class="v441-single-date ${mode==='date'?'':'hide'}" onsubmit="event.preventDefault();v441ApplyDate()"><label>Одна дата${window.TRTS_UI.dateField('v441-date',from)}</label><button type="submit">Показати</button></form>
+ <form id="v435-period-form" class="v43-custom ${mode==='custom'?'':'hide'}" onsubmit="event.preventDefault();v43ApplyCustom()"><label>З${window.TRTS_UI.dateField('v43-from',from)}</label><label>По${window.TRTS_UI.dateField('v43-to',to)}</label><button type="submit">Застосувати</button></form>
+ <div class="v435-period-status"><small id="v435-period-range">${E(displayDate(from))}${from===to?'':' — '+E(displayDate(to))}</small><button type="button" class="v441-refresh-button" onclick="v441RefreshDialog()">${window.TRTS_SHELL?.icon('refresh')||''}Оновити дані</button></div>
+ <div class="v441-data-status" role="status" aria-live="polite"><p id="v441-import-time">Останній імпорт бази: ${importUnavailable?'час недоступний':lastImport?.imported_at?'<time datetime="'+E(lastImport.imported_at)+'">'+E(timeText(lastImport.imported_at))+'</time>'+E(importRange):'немає підтвердженого імпорту'}</p><p id="v441-loaded-time">Дані звіту завантажено: ${lastLoaded?'<time datetime="'+E(lastLoaded)+'">'+E(timeText(lastLoaded))+'</time>':'ще не завантажено'}</p></div></div>`;
 }
 window.v435Refresh=()=>loadRange();
-window.v43SetPeriod=async m=>{mode=m;if(m==='today'){from=to=today()}else if(m==='week'){from=monday(today());to=addDays(from,6)}periodBar();if(m!=='custom')await loadRange()};
+window.v43SetPeriod=async m=>{if(!['today','date','week','custom'].includes(m))return;mode=m;if(m==='today'){from=to=today()}else if(m==='week'){from=monday(today());to=addDays(from,6)}periodBar();if(m==='today'||m==='week')await loadRange()};
+window.v441ApplyDate=async()=>{if(!$('#v441-date-form')?.reportValidity())return;const date=$('#v441-date').value;if(!window.TRTS_UI.validDate(date))return;return window.v441LoadPeriod(date,date,'date')};
+window.v441LoadPeriod=async(a,b,m)=>{if(!window.TRTS_UI.validDate(a)||!window.TRTS_UI.validDate(b)||a>b)return{ok:false,error:'Оберіть коректні дати'};from=a;to=b;mode=m;periodBar();return loadRange()};
 window.v43ApplyCustom=async()=>{if(!$('#v435-period-form')?.reportValidity())return;const a=$('#v43-from').value,b=$('#v43-to').value;if(!window.TRTS_UI.validDate(a)||!window.TRTS_UI.validDate(b))return;from=a<=b?a:b;to=a<=b?b:a;periodBar();await loadRange()};
 async function apiSafe(path){try{return await api(path)}catch(e){console.warn('v43',path,e);return[]}}
 async function apiRange(path){
@@ -115,10 +125,12 @@ async function loadRange(){
   const [ll,aa]=await Promise.all([apiRange(`/rest/v1/locations?select=*&id=in.${lid}`),apiRange(`/rest/v1/route_business_allocations?select=*&route_point_id=in.${pid}`)]);
   if(request!==rangeSequence)return;
   if(typeof D!=='undefined'){D.routes=routes;D.points=pts;D.facts=ff;D.docs=dd;D.locations=ll;D.alloc=aa}else window.D={routes,points:pts,facts:ff,docs:dd,locations:ll,alloc:aa};
-  meta.people=new Map(pp.map(x=>[T(x.employee_id),T(x.employee_name)]));meta.carriers=cc.filter(x=>!['stv','sav'].includes(x.carrier_type));meta.whMap=wm;meta.warehouses=[...new Set(wm.map(x=>T(x.display_name)).filter(Boolean))].sort();meta.extras=ee;meta.groups=gg;meta.manual=mm;meta.replenishments=rr;meta.rules=new Map(ru.map(x=>[norm(x.expeditor_name),T(x.coverage)]));await window.TRTS_FINANCE?.load(rangeFrom,rangeTo);if(request!==rangeSequence)return;periodBar();renderDashboard();
+  meta.people=new Map(pp.map(x=>[T(x.employee_id),T(x.employee_name)]));meta.carriers=cc.filter(x=>!['stv','sav'].includes(x.carrier_type));meta.whMap=wm;meta.warehouses=[...new Set(wm.map(x=>T(x.display_name)).filter(Boolean))].sort();meta.extras=ee;meta.groups=gg;meta.manual=mm;meta.replenishments=rr;meta.rules=new Map(ru.map(x=>[norm(x.expeditor_name),T(x.coverage)]));await window.TRTS_FINANCE?.load(rangeFrom,rangeTo);if(request!==rangeSequence)return;
+  let imported=null,unavailable=false;try{const rows=await api('/rest/v1/cube_imports?select=imported_at,details&status=eq.completed&order=imported_at.desc&limit=1');if(!Array.isArray(rows))throw Error('Невірна відповідь');imported=rows[0]||null}catch(e){unavailable=true}
+  if(request!==rangeSequence)return;lastImport=imported;importUnavailable=unavailable;lastLoaded=new Date().toISOString();periodBar();renderDashboard();return{ok:true,from:rangeFrom,to:rangeTo};
  }catch(e){
   if(request!==rangeSequence)return;
-  if(vv)vv.innerHTML='<div class="v43-empty" role="alert">Не вдалося завантажити вибраний період. '+E(e.message)+'<br><button onclick="v435Refresh()">Спробувати ще раз</button></div>';
+  if(vv)vv.innerHTML='<div class="v43-empty" role="alert">Не вдалося завантажити вибраний період. '+E(e.message)+'<br><button onclick="v435Refresh()">Спробувати ще раз</button></div>';return{ok:false,error:e.message};
  }
 }
 function pill(t,c=''){return`<span class="v43-pill ${c}">${E(t)}</span>`}
