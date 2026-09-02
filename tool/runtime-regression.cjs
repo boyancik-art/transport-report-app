@@ -1,21 +1,22 @@
 const {chromium}=require(process.env.TRTS_PLAYWRIGHT_MODULE||'playwright');
 const fs=require('node:fs'),http=require('node:http'),path=require('node:path'),assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'..'),dist=path.join(root,'web/dist');
-const expected='v43.8',live=process.env.TRTS_BASE_URL;
+const expected='v43.9',live=process.env.TRTS_BASE_URL;
 const reference=JSON.parse(fs.readFileSync(path.join(root,'web/reference-v39.js'),'utf8').match(/TRTS_V39_EXPEDITOR_COVERAGE=(\{[^\n]*?\});/)[1]);
 const date=new Date().toISOString().slice(0,10);
 const types=['ФОП','Самовивіз',"Кур'єр",'STV','SAV','Пекарня'];
 const names=types.map(t=>Object.keys(reference).find(n=>reference[n]===t));
 assert.ok(names.every(Boolean),'Fixture categories must exist in the system reference');
 const db={
- routes:names.map((name,i)=>({id:i+1,route_date:date,route_delivery_id:'TEST-'+(i+1),expeditor_name:name,warehouse:'Чайки STV',total_points:1,total_documents:1,total_weight:6.2,total_pallets:.011,total_bottles:5,total_order_amount:1000})),
+ routes:names.map((name,i)=>({id:i+1,route_date:date,route_delivery_id:'TEST-'+(i+1),expeditor_name:name,warehouse:i===1?'Львівська обл., Жовківський р-н, с.Малехів, вул. Тараса Дороша 20 А':'Чайки STV',total_points:1,total_documents:1,total_weight:6.2,total_pallets:.011,total_bottles:5,total_order_amount:1000})),
  route_points:[1,2,3,4,5,6].map(id=>({id:id*10,route_id:id,customer_id:'customer-'+id,customer_name:'Тестова ТТ '+id,location_id:id,documents_count:1,weight:6.2,pallets:.011,bottles:5,order_amount:1000})),
  locations:[1,2,3,4,5,6].map(id=>({id,address_id:'address-'+id,delivery_address:'Тестова адреса '+id})),
- source_documents:[1,2,3,4,5,6].map(id=>({id,route_delivery_id:'TEST-'+id,document_date:date,sale_code:'INV-'+id,customer_id:'customer-'+id,address_id:'address-'+id,business_unit:'HoReCa',weight:6.2,pallets:.011,bottles:5,order_amount:1000})),
+ source_documents:[1,2,3,4,5,6].map(id=>({id,route_delivery_id:'TEST-'+id,document_date:date,sale_code:'INV-'+id,customer_id:'customer-'+id,address_id:'address-'+id,business_unit:'HoReCa',employee_id:'8000020908296',weight:6.2,pallets:.011,bottles:5,order_amount:1000})),
  route_facts:[{id:1,route_id:1,carrier_name:'Тестовий перевізник',tariff:1000,wave:'24'}],
  transport_carriers:[{id:1,name:'Тестовий перевізник',active:true}],
  courier_carriers:[{id:1,name:'Тестовий перевізник',active:true}],
- warehouse_display_map:[{source_warehouse:'Чайки STV',display_name:'Чайки STV',active:true}],
+ warehouse_display_map:[{source_warehouse:'Чайки STV',display_name:'Чайки STV',active:true},{source_warehouse:'Львівська обл., Жовківський р-н, с.Малехів, вул. Тараса Дороша 20 А',display_name:'Львів STV',active:true}],
+ employee_directory:[{employee_id:'8000020908296',employee_name:'Мамедов Ельвін Ельхан Огли'}],
  transport_waves:[{id:1,name:'24',active:true}]
 };
 async function mockApi(route){
@@ -23,6 +24,7 @@ async function mockApi(route){
  if(u.pathname==='/auth/v1/token'){
   return route.fulfill({json:{access_token:'isolated-runtime-fixture',token_type:'bearer',expires_in:3600}});
  }
+ if(req.headers()['authorization']!=='Bearer isolated-runtime-fixture')return route.fulfill({status:401,json:{message:'Authentication required'}});
  assert.equal(req.method(),'GET','Runtime fixture must never write real data');
  // Delayed legacy metadata must never replace the modern screen after it has rendered.
  if(u.pathname.endsWith('/profiles'))await new Promise(resolve=>setTimeout(resolve,400));
@@ -72,17 +74,27 @@ async function dashboard(frame,label){
  await frame.locator('.v437-pick-card').waitFor({state:'visible',timeout:15000});
  await healthy(frame,label);
  const titles=await frame.locator('.v431-block-head,.v431-courier-head').allTextContents();
- assert.equal(titles.length,4,'Only the four approved blocks may be rendered: '+JSON.stringify(titles));
- for(const title of titles)assert.doesNotMatch(title,/^(STV|SAV|Пекарня|Фреш)/i);
- for(const id of [4,5,6])assert.equal(await frame.getByText('TEST-'+id,{exact:true}).count(),0,'Unapproved route must be hidden');
+ assert.equal(titles.length,5,'Only the five approved blocks may be rendered: '+JSON.stringify(titles));
+ for(const title of titles)assert.doesNotMatch(title,/^(STV|SAV)/i);
+ for(const id of [4,5])assert.equal(await frame.getByText('TEST-'+id,{exact:true}).count(),0,'Unapproved route must be hidden');
  assert.equal(await frame.locator('.v437-pick-card .v437-exp b').innerText(),names[1]);
+ assert.equal(await frame.locator('.v437-pick-card .v437-warehouse b').innerText(),'Львів STV');
  await frame.locator('.v437-pick-card').click();
  await frame.locator('.v437-tt').waitFor({state:'visible'});
+ assert.match(await frame.locator('.v437-meta').innerText(),/Мамедов Ельвін Ельхан Огли/);
  assert.match(await frame.locator('.v437-inv').innerText(),/INV-2/);
  assert.match(await frame.locator('.v437-inv').innerText(),/6,2 кг/);
  await healthy(frame,label+' pickup details');
  await frame.locator('.v437-detail-head button').click();
  await frame.locator('.v431-fop').waitFor({state:'visible'});
+ await frame.locator('.v431-fop [data-route-id="1"]').click();
+ assert.match(await frame.locator('[data-point-id="10"]').innerText(),/Мамедов Ельвін Ельхан Огли/);
+ await frame.getByRole('button',{name:'Назад до маршрутів',exact:true}).click();
+ await frame.getByRole('button',{name:'+ Додати поповнення',exact:true}).click();
+ assert.equal(await frame.locator('input[name="rp-sender"]').count(),2);
+ assert.equal(await frame.locator('#rp-receiver option').count(),3);
+ assert.ok(await frame.locator('#rp-carrier option').count()>1);
+ await frame.locator('#v43-modal').getByRole('button',{name:'Скасувати',exact:true}).click();
 }
 (async()=>{
  const server=live?null:http.createServer((req,res)=>{
@@ -128,7 +140,7 @@ async function dashboard(frame,label){
    const reloaded=scenario.url.includes('phone-preview')?await page.locator('iframe').elementHandle().then(el=>el.contentFrame()):page;
    await dashboard(reloaded,scenario.name+' stored session');
    assert.deepEqual(errors,[],scenario.name+': uncaught browser errors');
-   console.log('PASS complete built scripts, isolated login/reload, four approved blocks: '+scenario.name);
+   console.log('PASS complete built scripts, isolated login/reload, five approved blocks: '+scenario.name);
    await context.close();
   }
  }finally{await browser.close();if(server)await new Promise(resolve=>server.close(resolve))}

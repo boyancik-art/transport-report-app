@@ -65,7 +65,7 @@
   }
 
   syncAuthUi();
-  if(localStorage.getItem('trts_token')){
+  if(!window.TRTS_MODERN_RUNTIME&&localStorage.getItem('trts_token')){
     showShellNow();
     setTimeout(()=>{
       const v=document.getElementById('view');

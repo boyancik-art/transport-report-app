@@ -1,6 +1,6 @@
 (()=>{
 const data=()=>typeof D!=='undefined'?D:window.D||{};
-const defs=[['pickup','Самовивіз','truck'],['fop','ФОП / TS','truck'],['courier','Кур’єрські відправлення','box'],['replen','Поповнення філій','warehouse']];
+const defs=[['pickup','Самовивіз','truck'],['fop','ФОП / TS','truck'],['bakery','Пекарня / Фреш','truck'],['courier','Кур’єрські відправлення','box'],['replen','Поповнення філій','warehouse']];
 const header=(key,title,count,icon)=>`<button class="v431-block-head" onclick="v431Toggle('${key}')" aria-expanded="true"><b>${window.TRTS_UI.icon(icon)}<span>${title} · ${count}</span></b><span class="v431-toggle-label">⌃</span></button>`;
 function enhance(){
  const screen=document.querySelector('.v43-screen');if(!screen||screen.dataset.v431==='1')return;
@@ -18,7 +18,7 @@ function enhance(){
   const body=document.createElement('div');body.className='v436-block-body'+(key==='pickup'?' v431-pickup-body':'');
   if(key==='fop')body.append(head,filters,groupbar,stack);
   else if(key==='replen'&&replen)body.append(...replen.children);
-  else body.innerHTML=routes.map(r=>window.v436RouteCard(r)).join('')||'<div class="v43-empty">Маршрутів за вибраний період немає</div>';
+  else body.innerHTML=(key==='bakery'?(window.v439BakeryControls?.()||''):'')+(routes.map(r=>window.v436RouteCard(r)).join('')||'<div class="v43-empty">Маршрутів за вибраний період немає</div>');
   sec.append(body);frag.append(sec);
  }
  oldSections.forEach(s=>s.remove());screen.append(frag);screen.dataset.v431='1';

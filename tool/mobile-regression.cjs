@@ -33,7 +33,8 @@ const root=path.resolve(__dirname,'..');
    if(method==='GET'){window.reads.push(url);if(window.failRead===table){window.failRead=null;throw Error('Тестова помилка завантаження')}if(table==='routes'&&window.slowRange===u.searchParams.get('route_date'))await new Promise(r=>setTimeout(r,180));const offset=Number(u.searchParams.get('offset')||0),limit=Number(u.searchParams.get('limit')||1000);return structuredClone(rows.filter(matches).slice(offset,offset+limit))}
    const body=JSON.parse(opt.body||'{}');window.writes.push({table,method,body});
    if(window.failTable===table){window.failTable=null;throw Error('Тестова помилка збереження')}
-   if(method==='POST'){const add=(Array.isArray(body)?body:[body]).map(x=>({id:seq++,...x}));rows.push(...add);return structuredClone(add)}
+   if(method==='POST'){const keys=(u.searchParams.get('on_conflict')||'').split(',').filter(Boolean);const add=(Array.isArray(body)?body:[body]).map(x=>{const existing=keys.length&&rows.find(r=>keys.every(k=>String(r[k])===String(x[k])));if(existing){Object.assign(existing,x);return existing}const row={id:seq++,...x};rows.push(row);return row});return structuredClone(add)}
+   if(method==='DELETE'){const found=rows.filter(matches);for(let i=rows.length-1;i>=0;i--)if(matches(rows[i]))rows.splice(i,1);return structuredClone(found)}
    if(method==='PATCH'){const found=rows.filter(matches);found.forEach(x=>Object.assign(x,body));return structuredClone(found)}
    throw Error('Unexpected method '+method);
   };
@@ -140,9 +141,11 @@ const root=path.resolve(__dirname,'..');
  await page.locator('#rp-save').click();await page.waitForFunction(()=>db.branch_replenishments.length===1);
  const replen=await page.evaluate(()=>db.branch_replenishments[0]);assert.deepEqual([...replen.sender_warehouses].sort(),['Чайки STV','Київ TS'].sort());assert.equal(replen.tariff,2500);
  console.log('PASS warehouse multiselect and Done, tariff and save button visible at 390x740');
- await page.waitForSelector('.v433-open-delivery');
- assert.equal(await page.locator('#v431-courier [data-point-id="31"] .v436-invoice-table tbody tr').count(),2);
- assert.match(await page.locator('#v431-courier [data-point-id="31"]').innerText(),/Київ, адреса 31/);
+ await page.waitForSelector('#v431-courier [data-route-id="3"]');
+ assert.equal(await page.locator('#v431-courier [data-point-id]').count(),0,'Courier list shows routes, not expanded TT');
+ await page.locator('#v431-courier [data-route-id="3"]').click();
+ assert.equal(await page.locator('#view [data-point-id="31"] .v436-invoice-table tbody tr').count(),2);
+ assert.match(await page.locator('#view [data-point-id="31"]').innerText(),/Київ, адреса 31/);
  await page.evaluate(()=>v433OpenDelivery(3));await page.locator('#v431-ccarrier').selectOption('Smartex');
  assert.equal(await page.locator('[data-group="31"] .v436-invoice-table tbody tr').count(),2);
  await capture('courier-invoices',page.locator('.v431-modal'));
@@ -159,7 +162,7 @@ const root=path.resolve(__dirname,'..');
  assert.equal(await page.evaluate(()=>db.courier_shipments.length),2);
  console.log('PASS shared courier tariff conserved to kopeck, distinct tariff, retry without duplicate rows, reopen and edit');
  await page.evaluate(()=>v433Dashboard());await page.waitForSelector('#v431-courier');
- assert.deepEqual(await page.locator('#view [data-section]').evaluateAll(els=>els.map(el=>el.dataset.section)),['pickup','fop','courier','replen']);
+ assert.deepEqual(await page.locator('#view [data-section]').evaluateAll(els=>els.map(el=>el.dataset.section)),['pickup','fop','bakery','courier','replen']);
  await page.getByRole('button',{name:'Свій період',exact:true}).click();
  assert.equal(await page.locator('.v43-custom input[type="date"]').count(),0);
  await page.locator('[data-date-target="v43-from"]').click();
@@ -213,6 +216,71 @@ const root=path.resolve(__dirname,'..');
  await page.evaluate(()=>v433Dashboard());await page.waitForSelector('#v431-courier');
  await page.evaluate(()=>{v431Toggle('fop');v431Toggle('courier')});await page.evaluate(()=>window.scrollTo(0,0));await capture('approved-dashboard');
  console.log('PASS only approved blocks; additional TT increases count, lowers average cost and preserves full tariff allocation');
+
+ // New request: real dictionaries after login are covered by runtime-regression.cjs.
+ await page.evaluate(async()=>{
+  const day=new Date().toISOString().slice(0,10);
+  TRTS_V39_EXPEDITOR_COVERAGE.BAKERY='Пекарня';
+  db.routes.push(...[6,7].map(id=>({id,route_delivery_id:'BAKERY-'+id,route_date:day,expeditor_name:'BAKERY',warehouse:'Чайки STV',total_order_amount:1000})));
+  db.route_points.push(...[6,7].map(id=>({id:id*10,route_id:id,customer_name:'Тестова пекарня '+id,order_amount:1000,pallets:.05,bottles:5,weight:10})));
+  db.route_facts.push(...[6,7].map(id=>({id:100+id,route_id:id,tariff:600,carrier_name:'Пекарня',wave:'Пекарня'})));
+  db.courier_carriers.push({name:'Рабен',active:true});
+  await v43SetPeriod('today');v43OpenRoute(6);
+ });
+ await page.getByRole('button',{name:'Перевізник · хвиля · тариф',exact:true}).click();
+ assert.deepEqual(await page.locator('#v433-carrier option').allTextContents(),['Оберіть','Пекарня','Пекарня Заморозка','Фреш','ОЗ']);
+ assert.deepEqual(await page.locator('#v433-wave option').allTextContents(),['Оберіть','Пекарня','Пекарня Заморозка','Фреш','ОЗ']);
+ await page.locator('#v43-modal').getByRole('button',{name:'Скасувати',exact:true}).click();
+ await page.getByRole('button',{name:'ВТ по маршруту',exact:false}).click();
+ assert.equal(await page.locator('input[name="v439-vt"]').count(),10);
+ for(const name of ['Стоянка','Маккейна','Дмитріська'])await page.locator('input[name="v439-vt"][value="'+name+'"]').check();
+ await page.evaluate(()=>window.failTable='route_extra_points');
+ await page.locator('#v439-vt-save').click();await page.waitForFunction(()=>document.querySelector('#v439-vt-error').textContent.includes('Не збережено'));
+ assert.equal(await page.locator('input[name="v439-vt"]:checked').count(),3);
+ await page.locator('#v439-vt-save').click();await page.waitForFunction(()=>!document.body.classList.contains('trts-modal-open'));
+ assert.equal(await page.evaluate(()=>v437AllocationSnapshot(6).tt),4);
+ await page.evaluate(()=>v439SelectVT(6));await page.locator('#v439-vt-save').click();await page.waitForFunction(()=>!document.body.classList.contains('trts-modal-open'));
+ assert.equal(await page.evaluate(()=>db.route_extra_points.filter(x=>x.route_id===6&&x.point_type==='vt').length),3);
+ await page.getByRole('button',{name:'Додати ТТ',exact:false}).click();
+ await page.locator('#et-type').selectOption('Бар');await page.locator('#et-count').fill('2');
+ await page.locator('#v43-modal').getByRole('button',{name:'Додати',exact:true}).click();await page.waitForFunction(()=>!document.body.classList.contains('trts-modal-open'));
+ let bakery=await page.evaluate(()=>v437AllocationSnapshot(6));
+ assert.equal(bakery.tt,6);assert.equal(bakery.costTT,100);assert.equal(bakery.routeCost,600);
+ assert.ok(Math.abs(bakery.points.reduce((s,x)=>s+x.cost,0)+bakery.extras.reduce((s,x)=>s+x.cost,0)-600)<.000001);
+ await page.evaluate(()=>v439SelectVT(6));await page.locator('input[name="v439-vt"][value="Маккейна"]').uncheck();await page.locator('#v439-vt-save').click();await page.waitForFunction(()=>!document.body.classList.contains('trts-modal-open'));
+ assert.equal(await page.evaluate(()=>v437AllocationSnapshot(6).tt),5);
+ assert.equal(await page.evaluate(()=>db.route_extra_points.filter(x=>x.route_id===6&&x.point_type==='extra_tt').length),1);
+ await capture('bakery-vt-route');
+ await page.evaluate(()=>{v43StartGroup('bakery');v43SelectRoute(6,true);v43SelectRoute(7,true);v43FinishGroup()});
+ await page.locator('#tg-tariff').fill('900');await page.locator('#tg-save').click();await page.waitForFunction(()=>!document.body.classList.contains('trts-modal-open'));
+ const grouped=await page.evaluate(()=>[v437AllocationSnapshot(6),v437AllocationSnapshot(7)]);
+ assert.ok(Math.abs(grouped.reduce((s,x)=>s+x.routeCost,0)-900)<.000001);
+ assert.equal(await page.evaluate(()=>db.route_facts.filter(x=>x.route_id===6).length),1);
+ assert.equal(await page.evaluate(()=>db.route_facts.filter(x=>x.route_id===7).length),1);
+ await page.evaluate(()=>v433EditRoute(1));
+ assert.deepEqual(await page.locator('#v433-wave option').allTextContents(),['Оберіть','24','48','Мережа','ОЗ']);
+ await page.locator('#v43-modal').getByRole('button',{name:'Скасувати',exact:true}).click();
+ console.log('PASS bakery VT multiselect: retry, idempotency, deselect, ordinary extra TT, full allocation, shared tariff; FOP waves restricted');
+ await page.evaluate(()=>v43Replenishment());
+ await page.locator('#rp-tariff').fill('1234');await page.locator('#rp-new-carrier').fill('Мій перевізник');
+ await page.locator('#rp-add-carrier').click();await page.waitForFunction(()=>document.querySelector('#rp-carrier').value==='Мій перевізник');
+ assert.equal(await page.locator('#rp-tariff').inputValue(),'1234');
+ assert.equal(await page.evaluate(()=>db.transport_carriers.filter(x=>x.name==='Мій перевізник').length),1);
+ await page.locator('#v43-modal').getByRole('button',{name:'Скасувати',exact:true}).click();
+ await page.evaluate(()=>v439EditCourierCarrier(3,32,true));
+ await page.locator('#v439-carrier').selectOption('Нова Пошта');await page.locator('#v439-carrier-save').click();await page.waitForFunction(()=>!document.body.classList.contains('trts-modal-open'));
+ const beforeCarrier=await page.evaluate(()=>db.courier_shipment_points.map(x=>({id:x.route_point_id,cost:x.delivery_cost,sid:x.shipment_id})));
+ await page.evaluate(()=>v439EditCourierCarrier(3));await page.locator('#v439-carrier').selectOption('Рабен');await page.locator('#v439-carrier-save').click();await page.waitForFunction(()=>!document.body.classList.contains('trts-modal-open'));
+ assert.deepEqual(await page.evaluate(()=>db.courier_shipment_points.map(x=>({id:x.route_point_id,cost:x.delivery_cost,sid:x.shipment_id}))),beforeCarrier);
+ assert.equal(await page.evaluate(()=>v439CourierPointCarrier(D.routes.find(x=>x.id===3),D.points.find(x=>x.id===31))),'Рабен');
+ assert.equal(await page.evaluate(()=>v439CourierPointCarrier(D.routes.find(x=>x.id===3),D.points.find(x=>x.id===32))),'Нова Пошта');
+ await page.evaluate(()=>v439EditCourierCarrier(3,32,true));await page.locator('#v439-carrier').selectOption('');await page.locator('#v439-carrier-save').click();await page.waitForFunction(()=>!document.body.classList.contains('trts-modal-open'));
+ assert.equal(await page.evaluate(()=>v439CourierPointCarrier(D.routes.find(x=>x.id===3),D.points.find(x=>x.id===32))),'Рабен');
+ await page.evaluate(()=>v43OpenTT(3,31));await capture('courier-tt-invoices-v439');
+ assert.ok(await page.locator('.v439-invoice').count()>0);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ console.log('PASS custom carrier retains form; courier route default, TT override/reset, shared tariff and allocation unchanged; unified invoice design');
+
  await page.waitForTimeout(600);
  const mutationCount=await page.evaluate(()=>new Promise(resolve=>{let n=0;const o=new MutationObserver(r=>n+=r.length);o.observe(document.body,{subtree:true,childList:true});setTimeout(()=>{o.disconnect();resolve(n)},300)}));assert.ok(mutationCount<10,'UI must settle, mutations='+mutationCount);
  assert.deepEqual(errors,[]);
