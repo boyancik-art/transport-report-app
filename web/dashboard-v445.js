@@ -24,7 +24,7 @@
  function label(row,key,value){return key==='routeId'?row?.routeName||value:key==='pointId'?row?.pointName||'Додаткова ТТ':key==='section'?SECTIONS[value]||value:key==='zone'&&/^[1-5]$/.test(value)?'Зона '+value:value}
  function badge(now,before,key,available){
   const change=available&&(!['cost','costTT','costPal','log'].includes(key)||!now.missing&&!before.missing)?P.change(get(now,key),get(before,key),key):null;
-  if(!change)return'<span class="v445-delta neutral">Порівняння недоступне</span>';
+  if(!change)return'<span class="v445-delta neutral" title="Порівняння недоступне">—</span>';
   return'<span class="v445-delta '+(!change.direction?'neutral':change.good?'good':'bad')+'">'+(change.direction>0?'↑':change.direction<0?'↓':'→')+' '+(change.percent===null?'з нульової бази':O.F(change.percent,1)+'%')+'</span>';
  }
  function trend(current,previous,key,title,kind){
@@ -66,7 +66,7 @@
  }
  function executive(current,previous,keys){
   const now=A.total(current),old=A.total(previous);
-  return '<section class="v446-executive" aria-label="Ключові показники">'+keys.map(([key,label])=>'<button type="button" data-kpi="'+key+'" data-value="'+(get(now,key)??'')+'" aria-pressed="'+(key===trendMetric)+'" onclick="v446Metric(\''+key+'\')"><small>'+label+'</small><b>'+format(get(now,key),key)+'</b>'+badge(now,old,key,!!data.previous&&current.length>0&&previous.length>0)+'</button>').join('')+'</section>';
+  return '<section class="v446-executive" aria-label="Ключові показники">'+keys.map(([key,label])=>'<button type="button" data-kpi="'+key+'" data-value="'+(get(now,key)??'')+'" aria-pressed="'+(key===trendMetric)+'" onclick="v446Metric(\''+key+'\')"><small>'+label+'</small><b title="'+E(format(get(now,key),key))+'">'+(get(now,key)==null?'—':format(get(now,key),key))+'</b>'+badge(now,old,key,!!data.previous&&current.length>0&&previous.length>0)+'</button>').join('')+'</section>';
  }
  function breakdown(current,previous){
   const available=axes();if(!available.includes(axis))axis=available[0];
