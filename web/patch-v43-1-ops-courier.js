@@ -110,7 +110,7 @@ window.v433OpenDelivery=async (rid,focusPid=null)=>{
   groups.push({key:+p.id,ids,sid: sid||null,tariff,original:{ids:[...ids],tariff,carrier}});
  }
  const prior=[...new Set(groups.map(g=>g.original.carrier).filter(Boolean))];
- draft={rid:+rid,groups,carrier:defaultCarrier(r)||(prior.length===1?prior[0]:''),date:r.route_date,backPid:focusPid};draft.groups.forEach(g=>{if(groupOwn(g))g.tariff='0'});
+ draft={rid:+rid,groups,expectedLinks:cdata.links.map(x=>({...x})),carrier:defaultCarrier(r)||(prior.length===1?prior[0]:''),date:r.route_date,backPid:focusPid};draft.groups.forEach(g=>{if(groupOwn(g))g.tariff='0'});
  showModal('Кур’єрська доставка',`<div class="v433-delivery"><p>${E(r.route_delivery_id||r.id)} · ${E(r.expeditor_name)}</p><label>Перевізник<select id="v431-ccarrier" onchange="v433CourierCarrier(this.value)"><option value="">Оберіть перевізника</option>${[...new Set([...cdata.carriers.map(c=>c.name),...prior,draft.carrier])].map(n=>`<option ${n===draft.carrier?'selected':''}>${E(n)}</option>`).join('')}</select></label><p class="v431-note">Вкажіть тариф навпроти ТТ. Кнопка «+ ТТ під цей тариф» об’єднує точки в один тариф. Спільна сума розподіляється за 30% палет / 50% пляшок / 20% ваги, далі — між накладними кожної ТТ. Кількість місць не змінюється.</p><div id="v433-courier-rows"></div><p id="v433-courier-error" class="v433-error" role="alert"></p></div>`,'<button onclick="v431CloseModal()">Скасувати</button><button id="v433-courier-save" class="primary" onclick="v431SaveCourier()">Готово</button>');
  renderDraft();if(focusPid){const group=groups.find(g=>g.ids.includes(+focusPid));if(group)$('#v433-cost-'+group.key)?.focus()}
  }catch(e){showModal('Кур’єрська доставка','<p class="v433-error">'+E(e.message)+'</p>','<button onclick="v431CloseModal()">Закрити</button>')}
@@ -123,17 +123,17 @@ function renderDraft(){const box=$('#v433-courier-rows');if(!box||!draft)return;
 }
 window.v433ChooseShared=key=>{
  const g=draft?.groups.find(x=>x.key===+key),box=$('#v433-shared-'+key);if(!g||!box)return;
- const other=new Set(draft.groups.filter(x=>x!==g&&(x.sid||T(x.tariff)!==''||x.ids.length>1)).flatMap(x=>x.ids));
  const rows=(dat().routes||[]).filter(r=>isCourier(r)&&r.route_date===draft.date).flatMap(r=>points(r));
- const eligible=rows.filter(p=>!other.has(+p.id)&&(!cdata.links.some(l=>+l.route_point_id===+p.id)||g.ids.includes(+p.id)));
- box.innerHTML=`<div class="v433-shared-options">${eligible.map(p=>`<label><input type="checkbox" name="v433-shared-${g.key}" value="${p.id}" ${g.ids.includes(+p.id)?'checked':''} ${+p.id===g.ids[0]||(g.sid&&g.original.ids.includes(+p.id))?'disabled':''}><span>${pointLabel(+p.id)}</span></label>`).join('')}<button class="primary" onclick="v433ApplyShared(${g.key})">Готово</button></div>`;
+ box.innerHTML=`<div class="v433-shared-options"><p class="v431-note">Обрані ТТ перейдуть під цей спільний тариф. Якщо ТТ уже входить у групу, буде додано всю її групу; старий тариф цієї групи буде замінено.</p>${rows.map(p=>`<label><input type="checkbox" name="v433-shared-${g.key}" value="${p.id}" ${g.ids.includes(+p.id)?'checked':''} ${g.ids.includes(+p.id)?'disabled':''}><span>${pointLabel(+p.id)}</span></label>`).join('')}<button class="primary" onclick="v433ApplyShared(${g.key})">Готово</button></div>`;
 };
 window.v433ApplyShared=key=>{
  const g=draft?.groups.find(x=>x.key===+key);if(!g)return;
- const prev=[...g.ids],chosen=[...document.querySelectorAll('input[name="v433-shared-'+key+'"]:checked')].map(x=>+x.value);
- g.ids=[g.ids[0],...chosen.filter(id=>id!==g.ids[0])];
- draft.groups=draft.groups.filter(x=>x===g||!g.ids.includes(x.ids[0]));
- for(const id of prev){if(!g.ids.includes(id)&&+routeByPoint(id)?.id===draft.rid)draft.groups.push({key:id,ids:[id],sid:null,tariff:'',original:{ids:[id],tariff:'',carrier:''}})}
+ const chosen=[...document.querySelectorAll('input[name="v433-shared-'+key+'"]:checked')].map(x=>+x.value),ids=new Set(g.ids);
+ for(const id of chosen){
+  const local=draft.groups.find(x=>x.ids.includes(id)),link=cdata.links.find(x=>+x.route_point_id===id);
+  for(const member of local?local.ids:link?cdata.links.filter(x=>T(x.shipment_id)===T(link.shipment_id)).map(x=>+x.route_point_id):[id])ids.add(member);
+ }
+ g.ids=[...ids];draft.groups=draft.groups.filter(x=>x===g||!x.ids.some(id=>ids.has(id)));
  renderDraft();
 };
 window.v431CreateCourier=()=>{
@@ -153,14 +153,14 @@ window.v431SaveCourier=async()=>{
  try{
  await saveDefaultCarrier((dat().routes||[]).find(r=>+r.id===draft.rid),draft.carrier);
  const latest=await api('/rest/v1/courier_shipment_points?select=*&route_point_id=in.('+ids.join(',')+')');
- for(const g of groups){for(const id of g.ids){const link=latest.find(l=>+l.route_point_id===id);if(link&&T(link.shipment_id)!==T(g.sid))throw Error('ТТ уже прив’язана до іншого тарифу. Відкрийте доставку знову')}}
+ for(const g of groups){for(const id of g.ids){const link=latest.find(l=>+l.route_point_id===id);const expected=draft.expectedLinks.find(x=>+x.route_point_id===id);if(link&&T(link.shipment_id)!==T(g.sid)&&T(link.shipment_id)!==T(expected?.shipment_id))throw Error('ТТ змінена в іншій сесії. Відкрийте доставку знову')}}
  for(const g of groups){
   const unchanged=!window.TRTS_COSTS.own(draft.carrier)&&g.sid&&g.tariff===g.original.tariff&&draft.carrier===g.original.carrier&&g.ids.join(',')===g.original.ids.join(',');
   if(unchanged)continue;
   if(!g.sid){const made=await api('/rest/v1/courier_shipments',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({shipment_date:draft.date||deliveryDate(),carrier_name:draft.carrier})});g.sid=made?.[0]?.id;if(!g.sid)throw Error('Сервер не підтвердив створення доставки')}
   else if(draft.carrier!==g.original.carrier){await api('/rest/v1/courier_shipments?id=eq.'+encodeURIComponent(g.sid),{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({carrier_name:draft.carrier})})}
   const paid=g.ids.filter(id=>!window.TRTS_COSTS.own(T(linkFor(pointById(id))?.carrier_override)||draft.carrier)),calculated=paid.length?shares(g.tariff,paid):[],allocation=g.ids.map(id=>({id,cost:calculated.find(x=>x.id===id)?.cost||0})),add=[];
-  for(const item of allocation){const link=latest.find(l=>+l.route_point_id===item.id);if(link){await api('/rest/v1/courier_shipment_points?shipment_id=eq.'+encodeURIComponent(g.sid)+'&route_point_id=eq.'+item.id,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({delivery_cost:item.cost})})}else add.push({shipment_id:g.sid,route_id:routeByPoint(item.id).id,route_point_id:item.id,delivery_cost:item.cost})}
+  for(const item of allocation){const link=latest.find(l=>+l.route_point_id===item.id);if(link){const updated=await api('/rest/v1/courier_shipment_points?id=eq.'+link.id+'&shipment_id=eq.'+encodeURIComponent(link.shipment_id)+'&delivery_cost=eq.'+N(link.delivery_cost),{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({shipment_id:g.sid,delivery_cost:item.cost})});if(!updated?.length)throw Error('Тариф ТТ змінено в іншій сесії');Object.assign(link,updated[0])}else add.push({shipment_id:g.sid,route_id:routeByPoint(item.id).id,route_point_id:item.id,delivery_cost:item.cost})}
   if(add.length)await api('/rest/v1/courier_shipment_points',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(add)});
   g.original={ids:[...g.ids],tariff:g.tariff,carrier:draft.carrier};
  }

@@ -140,7 +140,7 @@ async function dashboard(frame,label){
    const reloaded=scenario.url.includes('phone-preview')?await page.locator('iframe').elementHandle().then(el=>el.contentFrame()):page;
    await dashboard(reloaded,scenario.name+' stored session');
    assert.deepEqual(errors,[],scenario.name+': uncaught browser errors');
-   console.log('PASS complete built scripts, isolated login/reload, five approved blocks: '+scenario.name);
+   console.log('PASS complete built scripts, isolated login/reload, seven approved blocks: '+scenario.name);
    await context.close();
   }
  }finally{await browser.close();if(server)await new Promise(resolve=>server.close(resolve))}
