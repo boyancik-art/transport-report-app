@@ -73,6 +73,7 @@ async function healthy(frame,label){
 }
 async function dashboard(frame,label){
  await frame.locator('[data-summary=local]').waitFor({state:'visible'});
+ if(process.env.TRTS_CAPTURE==='1')console.log('VISUAL:v443-'+label.replaceAll(' ','-')+':'+(await frame.screenshot({type:'jpeg',quality:65})).toString('base64'));
  assert.equal(await frame.locator('#v442-nav button').count(),5);
  assert.deepEqual(await frame.locator('#v442-nav button>span:last-child').allTextContents(),['Дашборд','Аналітика','Маршрути','Довідник витрат','Меню']);
  await frame.locator('#v442-nav').getByRole('button',{name:'Маршрути',exact:true}).click();
@@ -92,7 +93,7 @@ async function dashboard(frame,label){
  assert.match(await frame.locator('.v437-inv').innerText(),/INV-2/);
  assert.match(await frame.locator('.v437-inv').innerText(),/6,2 кг/);
  await healthy(frame,label+' pickup details');
- await frame.locator('.v437-detail-head button').click();
+ await frame.locator('.v437-detail-head button').first().click();
  await frame.locator('.v431-fop').waitFor({state:'visible'});
  await frame.locator('.v431-fop [data-route-id="1"]').click();
  assert.match(await frame.locator('[data-point-id="10"]').innerText(),/Мамедов Ельвін Ельхан Огли/);

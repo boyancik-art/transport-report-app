@@ -23,5 +23,6 @@
   if(deleting||!TRTS_SECURITY.isAdmin())return;const r=O.dat().routes.find(x=>+x.id===+id);if(!r||!confirm('Видалити маршрут '+r.route_delivery_id+'? Він більше не враховуватиметься в Аналітиці та Дашборді.'))return;
   deleting=true;try{const result=await api('/rest/v1/rpc/transport_archive_route',{method:'POST',body:JSON.stringify({target_route_id:Number(id)})});if(!result?.ok)throw Error('Видалення не підтверджено');history=[];current={kind:'tab',key:'routes'};v442Nav('routes');await v435Refresh()}catch(e){alert('Не видалено: '+e.message)}finally{deleting=false}
  };
+ window.v443DeleteManualRoute=async id=>{if(deleting||!TRTS_SECURITY.isAdmin()||!confirm('Видалити ручний маршрут? Він більше не враховуватиметься в розрахунках.'))return;deleting=true;try{const result=await api('/rest/v1/rpc/transport_archive_manual_route',{method:'POST',body:JSON.stringify({target_route_id:Number(id)})});if(!result?.ok)throw Error('Видалення не підтверджено');await v435Refresh()}catch(e){alert(e.message)}finally{deleting=false}};
  window.TRTS_NAVIGATION={tab:key=>{if(!replaying)push({kind:'tab',key})},capture:()=>{},reportReturn:restore=>{current={kind:'report',restore}},back,reset:()=>{history=[];current={kind:'tab',key:'dashboard'}}};
 })();

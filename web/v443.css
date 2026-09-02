@@ -18,3 +18,5 @@ html[data-theme=light] :is(.v436-route-fields,.v436-metrics,.v436-business,.v436
 html[data-theme=light] :is(.v43-screen,.v43-period-inner) :is(small,dt,p){color:var(--v-muted)}html[data-theme=light] #v442-nav button[aria-current=page]{background:#e9dffc!important;color:#573496!important}html[data-theme=light] .v443-change.good{color:var(--v-good)!important}html[data-theme=light] .v443-change.bad{color:var(--v-bad)!important}
 @media(min-width:650px){.v443-overview dl{grid-template-columns:repeat(3,minmax(0,1fr))}.v443-global-period .v43-period-buttons{grid-template-columns:repeat(6,1fr)}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+
+.v436-detail-head,.v437-detail-head{grid-template-columns:38px minmax(0,1fr) auto!important}.v443-delete{font-size:12px!important;padding:8px!important;border:1px solid #934657!important;border-radius:10px;min-height:38px;background:#2b1925!important}

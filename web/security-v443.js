@@ -28,7 +28,7 @@
   })();try{await refreshing}finally{refreshing=null}
  }
  const originalApi=window.api;
- window.api=async(path,options={})=>{if(locked())throw Error('Спочатку розблокуйте застосунок');const generation=epoch;await refresh();const result=await originalApi(path,options);if(generation!==epoch)throw Error('Сесію заблоковано');return result};
+ window.api=async(path,options={})=>{if(locked())throw Error('Спочатку розблокуйте застосунок');const generation=epoch;await refresh();const result=await originalApi(path,options);if(generation!==epoch)throw Error('Сесію заблоковано');if(options.method&&options.method!=='GET')window.TRTS_DASHBOARD?.invalidate();return result};
  async function identify(){
   const u=await api('/auth/v1/user');if(!u?.id)throw Error('Не вдалося перевірити користувача');
   const rows=await api('/rest/v1/profiles?id=eq.'+encodeURIComponent(u.id)+'&select=id,full_name,role,active,allowed_waves');
