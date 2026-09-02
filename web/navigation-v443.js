@@ -3,7 +3,7 @@
  const O=TRTS_OPS,originals={};
  function push(next){if(replaying)return;if(JSON.stringify(next)===JSON.stringify(current))return;history.push(current);if(history.length>50)history.shift();current=next}
  window.v445DeleteButton=id=>TRTS_SECURITY.isAdmin()?'<button type="button" class="v445-route-delete v443-danger" onclick="event.stopPropagation();v443DeleteRoute('+Number(id)+')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></svg>Видалити маршрут</button>':'';
- function adminDelete(id){if(!TRTS_SECURITY.isAdmin())return;const host=O.view().querySelector('.v436-detail-head,.v437-detail-head');if(host&&!host.querySelector('.v443-delete')){const b=document.createElement('button');b.className='v443-delete v443-danger';b.textContent='Видалити маршрут';b.onclick=()=>window.v443DeleteRoute(id);host.append(b)}}
+ function adminDelete(id){if(!TRTS_SECURITY.isAdmin())return;const host=O.view().querySelector('.v436-detail-head,.v437-detail-head');if(host&&!host.parentElement.querySelector('.v443-delete,.v445-route-delete')){const b=document.createElement('button');b.className='v443-delete v443-danger';b.textContent='Видалити маршрут';b.onclick=()=>window.v443DeleteRoute(id);host.append(b)}}
  for(const name of ['v43OpenRoute','v437PickupRoute','v43OpenTT']){
   originals[name]=window[name];window[name]=(...args)=>{push({kind:name,args});const result=originals[name](...args);if(name!=='v43OpenTT')adminDelete(args[0]);return result};
  }

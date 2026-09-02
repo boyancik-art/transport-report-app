@@ -56,9 +56,11 @@ html[data-theme=light] :is(.v436-invoice-table,.v439-invoice-table){background:#
 html[data-theme=light] button:disabled{background:#edf0f5!important;color:#718098!important;opacity:.75}
 html[data-theme=light] :is(input,textarea,select,button):focus-visible{outline:2px solid #7952bf!important;outline-offset:2px}
 html[data-theme=light] #trts-update{background:#fff!important;color:#475570!important;border-color:var(--v-border)!important;box-shadow:0 5px 20px #20385b13}
-html[data-theme=light] :is(#login,.login,.auth,.auth-box,.login-card){background:var(--v-card)!important;color:var(--v-text)!important;border-color:var(--v-border)!important}
+html[data-theme=light] :is(#login,.login,.loginbox,.auth,.auth-box,.login-card){background:var(--v-card)!important;color:var(--v-text)!important;border-color:var(--v-border)!important}
 html[data-theme=light] :is(#login,.login,.auth) :is(input,select){background:#f6f8fc!important;color:var(--v-text)!important;border-color:var(--v-border)!important}
 html[data-theme=light] .v445-dashboard :is(.v445-directions button,.v445-ranks button,.v445-axes button){background:transparent!important}
 html[data-theme=light] .v445-dashboard .v445-axes button[aria-pressed=true]{background:#eee7fc!important;color:#5d369f!important;border-color:#b6a1d9!important}
 html[data-theme=light] .v445-dashboard :is(h1,h2,strong,b){color:var(--v-text)!important}
 html[data-theme=light] .v445-dashboard :is(.v445-directions small,.v445-ranks small,.v445-eyebrow,.v445-chart-heading h3){color:var(--v-muted)!important}
+
+html[data-theme=light] .loginbox :is(h1,h2,p,.sub){color:var(--v-text)!important}

@@ -211,6 +211,7 @@ async function dashboard(frame,label){
     console.log('PASS edge swipe TT to route, restored Administrator delete action, non-admin Menu and delete actions hidden/blocked');
     await require('./security-flows.cjs')({page,context,frame:reloaded,handler:securityFixture.handle});
    }
+   await reloaded.evaluate(()=>v443Theme('light'));
    const logoutBaseline=logoutCalls;logoutFault=true;
    await Promise.all([reloaded.waitForNavigation({waitUntil:'load'}),reloaded.evaluate(()=>{void logout()})]);
    await reloaded.locator('#loginForm').waitFor({state:'visible'});
@@ -225,6 +226,7 @@ async function dashboard(frame,label){
    await afterLogout.locator('#loginForm').waitFor({state:'visible'});
    assert.equal(await afterLogout.locator('#v443-unlock').count(),0,'Old PIN/biometric session must not return');
    assert.equal(await afterLogout.locator('#app').isVisible(),false);
+   assert.equal(await afterLogout.evaluate(()=>localStorage.trts_theme),'light');assert.equal(await afterLogout.locator('html').getAttribute('data-theme'),'light','Theme persists across full logout and restart');
    console.log('PASS failed remote logout clears session and PIN/biometrics; reopen requires email/password: '+scenario.name);
    assert.deepEqual(errors,[],scenario.name+': uncaught browser errors');
    console.log('PASS complete built scripts, isolated login/reload, five screens and eight route subblocks: '+scenario.name);
