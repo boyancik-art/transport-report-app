@@ -60,7 +60,12 @@ function extraAllocation(r,x){const s=systemMetrics(r),tt=N(x.tt_count)||1,avg=k
 function allocationMetrics(r){const s=systemMetrics(r);return extraFor(r).reduce((a,x)=>{const q=extraAllocation(r,x);a.pals+=q.pals;a.bottles+=q.bottles;a.weight+=q.weight;a.tt+=q.tt;return a},{pals:s.pals,bottles:s.bottles,weight:s.weight,tt:s.tt})}
 function weightedShare(m,total){let parts=[];if(total.pals>0)parts.push(.3*m.pals/total.pals);if(total.bottles>0)parts.push(.5*m.bottles/total.bottles);if(total.weight>0)parts.push(.2*m.weight/total.weight);let raw=parts.reduce((a,b)=>a+b,0),active=(total.pals>0?.3:0)+(total.bottles>0?.5:0)+(total.weight>0?.2:0);return active?raw/active:0}
 function allocationShare(m,total){const physical=weightedShare(m,total);return physical||(total.pals<=0&&total.bottles<=0&&total.weight<=0&&total.tt>0?N(m.tt)/total.tt:0)}
-function routeCost(r){const special=window.TRTS_FINANCE?.routeCost(r);if(special!==undefined)return special;const f=facts(r),m=allocationMetrics(r);if(/ТОВ ТС ПЛЮС/i.test(T(f.carrier_name)))return 0;if(f.tariff_group_id){const g=meta.groups.find(x=>T(x.id)===T(f.tariff_group_id));if(g){const members=(dat().routes||[]).filter(z=>T(facts(z).tariff_group_id)===T(g.id)),tot=members.reduce((a,z)=>{const q=allocationMetrics(z);a.pals+=q.pals;a.bottles+=q.bottles;a.weight+=q.weight;a.tt+=q.tt;return a},{pals:0,bottles:0,weight:0,tt:0});return N(g.tariff)*allocationShare(m,tot)}}return N(f.corrected_tariff??f.tariff)}
+function routeCost(r){
+ const special=window.TRTS_FINANCE?.routeCost(r);if(special!==undefined)return special;const f=facts(r);
+ if(window.TRTS_COSTS.own(f.carrier_name))return 0;
+ if(f.tariff_group_id){const g=meta.groups.find(x=>T(x.id)===T(f.tariff_group_id));if(g){const members=(dat().routes||[]).filter(z=>T(facts(z).tariff_group_id)===T(g.id)&&!window.TRTS_COSTS.own(facts(z).carrier_name));return window.TRTS_COSTS.split(N(g.tariff),members.map(z=>({id:z.id,...allocationMetrics(z)}))).find(x=>+x.id===+r.id)?.cost||0}}
+ return N(f.corrected_tariff??f.tariff);
+}
 function metrics(r){const m=baseMetrics(r),cost=routeCost(r),f=facts(r);return{...m,cost,costTT:m.tt?cost/m.tt:0,log:m.sales?cost/m.sales*100:0,del:N(f.delivered_points)}}
 function taName(r,p){const alloc=(dat().alloc||[]).filter(x=>+x.route_point_id===+p.id),ids=[...new Set([...alloc,...pointDocs(r,p)].map(x=>T(x.employee_id)).filter(Boolean))];return [...new Set(ids.map(id=>meta.people.get(id)).filter(Boolean))].join(' / ')||'ПІБ не знайдено'}
 window.v439TA=taName;
