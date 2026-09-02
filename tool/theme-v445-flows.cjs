@@ -21,9 +21,21 @@ module.exports=async({page,frame,capture})=>{
   if(capture)await capture('v445-full-'+theme+'-invoice');
   await frame.evaluate(()=>{v442Nav('routes');v43Replenishment()});
   await frame.locator('#v43-modal').waitFor({state:'visible'});
+  if(theme==='light'){
+   const ratios=await frame.evaluate(()=>{
+    const lum=css=>{const a=css.match(/[\d.]+/g).slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4});return a[0]*.2126+a[1]*.7152+a[2]*.0722};
+    return ['.v43-modal-head h3','#rp-sender-summary','#rp-receiver'].map(sel=>{
+     const node=document.querySelector(sel),ink=lum(getComputedStyle(node).color);let surface=node;
+     while(surface&&['rgba(0, 0, 0, 0)','transparent'].includes(getComputedStyle(surface).backgroundColor))surface=surface.parentElement;
+     const paper=lum(surface?getComputedStyle(surface).backgroundColor:'rgb(255,255,255)');
+     return{sel,ratio:(Math.max(ink,paper)+.05)/(Math.min(ink,paper)+.05)};
+    });
+   });for(const x of ratios)assert.ok(x.ratio>=4.5,'Light modal contrast '+JSON.stringify(x));
+  }
   if(capture)await capture('v445-full-'+theme+'-modal');
   await frame.evaluate(()=>v43CloseModal());
  }
+ await frame.evaluate(()=>v443Theme('light'));
  assert.deepEqual(await frame.evaluate(()=>TRTS_APP.buildReport()),before,'Theme and view changes preserve every report value');
  console.log('PASS full Light/Dark screens, only two theme options, persisted preference, route actions and financial parity');
 };
