@@ -6,7 +6,7 @@
  for(const name of ['v43OpenRoute','v437PickupRoute','v43OpenTT']){
   originals[name]=window[name];window[name]=(...args)=>{push({kind:name,args});const result=originals[name](...args);if(name!=='v43OpenTT')adminDelete(args[0]);return result};
  }
- function restore(item){replaying=true;try{current=item;if(item.kind==='tab')v442Nav(item.key);else if(item.kind==='report')item.restore?.();else originals[item.kind]?.(...item.args)}finally{replaying=false}}
+ function restore(item){replaying=true;try{current=item;if(item.kind==='tab')v442Nav(item.key);else if(item.kind==='report')item.restore?.();else window[item.kind]?.(...item.args)}finally{replaying=false}}
  function back(){
   for(const id of ['v431-modal','v43-modal']){const node=document.getElementById(id);if(node?.style.display==='block'){(id==='v431-modal'?v431CloseModal:v43CloseModal)();return}}
   if(current.kind==='tab'&&TRTS_APP.current()==='menu'&&TRTS_SETTINGS.back())return;

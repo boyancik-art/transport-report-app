@@ -158,7 +158,23 @@ async function dashboard(frame,label){
    await dashboard(reloaded,scenario.name+' stored session');
    assert.ok(await reloaded.locator('header.top .logo').evaluate(el=>getComputedStyle(el).objectFit==='contain'&&el.getBoundingClientRect().height>0));
    assert.ok(await reloaded.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'No full runtime horizontal overflow');
-   if(scenario.name==='mobile')await require('./security-flows.cjs')({page,context,frame:reloaded,handler:securityFixture.handle});
+   if(scenario.name==='mobile'){
+    await reloaded.evaluate(()=>{v442Nav('routes');v43OpenRoute(1);v43OpenTT(1,10)});
+    await reloaded.locator('.v439-invoice').waitFor();
+    await reloaded.evaluate(()=>{
+     const target=document.getElementById('view'),t=(x,y)=>new Touch({identifier:1,target,clientX:x,clientY:y});
+     target.dispatchEvent(new TouchEvent('touchstart',{bubbles:true,touches:[t(10,400)]}));
+     target.dispatchEvent(new TouchEvent('touchmove',{bubbles:true,cancelable:true,touches:[t(125,405)]}));
+     target.dispatchEvent(new TouchEvent('touchend',{bubbles:true,changedTouches:[t(125,405)]}));
+    });
+    await reloaded.locator('.v436-detail').waitFor();assert.equal(await reloaded.locator('.v443-delete').count(),1);
+    db.profiles[0].role='logistician';await reloaded.evaluate(async()=>{await TRTS_SECURITY.identify();v442Nav('menu')});
+    for(const name of ['Користувачі та права','Довідники','Журнал змін'])assert.equal(await reloaded.locator('.v443-settings').getByRole('button',{name,exact:false}).count(),0);
+    await reloaded.evaluate(()=>{v43OpenRoute(1);v443DeleteRoute(1)});assert.equal(await reloaded.locator('.v443-delete').count(),0);
+    db.profiles[0].role='admin';await reloaded.evaluate(()=>TRTS_SECURITY.identify());
+    console.log('PASS edge swipe TT to route, restored Administrator delete action, non-admin Menu and delete actions hidden/blocked');
+    await require('./security-flows.cjs')({page,context,frame:reloaded,handler:securityFixture.handle});
+   }
    await reloaded.evaluate(()=>logout());
    await reloaded.locator('#loginForm').waitFor({state:'visible'});
    assert.equal(await reloaded.locator('#app').isVisible(),false);
