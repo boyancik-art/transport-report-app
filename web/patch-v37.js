@@ -1,5 +1,5 @@
 (()=>{
-  const BUILD='v38';
+  const BUILD=window.TRTS_BUILD||'v43.8';
   const style=document.createElement('style');
   style.textContent=`
     #trts-update{position:fixed;right:14px;bottom:82px;z-index:99999;display:flex;align-items:center;gap:8px;padding:10px 13px;border:1px solid rgba(255,255,255,.12);border-radius:16px;background:rgba(15,22,32,.94);color:#f5f7fb;box-shadow:0 12px 32px rgba(0,0,0,.35);backdrop-filter:blur(16px);font:800 12px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:pointer}

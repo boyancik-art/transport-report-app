@@ -29,6 +29,7 @@ jobs:
           npm install --prefix /tmp/trts-ui-tests --no-package-lock playwright@1.58.2
           /tmp/trts-ui-tests/node_modules/.bin/playwright install --with-deps chromium
           TRTS_CAPTURE=1 TRTS_PLAYWRIGHT_MODULE=/tmp/trts-ui-tests/node_modules/playwright node tool/mobile-regression.cjs
+          TRTS_PLAYWRIGHT_MODULE=/tmp/trts-ui-tests/node_modules/playwright node tool/runtime-regression.cjs
 
       - name: Ensure Cloudflare Pages production branch
         env:
@@ -64,23 +65,29 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy web/dist --project-name=transport-report-ts-web
 
-      - name: Verify production is exact v43.7 runtime
+      - name: Verify production is exact v43.8 runtime
         run: |
           rm -f /tmp/pages-index.html
           for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
             curl --fail --show-error --silent --location --connect-timeout 10 --max-time 20 \
               -H 'Cache-Control: no-cache, no-store, must-revalidate' \
-              "https://transport-report-ts-web.pages.dev/?verify=4374-${GITHUB_SHA}-${i}" \
+              "https://transport-report-ts-web.pages.dev/?verify=4380-${GITHUB_SHA}-${i}" \
               -o /tmp/pages-index.html || true
-            if grep -q '<meta name="trts-build" content="43.7">' /tmp/pages-index.html \
-              && grep -q '<meta name="trts-runtime-lock" content="4374">' /tmp/pages-index.html \
-              && grep -q 'patch-v43-7-pickup-cards.js?v=4374' /tmp/pages-index.html; then
-              echo 'Cloudflare production verified: exact v43.7 runtime 4374'
+            if grep -q '<meta name="trts-build" content="43.8">' /tmp/pages-index.html \
+              && grep -q '<meta name="trts-runtime" content="4380">' /tmp/pages-index.html \
+              && grep -q 'patch-v43-8-runtime.js?v=4380' /tmp/pages-index.html; then
+              echo 'Cloudflare production verified: exact v43.8 runtime 4380'
               exit 0
             fi
-            echo "Production not exact v43.7 runtime yet; retry ${i}/12"
+            echo "Production not exact v43.8 runtime yet; retry ${i}/12"
             sleep 10
           done
-          echo 'ERROR: Cloudflare production did not switch to exact v43.7 runtime 4374'
-          grep -Eo 'trts-(build|runtime-lock)[^>]*|patch-v43-7-pickup-cards.js[^\"<]*' /tmp/pages-index.html || true
+          echo 'ERROR: Cloudflare production did not switch to exact v43.8 runtime 4380'
+          grep -Eo 'trts-(build|runtime)[^>]*|patch-v43-7-pickup-cards.js[^\"<]*' /tmp/pages-index.html || true
           exit 1
+
+      - name: Verify deployed full runtime with isolated backend
+        env:
+          TRTS_BASE_URL: https://transport-report-ts-web.pages.dev
+          TRTS_PLAYWRIGHT_MODULE: /tmp/trts-ui-tests/node_modules/playwright
+        run: node tool/runtime-regression.cjs

@@ -1,0 +1,125 @@
+const {chromium}=require(process.env.TRTS_PLAYWRIGHT_MODULE||'playwright');
+const fs=require('node:fs'),http=require('node:http'),path=require('node:path'),assert=require('node:assert/strict');
+const root=path.resolve(__dirname,'..'),dist=path.join(root,'web/dist');
+const expected='v43.8',live=process.env.TRTS_BASE_URL;
+const reference=JSON.parse(fs.readFileSync(path.join(root,'web/reference-v39.js'),'utf8').match(/TRTS_V39_EXPEDITOR_COVERAGE=(\{[^\n]*?\});/)[1]);
+const date=new Date().toISOString().slice(0,10);
+const types=['ФОП','Самовивіз',"Кур'єр",'STV','SAV','Пекарня'];
+const names=types.map(t=>Object.keys(reference).find(n=>reference[n]===t));
+assert.ok(names.every(Boolean),'Fixture categories must exist in the system reference');
+const db={
+ routes:names.map((name,i)=>({id:i+1,route_date:date,route_delivery_id:'TEST-'+(i+1),expeditor_name:name,warehouse:'Чайки STV',total_points:1,total_documents:1,total_weight:6.2,total_pallets:.011,total_bottles:5,total_order_amount:1000})),
+ route_points:[1,2,3,4,5,6].map(id=>({id:id*10,route_id:id,customer_id:'customer-'+id,customer_name:'Тестова ТТ '+id,location_id:id,documents_count:1,weight:6.2,pallets:.011,bottles:5,order_amount:1000})),
+ locations:[1,2,3,4,5,6].map(id=>({id,address_id:'address-'+id,delivery_address:'Тестова адреса '+id})),
+ source_documents:[1,2,3,4,5,6].map(id=>({id,route_delivery_id:'TEST-'+id,document_date:date,sale_code:'INV-'+id,customer_id:'customer-'+id,address_id:'address-'+id,business_unit:'HoReCa',weight:6.2,pallets:.011,bottles:5,order_amount:1000})),
+ route_facts:[{id:1,route_id:1,carrier_name:'Тестовий перевізник',tariff:1000,wave:'24'}],
+ transport_carriers:[{id:1,name:'Тестовий перевізник',active:true}],
+ courier_carriers:[{id:1,name:'Тестовий перевізник',active:true}],
+ warehouse_display_map:[{source_warehouse:'Чайки STV',display_name:'Чайки STV',active:true}],
+ transport_waves:[{id:1,name:'24',active:true}]
+};
+async function mockApi(route){
+ const req=route.request(),u=new URL(req.url());
+ if(u.pathname==='/auth/v1/token'){
+  return route.fulfill({json:{access_token:'isolated-runtime-fixture',token_type:'bearer',expires_in:3600}});
+ }
+ assert.equal(req.method(),'GET','Runtime fixture must never write real data');
+ const rows=db[u.pathname.split('/').at(-1)]||[];
+ const matches=row=>[...u.searchParams].every(([k,v])=>
+  v.startsWith('eq.')?String(row[k])===v.slice(3):
+  v.startsWith('in.')?v.slice(4,-1).split(',').map(x=>x.replaceAll('"','')).includes(String(row[k])):
+  v.startsWith('gte.')?String(row[k])>=v.slice(4):
+  v.startsWith('lte.')?String(row[k])<=v.slice(4):true);
+ const offset=Number(u.searchParams.get('offset')||0),limit=Number(u.searchParams.get('limit')||1000);
+ await route.fulfill({json:rows.filter(matches).slice(offset,offset+limit)});
+}
+function runtimeProbe(){
+ window.__runtimeTicks=0;window.__runtimeRunaways=0;
+ let callbacks=0;
+ const Native=window.MutationObserver;
+ // Stop a regression before it freezes the CI browser; a stop ALWAYS fails the test.
+ window.MutationObserver=class extends Native{
+  constructor(callback){super((records,observer)=>{
+   if(++callbacks>1000){window.__runtimeRunaways++;observer.disconnect();return}
+   callback(records,observer);
+  })}
+ };
+ setInterval(()=>{callbacks=0;window.__runtimeTicks++},100);
+}
+async function healthy(frame,label){
+ await frame.waitForFunction(()=>window.__runtimeTicks>=10,null,{timeout:15000});
+ assert.equal(await frame.evaluate(()=>window.__runtimeRunaways),0,label+': observer runaway');
+ assert.equal(await frame.locator('#trts-update span').innerText(),'TEST · '+expected);
+ assert.match(await frame.locator('#trts-update').innerText(),/Оновити/);
+ assert.equal(await frame.evaluate(()=>document.documentElement.dataset.trtsBuild),expected);
+ const mutations=await frame.evaluate(()=>new Promise(resolve=>{
+  let count=0;const o=new MutationObserver(records=>count+=records.length);
+  o.observe(document.body,{childList:true,subtree:true});
+  setTimeout(()=>{o.disconnect();resolve(count)},500);
+ }));
+ assert.ok(mutations<20,label+': idle page must settle, mutations='+mutations);
+ const before=await frame.evaluate(()=>window.__runtimeTicks);
+ await frame.waitForFunction(n=>window.__runtimeTicks>n+3,before,{timeout:5000});
+ console.log('PASS full runtime responsive: '+label+'; idle mutations='+mutations);
+}
+async function dashboard(frame,label){
+ await frame.locator('.v431-fop').waitFor({state:'visible',timeout:15000});
+ await frame.locator('#v431-courier').waitFor({state:'visible',timeout:15000});
+ await frame.locator('.v437-pick-card').waitFor({state:'visible',timeout:15000});
+ await healthy(frame,label);
+ const titles=await frame.locator('.v431-block-head,.v431-courier-head').allTextContents();
+ assert.equal(titles.length,4,'Only the four approved blocks may be rendered: '+JSON.stringify(titles));
+ for(const title of titles)assert.doesNotMatch(title,/^(STV|SAV|Пекарня|Фреш)/i);
+ for(const id of [4,5,6])assert.equal(await frame.getByText('TEST-'+id,{exact:true}).count(),0,'Unapproved route must be hidden');
+ assert.equal(await frame.locator('.v437-pick-card .v437-exp b').innerText(),names[1]);
+ await frame.locator('.v437-pick-card').click();
+ await frame.locator('.v437-tt').waitFor({state:'visible'});
+ assert.match(await frame.locator('.v437-inv').innerText(),/INV-2/);
+ assert.match(await frame.locator('.v437-inv').innerText(),/6,2 кг/);
+ await healthy(frame,label+' pickup details');
+ await frame.locator('.v437-detail-head button').click();
+ await frame.locator('.v431-fop').waitFor({state:'visible'});
+}
+(async()=>{
+ const server=live?null:http.createServer((req,res)=>{
+  const url=new URL(req.url,'http://localhost'),file=path.resolve(dist,'.'+(url.pathname==='/'?'/index.html':decodeURIComponent(url.pathname)));
+  if(!file.startsWith(dist+path.sep)){res.writeHead(403).end();return}
+  fs.readFile(file,(err,body)=>{
+   if(err){res.writeHead(404).end();return}
+   const mime={'.html':'text/html','.js':'application/javascript','.webmanifest':'application/manifest+json','.png':'image/png'};
+   res.writeHead(200,{'Content-Type':mime[path.extname(file)]||'application/octet-stream','Cache-Control':'no-store'}).end(body);
+  });
+ });
+ if(server)await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ const base=live||'http://127.0.0.1:'+server.address().port;
+ const browser=await chromium.launch({headless:true,...(process.env.TRTS_CHROME?{executablePath:process.env.TRTS_CHROME}:{})});
+ try{
+  for(const scenario of [
+   {name:'desktop',url:'/',width:1360,height:1000},
+   {name:'mobile',url:'/',width:390,height:844},
+   {name:'phone-preview',url:'/phone-preview.html',width:1360,height:1000}
+  ]){
+   const context=await browser.newContext({viewport:{width:scenario.width,height:scenario.height},serviceWorkers:'block'});
+   const errors=[];
+   await context.addInitScript(runtimeProbe);
+   // All backend traffic is isolated, even when checking the live deployed frontend.
+   await context.route('https://*.supabase.co/**',mockApi);
+   const page=await context.newPage();page.setDefaultTimeout(15000);
+   page.on('pageerror',e=>errors.push(e.message));
+   await page.goto(base+scenario.url,{waitUntil:'load',timeout:30000});
+   const frame=scenario.url.includes('phone-preview')?await page.locator('iframe').elementHandle().then(el=>el.contentFrame()):page;
+   await frame.locator('#loginForm').waitFor({state:'visible'});
+   await healthy(frame,scenario.name+' login');
+   await frame.locator('#email').fill('runtime-test@example.invalid');
+   await frame.locator('#password').fill('isolated-fixture-only');
+   await frame.locator('#loginForm button').click();
+   await dashboard(frame,scenario.name+' signed in');
+   await page.reload({waitUntil:'load'});
+   const reloaded=scenario.url.includes('phone-preview')?await page.locator('iframe').elementHandle().then(el=>el.contentFrame()):page;
+   await dashboard(reloaded,scenario.name+' stored session');
+   assert.deepEqual(errors,[],scenario.name+': uncaught browser errors');
+   console.log('PASS complete built scripts, isolated login/reload, four approved blocks: '+scenario.name);
+   await context.close();
+  }
+ }finally{await browser.close();if(server)await new Promise(resolve=>server.close(resolve))}
+})().catch(e=>{console.error(e);process.exitCode=1});
