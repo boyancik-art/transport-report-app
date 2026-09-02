@@ -36,13 +36,13 @@ async function mockApi(route){
  await route.fulfill({json:rows.filter(matches).slice(offset,offset+limit)});
 }
 function runtimeProbe(){
- window.__runtimeTicks=0;window.__runtimeRunaways=0;
+ window.__runtimeTicks=0;window.__runtimeRunaways=0;window.__runawayCallbacks=[];
  let callbacks=0;
  const Native=window.MutationObserver;
  // Stop a regression before it freezes the CI browser; a stop ALWAYS fails the test.
  window.MutationObserver=class extends Native{
   constructor(callback){super((records,observer)=>{
-   if(++callbacks>1000){window.__runtimeRunaways++;observer.disconnect();return}
+   if(++callbacks>1000){window.__runtimeRunaways++;window.__runawayCallbacks.push(String(callback).slice(0,1200));observer.disconnect();return}
    callback(records,observer);
   })}
  };
@@ -50,7 +50,9 @@ function runtimeProbe(){
 }
 async function healthy(frame,label){
  await frame.waitForFunction(()=>window.__runtimeTicks>=10,null,{timeout:15000});
- assert.equal(await frame.evaluate(()=>window.__runtimeRunaways),0,label+': observer runaway');
+ const runaways=await frame.evaluate(()=>window.__runtimeRunaways);
+ if(runaways)console.error('Runaway callbacks',await frame.evaluate(()=>window.__runawayCallbacks));
+ assert.equal(runaways,0,label+': observer runaway');
  assert.equal(await frame.locator('#trts-update span').innerText(),'TEST · '+expected);
  assert.match(await frame.locator('#trts-update').innerText(),/Оновити/);
  assert.equal(await frame.evaluate(()=>document.documentElement.dataset.trtsBuild),expected);
@@ -108,7 +110,13 @@ async function dashboard(frame,label){
    await context.route('https://*.supabase.co/**',mockApi);
    const page=await context.newPage();page.setDefaultTimeout(15000);
    page.on('pageerror',e=>errors.push(e.message));
-   await page.goto(base+scenario.url,{waitUntil:'load',timeout:30000});
+   const servedScripts=[];
+   page.on('response',response=>{const u=new URL(response.url());if(u.origin===new URL(base).origin&&u.pathname.endsWith('.js'))servedScripts.push(response)});
+   const response=await page.goto(base+scenario.url,{waitUntil:'load',timeout:30000});
+   if(live){
+    console.log('LIVE document '+scenario.name, (await response.text()).match(/<meta name="trts-[^>]+>/g));
+    for(const response of servedScripts){const file=path.join(dist,new URL(response.url()).pathname);if(fs.existsSync(file)){const delivered=await response.body(),built=fs.readFileSync(file);if(!delivered.equals(built))console.error('LIVE SCRIPT MISMATCH '+new URL(response.url()).pathname+' built='+built.length+' served='+delivered.length)}}
+   }
    const frame=scenario.url.includes('phone-preview')?await page.locator('iframe').elementHandle().then(el=>el.contentFrame()):page;
    await frame.locator('#loginForm').waitFor({state:'visible'});
    await healthy(frame,scenario.name+' login');
