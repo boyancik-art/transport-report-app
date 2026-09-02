@@ -49,7 +49,7 @@ create table public.stv_interbranch_months (
 do $$ declare t text; roles_sql text; begin
  foreach t in array array['transport_delivery_coverage','transport_monthly_rates','fleet_cost_entries','transport_carrier_blocks','stv_branch_directory','stv_interbranch_months'] loop
   execute format('alter table public.%I enable row level security',t);
-  execute format('revoke all on public.%I from anon',t);
+  execute format('revoke all on public.%I from anon, authenticated',t);
   execute format('grant select,insert,update on public.%I to authenticated',t);
   execute format('create policy app_read on public.%I for select to authenticated using ((select public.current_app_role()) is not null)',t);
   roles_sql=case when t in ('transport_carrier_blocks','stv_branch_directory','stv_interbranch_months') then '(''admin'',''manager'',''logistician'')' else '(''admin'',''manager'')' end;

@@ -48,7 +48,7 @@ module.exports=async(page,capture)=>{
  assert.doesNotMatch(await page.locator('#view').innerText(),/Оновіть довідник/);await capture('v44-stv-route');
  await page.evaluate(()=>v43OpenTT(90,900));assert.equal(await page.locator('.v439-invoice').count(),2);assert.ok(await page.locator('#view').evaluate(el=>el.scrollWidth<=el.clientWidth));await capture('v44-stv-invoices');
  await page.evaluate(()=>{const l=D.locations.find(l=>l.id===90);l.district='Неіснуючий';v43OpenTT(90,900)});assert.match(await page.locator('#view').innerText(),/Не знайдено філію покриття та зону/);assert.doesNotMatch(await page.locator('.v439-invoice').first().innerText(),/Доставка|% лог/);
- await page.evaluate(()=>v44OpenCosts('SAV'));await page.waitForSelector('#v44-rate-form');await page.locator('#v44-save').click();await page.waitForFunction(()=>db.transport_monthly_rates.length===2);await page.evaluate(()=>v43OpenRoute(91));assert.match(await page.locator('#view').innerText(),/592,20/);
+ await page.evaluate(()=>v44OpenCosts('SAV'));await page.waitForSelector('#v44-rate-form');await page.locator('#v44-rate-save').click();await page.waitForFunction(()=>db.transport_monthly_rates.length===2);await page.evaluate(()=>v43OpenRoute(91));assert.match(await page.locator('#view').innerText(),/592,20/);
  console.log('PASS SAV/STV: exact source precision, explicit month activation, coverage/zone lookup, TT formula, route total, missing geography warnings, no invented zero invoice costs');
 
  await page.evaluate(()=>v44Interbranch());await page.getByRole('button',{name:'+ Додати міжфілійну доставку',exact:true}).click();
