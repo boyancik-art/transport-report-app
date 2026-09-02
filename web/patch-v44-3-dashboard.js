@@ -74,7 +74,7 @@
    html+='<p class="v442-note">ТТ з накладними різних бізнесів входить до кожного відповідного бізнесу, але в загальному підсумку рахується один раз. Додаткові ТТ без бізнесу не втрачаються.</p>';
   }
   if(cache.current.warnings.length)html+='<details class="v442-warning"><summary>Зауваження до даних · '+cache.current.warnings.length+'</summary><ul>'+cache.current.warnings.map(x=>'<li>'+E(x)+'</li>').join('')+'</ul></details>';
-  O.view().innerHTML='<div class="v43-screen v443-report">'+html+'</div>';
+  O.view().innerHTML='<div class="v43-screen v443-report">'+html+(!trail.length?(window.TRTS_RELEASE?.attention(cache)||''):'')+'</div>';
  }
  window.v443Detail=kind=>{trail.push({kind,filters:{},axis:kind==='courier'?'carrier':'branch'});window.TRTS_NAVIGATION?.capture();show();scrollTo(0,0)};
  window.v443DetailBack=()=>{trail.pop();show();scrollTo(0,0)};

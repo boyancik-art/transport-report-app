@@ -1,7 +1,7 @@
 const {chromium}=require(process.env.TRTS_PLAYWRIGHT_MODULE||'playwright');
 const fs=require('node:fs'),http=require('node:http'),path=require('node:path'),assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'..'),dist=path.join(root,'web/dist');
-const expected='v44.3',live=process.env.TRTS_BASE_URL;
+const expected='v44.4',live=process.env.TRTS_BASE_URL;
 const reference=JSON.parse(fs.readFileSync(path.join(root,'web/reference-v39.js'),'utf8').match(/TRTS_V39_EXPEDITOR_COVERAGE=(\{[^\n]*?\});/)[1]);
 const date=new Date().toISOString().slice(0,10);
 const types=['ФОП','Самовивіз',"Кур'єр",'STV','SAV','Пекарня'];
@@ -130,13 +130,16 @@ async function dashboard(frame,label){
    {name:'phone-preview',url:'/phone-preview.html',width:1360,height:1000}
   ]){
    const context=await browser.newContext({viewport:{width:scenario.width,height:scenario.height},serviceWorkers:'block'});
+   let logoutFault=false,logoutCalls=0;const dialogs=[],logoutWarnings=[];
    const errors=[],securityFixture=await require('./security-edge-fixture.cjs')();
    if(!live)await context.route('https://transport-report-ts-web.pages.dev/**',async route=>{const u=new URL(route.request().url()),r=await fetch(localBase+u.pathname+u.search);await route.fulfill({status:r.status,headers:{'content-type':r.headers.get('content-type')||'text/html'},body:Buffer.from(await r.arrayBuffer())})});
    await context.addInitScript(runtimeProbe);
    // All backend traffic is isolated, even when checking the live deployed frontend.
-   await context.route('https://*.supabase.co/**',async route=>{if(route.request().url().includes('/functions/v1/transport-security')){const req=route.request(),r=await securityFixture.handle(new Request(req.url(),{method:req.method(),headers:req.headers(),body:req.postData()||undefined}));return route.fulfill({status:r.status,headers:Object.fromEntries(r.headers),body:await r.text()})}return mockApi(route)});
+   await context.route('https://*.supabase.co/**',async route=>{const req=route.request(),u=new URL(req.url());if(u.pathname==='/auth/v1/logout'){logoutCalls++;if(logoutFault)return scenario.name==='phone-preview'?route.abort('failed'):route.fulfill({status:500,json:{error:'isolated logout failure'}})}if(logoutFault&&u.pathname==='/functions/v1/transport-security'&&req.postDataJSON()?.action==='disable')return route.fulfill({status:503,json:{error:'isolated device failure'}});if(route.request().url().includes('/functions/v1/transport-security')){const req=route.request(),r=await securityFixture.handle(new Request(req.url(),{method:req.method(),headers:req.headers(),body:req.postData()||undefined}));return route.fulfill({status:r.status,headers:Object.fromEntries(r.headers),body:await r.text()})}return mockApi(route)});
    const page=await context.newPage();page.setDefaultTimeout(15000);
    page.on('pageerror',e=>errors.push(e.message));
+   page.on('dialog',async d=>{dialogs.push(d.message());await d.dismiss()});
+   page.on('console',m=>{if(m.type()==='warning'&&m.text().includes('[auth.logout]'))logoutWarnings.push(m.text())});
    const servedScripts=[];
    page.on('response',response=>{const u=new URL(response.url());if(u.origin===new URL(base).origin&&u.pathname.endsWith('.js'))servedScripts.push(response)});
    const response=await page.goto(base+scenario.url,{waitUntil:'load',timeout:30000});
@@ -163,6 +166,7 @@ async function dashboard(frame,label){
    await dashboard(reloaded,scenario.name+' stored session');
    assert.ok(await reloaded.locator('header.top .logo').evaluate(el=>getComputedStyle(el).objectFit==='contain'&&el.getBoundingClientRect().height>0));
    assert.ok(await reloaded.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'No full runtime horizontal overflow');
+   await require('./release-flows.cjs')({page,frame:reloaded});
    if(scenario.name==='mobile'){
     await reloaded.evaluate(()=>{v442Nav('routes');v43OpenRoute(1);v43OpenTT(1,10)});
     await reloaded.locator('.v439-invoice').waitFor();
@@ -174,16 +178,27 @@ async function dashboard(frame,label){
     });
     await reloaded.locator('.v436-detail').waitFor();assert.equal(await reloaded.locator('.v443-delete').count(),1);
     db.profiles[0].role='logistician';await reloaded.evaluate(async()=>{await TRTS_SECURITY.identify();v442Nav('menu')});
-    for(const name of ['Користувачі та права','Довідники','Журнал змін'])assert.equal(await reloaded.locator('.v443-settings').getByRole('button',{name,exact:false}).count(),0);
+    for(const name of ['Користувачі та права','Довідники','Журнал змін','Експорт даних'])assert.equal(await reloaded.locator('.v443-settings').getByRole('button',{name,exact:false}).count(),0);
     await reloaded.evaluate(()=>{v43OpenRoute(1);v443DeleteRoute(1)});assert.equal(await reloaded.locator('.v443-delete').count(),0);
     db.profiles[0].role='admin';await reloaded.evaluate(()=>TRTS_SECURITY.identify());
     console.log('PASS edge swipe TT to route, restored Administrator delete action, non-admin Menu and delete actions hidden/blocked');
     await require('./security-flows.cjs')({page,context,frame:reloaded,handler:securityFixture.handle});
    }
+   const logoutBaseline=logoutCalls;logoutFault=true;
    await reloaded.evaluate(()=>logout());
    await reloaded.locator('#loginForm').waitFor({state:'visible'});
    assert.equal(await reloaded.locator('#app').isVisible(),false);
    assert.equal(await reloaded.evaluate(()=>localStorage.getItem('trts_token')),null);
+   assert.equal(logoutCalls-logoutBaseline,1,'Auth signOut attempted even if device revocation fails');
+   assert.deepEqual(dialogs,[],'Logout must not display a technical alert');
+   assert.ok(logoutWarnings.length>0,'Remote error logged technically');
+   for(const name of ['trts_token','trts_refresh','trts_vault'])assert.equal(await reloaded.evaluate(k=>localStorage.getItem(k),name),null);
+   await page.reload({waitUntil:'load'});
+   const afterLogout=scenario.url.includes('phone-preview')?await page.locator('iframe').elementHandle().then(el=>el.contentFrame()):page;
+   await afterLogout.locator('#loginForm').waitFor({state:'visible'});
+   assert.equal(await afterLogout.locator('#v443-unlock').count(),0,'Old PIN/biometric session must not return');
+   assert.equal(await afterLogout.locator('#app').isVisible(),false);
+   console.log('PASS failed remote logout clears session and PIN/biometrics; reopen requires email/password: '+scenario.name);
    assert.deepEqual(errors,[],scenario.name+': uncaught browser errors');
    console.log('PASS complete built scripts, isolated login/reload, five screens and eight route subblocks: '+scenario.name);
    await context.close();

@@ -1,18 +1,20 @@
 (()=>{
  'use strict';
  const $=s=>document.querySelector(s),E=TRTS_OPS.E,VAULT='trts_vault',CONFIG='trts_security',encoder=new TextEncoder(),decoder=new TextDecoder();
- let session=null,key=null,profile=null,userInfo=null,refreshing=null,busy=false,epoch=0,activity=Date.now();
+ let session=null,key=null,profile=null,userInfo=null,refreshing=null,busy=false,signingOut=false,epoch=0,activity=Date.now();
  const b64=bytes=>btoa(String.fromCharCode(...new Uint8Array(bytes))),un64=text=>Uint8Array.from(atob(text),c=>c.charCodeAt(0)),url64=b=>b64(b).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'');
  const fromURL=s=>un64(s.replaceAll('-','+').replaceAll('_','/')+'='.repeat((4-s.length%4)%4));
  const vault=()=>{try{return JSON.parse(localStorage.getItem(VAULT)||'null')}catch{return null}},config=()=>{try{return{minutes:5,leave:true,...JSON.parse(localStorage.getItem(CONFIG)||'{}')}}catch{return{minutes:5,leave:true}}};
  const locked=()=>Boolean(vault()&&!window.TRTS_UNLOCKED);
  async function security(action,extra={}){
+  if(signingOut)throw Error('Сесію завершено');const generation=epoch;
   const v=vault(),r=await fetch(SB+'/functions/v1/transport-security',{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify({action,deviceId:v?.id,secret:v?.secret,...extra})}),data=await r.json();
-  if(!r.ok||data.ok===false)throw Error(data.error||'Не вдалося підтвердити пристрій');return data;
+  if(signingOut||generation!==epoch)throw Error('Сесію завершено');if(!r.ok||data.ok===false)throw Error(data.error||'Не вдалося підтвердити пристрій');return data;
  }
  async function saveSession(){
-  if(!session)return;if(key&&vault()){
+  if(signingOut||!session)return;const generation=epoch;if(key&&vault()){
    const iv=crypto.getRandomValues(new Uint8Array(12)),cipher=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,encoder.encode(JSON.stringify(session))),v=vault();
+   if(signingOut||generation!==epoch||!v)return;
    localStorage.setItem(VAULT,JSON.stringify({...v,iv:b64(iv),cipher:b64(cipher)}));localStorage.removeItem('trts_token');localStorage.removeItem('trts_refresh');
   }else if(!vault()){localStorage.trts_token=session.access_token;if(session.refresh_token)localStorage.trts_refresh=session.refresh_token}
  }
@@ -35,20 +37,30 @@
   if(!rows?.[0]?.active)throw Error('Профіль вимкнений або не налаштований');userInfo=u;profile=rows[0];return profile;
  }
  window.signIn=async()=>{
-  if(busy)return;busy=true;const err=$('#loginErr');if(err)err.textContent='';const button=$('#loginForm button');if(button)button.disabled=true;
+  if(busy||signingOut)return;busy=true;const generation=epoch,err=$('#loginErr');if(err)err.textContent='';const button=$('#loginForm button');if(button)button.disabled=true;
   try{
    const r=await fetch(SB+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},body:JSON.stringify({email:$('#email').value.trim(),password:$('#password').value})}),s=await r.json();
-   $('#password').value='';if(!r.ok)throw Error(s.error_description||s.msg||'Помилка входу');
+   $('#password').value='';if(signingOut||generation!==epoch)return;if(!r.ok)throw Error(s.error_description||s.msg||'Помилка входу');
    const old=vault();session=s;token=s.access_token;window.TRTS_UNLOCKED=true;await identify();
    if(old){try{await security('disable')}catch{}localStorage.removeItem(VAULT);key=null}
-   await saveSession();activity=Date.now();$('#v443-unlock')?.remove();await window.start();
+   await saveSession();activity=Date.now();$('#v443-unlock')?.remove();await window.start();window.TRTS_RELEASE?.notice();
   }catch(e){token='';session=null;if(err)err.textContent=e.message}finally{busy=false;if(button)button.disabled=false}
  };
- window.logout=async()=>{
-  if(busy)return;busy=true;
-  try{if(vault()&&token)await security('disable');if(token){const r=await fetch(SB+'/auth/v1/logout',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+token}});if(!r.ok&&r.status!==401)throw Error('Сервер не підтвердив завершення сесії')}}
-  catch(e){alert(e.message);busy=false;return}
-  localStorage.removeItem(VAULT);localStorage.removeItem('trts_token');localStorage.removeItem('trts_refresh');session=null;key=null;token='';profile=null;++epoch;location.reload();
+ window.logout=async(options={})=>{
+  if(signingOut)return;signingOut=true;busy=true;
+  const accessToken=token,device=vault();++epoch;
+  session=null;key=null;token='';profile=null;userInfo=null;window.TRTS_UNLOCKED=false;
+  for(const storage of [localStorage,sessionStorage])for(const name of [VAULT,'trts_token','trts_refresh'])storage.removeItem(name);
+  $('#v443-unlock')?.remove();$('#app')?.classList.add('hide');$('#login')?.classList.remove('hide');if($('#login'))$('#login').style.display='';
+  if($('#password'))$('#password').value='';if($('#loginErr'))$('#loginErr').textContent='';
+  // Independent, bounded best-effort server revocations. Local logout never depends on either server.
+  async function revoke(path,body){
+   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),1500);
+   try{const r=await fetch(SB+path,{method:'POST',keepalive:true,signal:controller.signal,headers:{apikey:KEY,Authorization:'Bearer '+accessToken,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});if(!r.ok&&r.status!==401&&r.status!==403)console.warn('[auth.logout] remote revocation failed',path,r.status)}
+   catch(e){console.warn('[auth.logout] remote revocation unavailable',path,e.name)}finally{clearTimeout(timer)}
+  }
+  try{if(accessToken)await Promise.all([revoke('/auth/v1/logout?scope=global'),...(device?[revoke('/functions/v1/transport-security',{action:'disable',deviceId:device.id,secret:device.secret})]:[])])}
+  finally{if(options.redirect)location.replace(options.redirect);else location.reload()}
  };
  function showLock(){
   $('#app')?.classList.add('hide');$('#login')?.classList.add('hide');let el=$('#v443-unlock');if(!el){el=document.createElement('div');el.id='v443-unlock';el.className='v443-unlock v443-settings';document.body.append(el)}
