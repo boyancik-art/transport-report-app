@@ -10,7 +10,7 @@ module.exports=async({page,frame,capture})=>{
   assert.equal(await frame.evaluate(()=>localStorage.trts_theme),theme);
   for(const tab of ['dashboard','analytics','routes','expenses','menu']){
    await frame.evaluate(t=>v442Nav(t),tab);
-   if(tab==='dashboard')await frame.locator('[data-chart=cost]').waitFor();
+   if(tab==='dashboard'){await frame.locator('[data-chart=cost]').waitFor();assert.equal(await frame.locator('[data-kpi=cost]').evaluate(n=>getComputedStyle(n).backgroundColor),'rgba(0, 0, 0, 0)','Executive selected state must not inherit purple button surface')}
    if(tab==='analytics')await frame.locator('.v443-overview').first().waitFor();
    if(tab==='routes'){await frame.locator('.v437-pick-card').waitFor();assert.ok(await frame.locator('.v445-route-delete').count()>=5)}
    assert.equal(await frame.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,tab+' '+theme+' overflow');
@@ -21,6 +21,28 @@ module.exports=async({page,frame,capture})=>{
   await frame.evaluate(()=>v43OpenTT(1,10));
   assert.ok(await frame.locator('.v439-invoice').isVisible());
   if(capture)await capture('v445-full-'+theme+'-invoice');
+  await frame.evaluate(()=>v442Nav('analytics'));await frame.locator('[data-summary=local] .v443-overview-title').click();
+  for(const label of ['HoReCa','Київ','Тестовий перевізник','ФОП / TS','Не застосовується']){
+   await frame.locator('.v442-metrics-grid .v442-metric-heading').filter({hasText:label}).first().click();
+  }
+  const analyticRoute=frame.locator('.v446-analytics-route [data-route-id="1"]');await analyticRoute.waitFor();
+  for(const text of ['Філія покриття','Експедитор','Перевізник','Хвиля','Тариф'])assert.ok((await analyticRoute.innerText()).includes(text),'Analytics route metadata '+text);
+  if(capture)await capture('v446-'+theme+'-analytics-route');
+  await analyticRoute.locator('.v436-route-id').click();await frame.locator('.v436-detail').waitFor();await frame.getByRole('button',{name:'Назад до маршрутів',exact:true}).click();await analyticRoute.waitFor();
+  for(const id of [2,3,4,5,6]){
+   await frame.evaluate(id=>{v442Nav('routes');v43OpenRoute(id)},id);
+   assert.equal(await frame.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Route '+id+' '+theme);
+   if(id===2)assert.equal(await frame.locator('[data-route-tariff]').count(),0,'Pickup has no artificial tariff');
+   else assert.ok(await frame.locator('[data-route-tariff]').isVisible(),'Paid route tariff '+id);
+   if(capture&&[3,4].includes(id))await capture('v446-'+theme+'-route-'+id);
+   await frame.evaluate(id=>v43OpenTT(id,id*10),id);
+   assert.equal(await frame.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'TT '+id+' '+theme);
+   if(capture&&[3,4].includes(id))await capture('v446-'+theme+'-tt-'+id);
+   if(theme==='light'){
+    const colors=await frame.locator('.v444-metrics dd,.v431-ckpi b,.v437-point-finance b').evaluateAll(nodes=>nodes.filter(n=>n.getClientRects().length).map(n=>({text:n.textContent,color:getComputedStyle(n).color,bg:getComputedStyle(n.parentElement).backgroundColor})));
+    for(const c of colors)assert.notEqual(c.color,'rgb(255, 255, 255)','Light KPI must not retain white ink: '+c.text);
+   }
+  }
   await frame.evaluate(()=>{v442Nav('routes');v43Replenishment()});
   await frame.locator('#v43-modal').waitFor({state:'visible'});
   if(theme==='light'){

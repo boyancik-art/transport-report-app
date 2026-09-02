@@ -64,7 +64,7 @@
    if(level.axis!=='pointId')html+='<div class="v443-facets">'+allowed.filter(key=>!Object.hasOwn(level.filters,key)).map(key=>'<button aria-pressed="'+(key===level.axis)+'" onclick="v443Axis(\''+key+'\')">'+AXES[key]+'</button>').join('')+'</div>';
    const groups=A.group(rows,level.axis),max=Math.max(1,...groups.map(x=>x.cost));
    html+='<div class="v442-metrics-grid">'+groups.map((g,index)=>{
-    const sample=rows.find(x=>String(x[level.axis])===g.name),name=level.axis==='routeId'?sample?.routeName||g.name:level.axis==='pointId'?sample?.pointName||'Додаткова ТТ':level.axis==='zone'&&/^[1-5]$/.test(g.name)?'Зона '+g.name:g.name;
+    const sample=rows.find(x=>String(x[level.axis])===g.name),name=level.axis==='section'?({fop:'ФОП / TS',bakery:'Пекарня / Fresh',sav:'SAV',stv:'STV'}[g.name]||g.name):level.axis==='routeId'?sample?.routeName||g.name:level.axis==='pointId'?sample?.pointName||'Додаткова ТТ':level.axis==='zone'&&/^[1-5]$/.test(g.name)?'Зона '+g.name:g.name;
     if(level.axis==='routeId'&&window.TRTS_UI446)return TRTS_UI446.analyticsCard(g);
     return'<div>'+App.metricsCard(g,{label:name,click:level.kind==='replen'?'':'v443Group('+index+')',replen:level.kind==='replen'})+(level.axis==='zone'?'<div class="v443-bar" aria-label="Витрати зони"><i style="width:'+g.cost/max*100+'%"></i></div>':'')+'</div>';
    }).join('')+'</div>';

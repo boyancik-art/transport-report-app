@@ -11,6 +11,8 @@ module.exports=async({page,capture})=>{
  await page.locator('[data-summary=local]').waitFor();
  const state=()=>page.evaluate(()=>({data:JSON.stringify(D),meta:JSON.stringify(TRTS_OPS.meta()),finance:JSON.stringify(TRTS_FINANCE.snapshot()),costs:D.routes.map(r=>TRTS_OPS.metrics(r).cost)}));
  const initial=await state();
+ const tariffs=await page.evaluate(()=>Object.fromEntries(D.routes.map(r=>[r.id,TRTS_UI446.tariff(r)])));
+ assert.match(tariffs[500],/300,00/);assert.match(tariffs[501],/200,00/);assert.match(tariffs[502],/80,00/);assert.match(tariffs[503],/100,00/);assert.match(tariffs[503],/50,00/);assert.equal(tariffs[505],'');
  const report=await page.evaluate(async()=>{const x=await TRTS_DASHBOARD.reports();return{current:TRTS_ANALYTICS.total(x.current.lines.filter(l=>l.kind==='local')),previous:TRTS_ANALYTICS.total(x.previous.lines.filter(l=>l.kind==='local'))}});
  assert.equal(report.previous.cost,600);assert.equal(report.previous.tt,1);assert.equal(report.current.cost,650);assert.equal(report.current.tt,6);
  const chartParity=async()=>{
@@ -19,6 +21,8 @@ module.exports=async({page,capture})=>{
    const val=key==='costPal'?(info.totals.pallets?info.totals.cost/info.totals.pallets:null):info.totals[key];
    assert.equal(await page.locator('[data-kpi='+key+']').getAttribute('data-value'),String(val??''),'All chart totals use reporting core: '+key);
   }
+  for(const key of info.kind==='replen'?['pallets','cost','costPal']:['tt','pallets','sales','cost','costTT','log']){await page.getByLabel('Показник динаміки',{exact:true}).selectOption(key);assert.equal(await page.locator('[data-chart='+key+']').getAttribute('data-value'),await page.locator('[data-kpi='+key+']').getAttribute('data-value'))}
+  await page.getByLabel('Показник динаміки',{exact:true}).selectOption('cost');
   assert.equal(await page.locator('.v443-overview,.v442-metric-card,table').count(),0,'Dashboard has charts, not Analytics KPI cards or tables');
   const plot=page.locator('.v445-plot').first();await plot.focus();await plot.press('ArrowRight');assert.ok(await plot.locator('.v445-tooltip').isVisible());await plot.press('Escape');await page.evaluate(()=>scrollTo(0,0));
  };

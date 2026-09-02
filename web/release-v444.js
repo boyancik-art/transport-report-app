@@ -46,5 +46,5 @@
  window.v444Search=search;window.v444Result=i=>openItem(results[i]);window.v444Issue=issue;window.v444IssueItem=i=>openItem(issueItems[i]);window.v444Export=exportFile;window.v444ExportLoad=exportLoad;window.v444ExportFilters=exportFilters;
  window.v444Thresholds=()=>{const next={};for(const k of ['costTT','log','growth']){next[k]=N($('#v444-th-'+k).value);if(next[k]<=0)return}localStorage.trts_attention_thresholds=JSON.stringify(next);TRTS_DASHBOARD.show()};
  window.TRTS_RELEASE={notice,routeMetrics,pointMetrics,replenMetrics,replenTotal,attention,detect,searchIndex,exportScreen};
- const bar=document.createElement('button');bar.id='v444-search';bar.type='button';bar.textContent='⌕ Пошук';bar.onclick=searchOpen;document.querySelector('#app header.top')?.append(bar);
+ const bar=document.createElement('button');bar.id='v444-search';bar.type='button';bar.textContent='⌕ Пошук';bar.setAttribute('aria-label','Глобальний пошук');bar.title='Глобальний пошук';bar.onclick=searchOpen;document.querySelector('#app header.top')?.append(bar);
 })();

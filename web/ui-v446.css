@@ -93,3 +93,17 @@ body:has(.v446-dashboard) #v43-period .v446-date-controls[open] #v443-period-for
 body{padding-top:env(safe-area-inset-top)}
 
 body:has(.v446-dashboard) header.top{padding-right:145px!important}
+
+/* State specificity: legacy "selected" buttons must not recolor executive KPIs. */
+html[data-theme] .v43-screen .v446-executive button[aria-pressed]{background:transparent!important;color:var(--text-primary)!important}
+html[data-theme] .v43-screen .v446-executive button[aria-pressed=true] b{color:var(--accent)!important}
+html[data-theme] .v43-screen .v446-executive button small{color:var(--text-muted)!important}
+html[data-theme] .v43-screen .v446-route .v436-route-id{background:var(--surface-elevated)!important;color:var(--text-primary)!important;padding:4px 7px}
+html[data-theme] .v43-screen .v446-route .v436-exp{background:color-mix(in srgb,var(--accent) 9%,var(--surface))!important;border-color:color-mix(in srgb,var(--accent) 28%,var(--border))!important}
+html[data-theme] .v43-screen .v446-route .v436-exp b{color:var(--text-primary)!important}
+html[data-theme] .v43-screen :is(.v43-back,.v436-swap,.v436-change){color:var(--accent)!important}
+html[data-theme] .v43-screen :is(.v43-back,.v436-swap,.v436-change) svg{stroke:currentColor!important}
+body:has(.v446-dashboard) #v444-search{font-size:0!important;min-width:38px;width:38px;padding:5px!important}
+body:has(.v446-dashboard) #v444-search::before{content:'⌕';font-size:24px;line-height:1}
+.v446-route>.v431-edit-transport,.v446-route>.v435-delivered-edit{font-size:10px!important}
+@media(prefers-reduced-motion:reduce){.v446-dashboard *{transition:none!important}}
