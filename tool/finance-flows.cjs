@@ -43,7 +43,7 @@ module.exports=async(page,capture)=>{
 
  await page.evaluate(()=>v43OpenRoute(90));assert.match(await page.locator('#view').innerText(),/Оновіть довідник/);
  await page.evaluate(()=>v44OpenCosts('STV'));await page.waitForSelector('#v44-rate-form');assert.equal(await page.locator('#v44-rate-zone1').inputValue(),'572.7587811497783');
- await page.locator('#v44-save').click();await page.waitForFunction(()=>db.transport_monthly_rates.length===1);
+ await page.locator('#v44-rate-save').click();await page.waitForFunction(()=>db.transport_monthly_rates.length===1);
  await page.evaluate(()=>v43OpenRoute(90));assert.match(await page.locator('#view').innerText(),/Львів/);assert.match(await page.locator('#view').innerText(),/392,03/);
  assert.doesNotMatch(await page.locator('#view').innerText(),/Оновіть довідник/);await capture('v44-stv-route');
  await page.evaluate(()=>v43OpenTT(90,900));assert.equal(await page.locator('.v439-invoice').count(),2);assert.ok(await page.locator('#view').evaluate(el=>el.scrollWidth<=el.clientWidth));await capture('v44-stv-invoices');
