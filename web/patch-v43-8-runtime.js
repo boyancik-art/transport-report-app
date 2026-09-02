@@ -1,6 +1,6 @@
 // One version owner. Rendering must be idempotent: never observe and rewrite the same text.
 (()=>{
-  const BUILD='v44.1';
+  const BUILD='v44.2';
   window.TRTS_BUILD=BUILD;
   window.TRTS_MODERN_RUNTIME=true;
   window.TRTS_RENDER_BUILD=()=>{

@@ -1,0 +1,14 @@
+const assert=require('node:assert/strict'),A=require('../web/analytics-v44-2.js');
+for(const name of ['Чайки STV','Чайки Ecol','Київ TS'])assert.equal(A.branch(name),'Київ');
+assert.equal(A.branch('Львів STV'),'Львів');assert.equal(A.branch('Ів.-Франківськ STV'),'Івано-Франківськ');
+assert.equal(A.branch('Неіснуючий склад'),A.UNKNOWN_BRANCH);
+assert.equal(A.business('Підрозділ ОПТ у м. Київ'),'Дистрибуція');assert.equal(A.business('Підрозділ HoReCa у м. Львів'),'HoReCa');assert.equal(A.business('Craft'),'Крафт');
+assert.equal(A.business('не визначено'),A.UNKNOWN_BUSINESS);
+const rows=[{pointId:'a',tt:1,branch:'Київ',business:'HoReCa',pallets:.2,sales:200,cost:.01},{pointId:'a',tt:1,branch:'Київ',business:'Крафт',pallets:.3,sales:300,cost:.02},{pointId:'b',tt:2,branch:'Київ',business:A.UNKNOWN_BUSINESS,pallets:0,sales:0,cost:.03}];
+const sum=A.total(rows);assert.equal(sum.tt,3);assert.equal(sum.cost,.06);assert.equal(sum.costTT,.02);assert.equal(sum.pallets,.5);assert.equal(sum.sales,500);assert.equal(sum.log,.012);
+assert.equal(A.group(rows,'business').reduce((s,x)=>s+A.cents(x.cost),0),6);
+assert.equal(A.group(rows,'business').reduce((s,x)=>s+x.tt,0),4,'Mixed-business TT present in both businesses, branch counts once');
+const missing=A.total([...rows,{pointId:'c',tt:1,cost:0,sales:100,incomplete:true}]);assert.equal(missing.cost,.06);assert.equal(missing.missing,1);assert.equal(missing.costTT,null);assert.equal(missing.log,null);
+assert.equal(A.total([]).costTT,null);assert.equal(A.total([]).log,null);
+assert.equal(A.total(Array.from({length:1000},(_,i)=>({pointId:i,tt:1,cost:.01}))).cost,10);
+console.log('PASS analytics: coverage aliases, business labels, unique TT, extra TT, business-cent conservation, incomplete totals, zero denominators');

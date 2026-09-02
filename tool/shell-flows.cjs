@@ -5,17 +5,17 @@ module.exports=async({page,pickDate,capture})=>{
  await page.locator('#v431-courier').waitFor({state:'attached'});
  const writes=await page.evaluate(()=>window.writes.length);
  const financeBefore=await page.evaluate(()=>({facts:JSON.stringify(D.facts),entries:JSON.stringify(db.fleet_cost_entries),rates:JSON.stringify(db.transport_monthly_rates),inter:JSON.stringify(db.stv_interbranch_months),costs:D.routes.map(r=>TRTS_OPS.metrics(r).cost)}));
- assert.equal(await page.locator('.v441-home-tabs [role=tab]').count(),2);
- assert.equal(await page.locator('#v441-logistics-panel .v431-block').count(),7);
+ assert.deepEqual(await page.locator('#v442-nav button>span:last-child').allTextContents(),['Дашборд','Аналітика','Маршрути','Довідник витрат','Меню']);
+ assert.equal(await page.locator('.v442-routes .v431-block').count(),8);
  assert.equal(await page.locator('[data-section="stv"] .v44-inter-subblock').count(),0);
  assert.doesNotMatch(await page.locator('[data-section="stv"]').innerText(),/Міжфілійна доставка/);
  assert.equal(await page.locator('#v441-import-time time').getAttribute('datetime'),'2026-09-01T06:52:14.720Z');
  assert.match(await page.locator('#v441-import-time').innerText(),/01\.09\.2026/);
- await capture('v441-logistics-home');
- await page.getByRole('tab',{name:/Витрати та тарифи/}).click();
- assert.equal(await page.locator('#v441-logistics-panel').isVisible(),false);
+ await capture('v442-routes-home');
+ await page.locator('#v442-nav').getByRole('button',{name:'Довідник витрат',exact:true}).click();
+ assert.equal(await page.locator('.v442-routes').count(),0);
  assert.equal(await page.locator('#v441-finance-panel button').count(),4);
- await capture('v441-finance-home');
+ await capture('v442-expenses-home');
  for(const [label,content] of [['Власний парк','#v44-period-month'],['Тариф SAV','#v44-rate-form'],['Тариф STV','#v44-rate-form'],['STV міжфілійна доставка','#v44-inter-month']]){
   await page.locator('#v441-finance-panel').getByRole('button',{name:new RegExp(label)}).click();
   await page.locator(content).waitFor({state:'visible'});
@@ -26,11 +26,7 @@ module.exports=async({page,pickDate,capture})=>{
  }
  assert.deepEqual(await page.evaluate(()=>({facts:JSON.stringify(D.facts),entries:JSON.stringify(db.fleet_cost_entries),rates:JSON.stringify(db.transport_monthly_rates),inter:JSON.stringify(db.stv_interbranch_months),costs:D.routes.map(r=>TRTS_OPS.metrics(r).cost)})),financeBefore);
  assert.equal(await page.evaluate(()=>window.writes.length),writes,'Navigation must not change any financial record');
- await page.getByRole('tab',{name:/Логістичний блок/}).click();
- await page.getByRole('tab',{name:/Логістичний блок/}).press('ArrowRight');
- assert.equal(await page.getByRole('tab',{name:/Витрати та тарифи/}).getAttribute('aria-selected'),'true');
- await page.getByRole('tab',{name:/Витрати та тарифи/}).press('Home');
- assert.equal(await page.getByRole('tab',{name:/Логістичний блок/}).getAttribute('aria-selected'),'true');
+ await page.locator('#v442-nav').getByRole('button',{name:'Маршрути',exact:true}).click();
  await page.locator('#v43-period').getByRole('button',{name:'Дата',exact:true}).click();
  await pickDate('v441-date','2026-01-01');
  await page.locator('#v441-date-form').getByRole('button',{name:'Показати',exact:true}).click();
@@ -60,8 +56,8 @@ module.exports=async({page,pickDate,capture})=>{
  assert.equal(await page.locator('#v441-date-form').isVisible(),true);
  await page.evaluate(async()=>{window.failRead='cube_imports';await v435Refresh()});assert.match(await page.locator('#v441-import-time').innerText(),/час недоступний/);
  await page.evaluate(async()=>{db.cube_imports=[];await v43SetPeriod('today')});assert.match(await page.locator('#v441-import-time').innerText(),/немає підтвердженого імпорту/);
- for(const width of [320,390,760]){await page.setViewportSize({width,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'No horizontal overflow at '+width);await page.getByRole('tab',{name:/Витрати та тарифи/}).click();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Finance grid overflow at '+width);await page.getByRole('tab',{name:/Логістичний блок/}).click()}
+ for(const width of [320,390,760]){await page.setViewportSize({width,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'No horizontal overflow at '+width);await page.locator('#v442-nav').getByRole('button',{name:'Довідник витрат',exact:true}).click();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Finance grid overflow at '+width);await page.locator('#v442-nav').getByRole('button',{name:'Маршрути',exact:true}).click()}
  await page.setViewportSize({width:390,height:740});
  assert.equal(await page.evaluate(()=>window.writes.length),writes,'Date and refresh controls are read-only');
- console.log('PASS v44.1 shell: two sections, all subblocks, relocated STV, single date, refresh range/retry/status, exact import time, no financial mutations, mobile layout');
+ console.log('PASS v44.2 shell: five sections, all subblocks, relocated STV, single date, refresh range/retry/status, exact import time, no financial mutations, mobile layout');
 };

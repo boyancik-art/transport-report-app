@@ -1,7 +1,7 @@
 const {chromium}=require(process.env.TRTS_PLAYWRIGHT_MODULE||'playwright');
 const fs=require('node:fs'),http=require('node:http'),path=require('node:path'),assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'..'),dist=path.join(root,'web/dist');
-const expected='v44.1',live=process.env.TRTS_BASE_URL;
+const expected='v44.2',live=process.env.TRTS_BASE_URL;
 const reference=JSON.parse(fs.readFileSync(path.join(root,'web/reference-v39.js'),'utf8').match(/TRTS_V39_EXPEDITOR_COVERAGE=(\{[^\n]*?\});/)[1]);
 const date=new Date().toISOString().slice(0,10);
 const types=['ФОП','Самовивіз',"Кур'єр",'STV','SAV','Пекарня'];
@@ -69,14 +69,18 @@ async function healthy(frame,label){
  console.log('PASS full runtime responsive: '+label+'; idle mutations='+mutations);
 }
 async function dashboard(frame,label){
+ await frame.locator('.v442-dashboard-placeholder').waitFor({state:'visible'});
+ assert.equal(await frame.locator('#v442-nav button').count(),5);
+ assert.deepEqual(await frame.locator('#v442-nav button>span:last-child').allTextContents(),['Дашборд','Аналітика','Маршрути','Довідник витрат','Меню']);
+ await frame.locator('#v442-nav').getByRole('button',{name:'Маршрути',exact:true}).click();
  try{await frame.locator('.v431-fop').waitFor({state:'visible',timeout:15000})}catch(e){console.error('Runtime state '+label,await frame.locator('body').innerText());throw e}
  await frame.locator('#v431-courier').waitFor({state:'visible',timeout:15000});
  await frame.locator('.v437-pick-card').waitFor({state:'visible',timeout:15000});
  await healthy(frame,label);
  const titles=await frame.locator('.v431-block-head,.v431-courier-head').allTextContents();
- assert.equal(titles.length,7,'All seven approved blocks may be rendered: '+JSON.stringify(titles));
+ assert.equal(titles.length,8,'All eight route subblocks may be rendered: '+JSON.stringify(titles));
  assert.ok(titles.some(t=>t.startsWith('STV')));assert.ok(titles.some(t=>t.startsWith('SAV')));
- for(const id of [4,5])assert.equal(await frame.getByText('TEST-'+id,{exact:true}).count(),1,'Approved partner route must be present');
+ for(const id of [4,5])assert.equal(await frame.locator('[data-section="'+(id===4?'stv':'sav')+'"]').getByText('TEST-'+id,{exact:true}).count(),1,'Approved partner route must be present');
  assert.equal(await frame.locator('.v437-pick-card .v437-exp b').innerText(),names[1]);
  assert.equal(await frame.locator('.v437-pick-card .v437-warehouse b').innerText(),'Львів STV');
  await frame.locator('.v437-pick-card').click();
@@ -148,7 +152,7 @@ async function dashboard(frame,label){
    assert.equal(await reloaded.locator('#app').isVisible(),false);
    assert.equal(await reloaded.evaluate(()=>localStorage.getItem('trts_token')),null);
    assert.deepEqual(errors,[],scenario.name+': uncaught browser errors');
-   console.log('PASS complete built scripts, isolated login/reload, seven approved blocks: '+scenario.name);
+   console.log('PASS complete built scripts, isolated login/reload, five screens and eight route subblocks: '+scenario.name);
    await context.close();
   }
  }finally{await browser.close();if(server)await new Promise(resolve=>server.close(resolve))}

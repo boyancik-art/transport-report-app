@@ -42,7 +42,8 @@ const root=path.resolve(__dirname,'..');
   };
  });
  // Execute the production operation handlers and styles against an isolated fake API.
- for(const file of ['transport-costs.js','tariff-template-v44.js','patch-v40-pickup.js','patch-v41-sections.js','patch-v41-mobile-scale.js','patch-v41-route-scale.js','patch-v43-operations.js','patch-v44-finance.js','patch-v43-1-blocks.js','patch-v43-1-ops-courier.js','patch-v43-1-header.js','patch-v43-6-ui.js','patch-v44-1-shell.js'])await page.addScriptTag({content:fs.readFileSync(path.join(root,'web',file),'utf8')});
+ for(const file of ['transport-costs.js','tariff-template-v44.js','patch-v40-pickup.js','patch-v41-sections.js','patch-v41-mobile-scale.js','patch-v41-route-scale.js','patch-v43-operations.js','patch-v44-finance.js','patch-v43-1-blocks.js','patch-v43-1-ops-courier.js','patch-v43-1-header.js','patch-v43-6-ui.js','patch-v44-1-shell.js','analytics-v44-2.js','patch-v44-2-app.js'])await page.addScriptTag({content:fs.readFileSync(path.join(root,'web',file),'utf8')});
+ await page.evaluate(()=>v442Nav('routes'));
  await page.waitForSelector('.v431-pickup-card');
  assert.match(await page.locator('.v431-pickup-card .v431-cell').innerText(),/Хмельницький STV/);
  assert.doesNotMatch(await page.locator('.v431-pickup-card .v431-cell').innerText(),/99\/3/);
@@ -168,7 +169,7 @@ const root=path.resolve(__dirname,'..');
  console.log('PASS merge already-priced TT/groups without duplicate or stranded memberships');
  console.log('PASS shared courier tariff conserved to kopeck, distinct tariff, retry without duplicate rows, reopen and edit');
  await page.evaluate(()=>v433Dashboard());await page.waitForSelector('#v431-courier');
- assert.deepEqual(await page.locator('#view [data-section]').evaluateAll(els=>els.map(el=>el.dataset.section)),['pickup','fop','bakery','courier','replen','sav','stv']);
+ assert.deepEqual(await page.locator('#view [data-section]').evaluateAll(els=>els.map(el=>el.dataset.section)),['base','fop','bakery','courier','replen','sav','stv','pickup']);
  await page.getByRole('button',{name:'Період',exact:true}).click();
  assert.equal(await page.locator('.v43-custom input[type="date"]').count(),0);
  await page.locator('[data-date-target="v43-from"]').click();
@@ -289,6 +290,7 @@ const root=path.resolve(__dirname,'..');
 
  await require('./finance-flows.cjs')(page,capture);
  await require('./shell-flows.cjs')({page,pickDate,capture});
+ await require('./analytics-flows.cjs')({page,capture});
  await page.waitForTimeout(600);
  const mutationCount=await page.evaluate(()=>new Promise(resolve=>{let n=0;const o=new MutationObserver(r=>n+=r.length);o.observe(document.body,{subtree:true,childList:true});setTimeout(()=>{o.disconnect();resolve(n)},300)}));assert.ok(mutationCount<10,'UI must settle, mutations='+mutationCount);
  assert.deepEqual(errors,[]);
