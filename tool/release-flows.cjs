@@ -7,7 +7,7 @@ module.exports=async({page,frame})=>{
  await frame.getByRole('button',{name:'‹ Маршрут',exact:true}).click();assert.match(await frame.locator('[data-route-id="1"] .v444-metrics').innerText(),/Вартість 1 ТТ/);
  await frame.evaluate(()=>v442Nav('dashboard'));await frame.locator('.v444-attention').waitFor();
  assert.ok(await frame.locator('.v444-attention .v444-results button').count()>0);
- await frame.locator('.v444-attention .v444-results button').first().click();await frame.locator('#v43-modal .v444-results button').first().click();await frame.locator('.v43-screen').waitFor();
+ await frame.locator('.v444-attention .v444-results button').first().click();await frame.locator('#v43-modal .v444-results button').first().click();await frame.locator('.v436-detail,.v43-route-detail').first().waitFor();
  await frame.evaluate(()=>v442Nav('menu'));await frame.getByRole('button',{name:'Експорт даних',exact:false}).click();await frame.locator('#v444-export-submit:not([disabled])').waitFor();
  for(const id of ['from','to','direction','filter-branch','filter-business','filter-carrier','filter-zone'])assert.equal(await frame.locator('#v444-'+id).count(),1);
  const downloaded=page.waitForEvent('download');await frame.locator('#v444-export-submit').click();const download=await downloaded;assert.match(download.suggestedFilename(),/\.xlsx$/);const stream=await download.createReadStream();const chunks=[];for await(const chunk of stream)chunks.push(chunk);const bytes=Buffer.concat(chunks);assert.equal(bytes.readUInt32LE(0),0x04034b50);assert.ok(bytes.includes(Buffer.from('Транспортні витрати')));assert.ok(bytes.includes(Buffer.from('Витрати')));

@@ -28,6 +28,7 @@ jobs:
 
       - name: Test mobile operation flows
         run: |
+          node tool/release-boot.test.cjs
           node tool/xlsx-core.test.cjs
           node tool/finance-core.test.cjs
           node tool/analytics-core.test.cjs
