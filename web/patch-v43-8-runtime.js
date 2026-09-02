@@ -2,6 +2,7 @@
 (()=>{
   const BUILD='v43.8';
   window.TRTS_BUILD=BUILD;
+  window.TRTS_MODERN_RUNTIME=true;
   window.TRTS_RENDER_BUILD=()=>{
     const button=document.getElementById('trts-update');
     if(button){

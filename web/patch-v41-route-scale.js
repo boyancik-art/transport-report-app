@@ -51,5 +51,5 @@ const style=document.createElement('style');style.textContent=`
 `;document.head.appendChild(style);
 window.logistics=renderList;window.home=renderList;window.go=renderList;window.analytics=renderList;window.ai=renderList;window.more=renderList;window.v39Section=()=>renderList();
 const up=document.getElementById('trts-update');if(up){const s=up.querySelector('span');if(s)s.textContent='TEST · '+BUILD}document.documentElement.dataset.trtsBuild=BUILD;
-(async()=>{await loadMeta();if(typeof token!=='undefined'&&token)setTimeout(renderList,180)})();
+if(!window.TRTS_MODERN_RUNTIME)(async()=>{await loadMeta();if(typeof token!=='undefined'&&token)setTimeout(renderList,180)})();
 })();

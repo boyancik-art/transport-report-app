@@ -24,6 +24,8 @@ async function mockApi(route){
   return route.fulfill({json:{access_token:'isolated-runtime-fixture',token_type:'bearer',expires_in:3600}});
  }
  assert.equal(req.method(),'GET','Runtime fixture must never write real data');
+ // Delayed legacy metadata must never replace the modern screen after it has rendered.
+ if(u.pathname.endsWith('/profiles'))await new Promise(resolve=>setTimeout(resolve,400));
  const rows=db[u.pathname.split('/').at(-1)]||[];
  const matches=row=>[...u.searchParams].every(([k,v])=>
   v.startsWith('eq.')?String(row[k])===v.slice(3):
@@ -63,7 +65,7 @@ async function healthy(frame,label){
  console.log('PASS full runtime responsive: '+label+'; idle mutations='+mutations);
 }
 async function dashboard(frame,label){
- await frame.locator('.v431-fop').waitFor({state:'visible',timeout:15000});
+ try{await frame.locator('.v431-fop').waitFor({state:'visible',timeout:15000})}catch(e){console.error('Runtime state '+label,await frame.locator('body').innerText());throw e}
  await frame.locator('#v431-courier').waitFor({state:'visible',timeout:15000});
  await frame.locator('.v437-pick-card').waitFor({state:'visible',timeout:15000});
  await healthy(frame,label);
