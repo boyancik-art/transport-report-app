@@ -140,11 +140,16 @@ async function dashboard(frame,label){
    const servedScripts=[];
    page.on('response',response=>{const u=new URL(response.url());if(u.origin===new URL(base).origin&&u.pathname.endsWith('.js'))servedScripts.push(response)});
    const response=await page.goto(base+scenario.url,{waitUntil:'load',timeout:30000});
-   if(live){
-    console.log('LIVE document '+scenario.name, (await response.text()).match(/<meta name="trts-[^>]+>/g));
-    for(const response of servedScripts){const file=path.join(dist,new URL(response.url()).pathname);if(fs.existsSync(file)){const delivered=await response.body(),built=fs.readFileSync(file);if(!delivered.equals(built))console.error('LIVE SCRIPT MISMATCH '+new URL(response.url()).pathname+' built='+built.length+' served='+delivered.length)}}
-   }
    const frame=scenario.url.includes('phone-preview')?await page.locator('iframe').elementHandle().then(el=>el.contentFrame()):page;
+   if(live){
+    // Exercise the user's existing Update button, including stale CDN/PWA entry documents.
+    await frame.locator('#trts-update').waitFor();
+    servedScripts.length=0;
+    await Promise.all([frame.waitForNavigation({waitUntil:'load'}),frame.locator('#trts-update').click()]);
+    await frame.waitForFunction(build=>document.documentElement.dataset.trtsBuild===build,expected);
+    console.log('PASS deployed Update button reaches exact '+expected+' on '+scenario.name);
+    for(const response of servedScripts){const file=path.join(dist,new URL(response.url()).pathname);if(fs.existsSync(file)){const delivered=await response.body(),built=fs.readFileSync(file);assert.ok(delivered.equals(built),'Deployed script differs from tested build: '+new URL(response.url()).pathname)}}
+   }
    await frame.locator('#loginForm').waitFor({state:'visible'});
    assert.ok(await frame.locator('#loginForm button').evaluate(el=>getComputedStyle(el).display==='flex'),'Login button uses shared design');
    assert.ok(await frame.locator('.loginbox .logo').evaluate(el=>getComputedStyle(el).objectFit==='contain'&&getComputedStyle(el).transform==='none'),'Logo must be contained without crop');
