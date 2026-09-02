@@ -1,7 +1,7 @@
 const {chromium}=require(process.env.TRTS_PLAYWRIGHT_MODULE||'playwright');
 const fs=require('node:fs'),http=require('node:http'),path=require('node:path'),assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'..'),dist=path.join(root,'web/dist');
-const expected='v43.9',live=process.env.TRTS_BASE_URL;
+const expected='v44.0',live=process.env.TRTS_BASE_URL;
 const reference=JSON.parse(fs.readFileSync(path.join(root,'web/reference-v39.js'),'utf8').match(/TRTS_V39_EXPEDITOR_COVERAGE=(\{[^\n]*?\});/)[1]);
 const date=new Date().toISOString().slice(0,10);
 const types=['ФОП','Самовивіз',"Кур'єр",'STV','SAV','Пекарня'];
@@ -74,9 +74,9 @@ async function dashboard(frame,label){
  await frame.locator('.v437-pick-card').waitFor({state:'visible',timeout:15000});
  await healthy(frame,label);
  const titles=await frame.locator('.v431-block-head,.v431-courier-head').allTextContents();
- assert.equal(titles.length,5,'Only the five approved blocks may be rendered: '+JSON.stringify(titles));
- for(const title of titles)assert.doesNotMatch(title,/^(STV|SAV)/i);
- for(const id of [4,5])assert.equal(await frame.getByText('TEST-'+id,{exact:true}).count(),0,'Unapproved route must be hidden');
+ assert.equal(titles.length,7,'All seven approved blocks may be rendered: '+JSON.stringify(titles));
+ assert.ok(titles.some(t=>t.startsWith('STV')));assert.ok(titles.some(t=>t.startsWith('SAV')));
+ for(const id of [4,5])assert.equal(await frame.getByText('TEST-'+id,{exact:true}).count(),1,'Approved partner route must be present');
  assert.equal(await frame.locator('.v437-pick-card .v437-exp b').innerText(),names[1]);
  assert.equal(await frame.locator('.v437-pick-card .v437-warehouse b').innerText(),'Львів STV');
  await frame.locator('.v437-pick-card').click();

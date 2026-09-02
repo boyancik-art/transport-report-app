@@ -1,0 +1,66 @@
+const assert=require('node:assert/strict'),zones=require('./coverage-v44.json');
+module.exports=async(page,capture)=>{
+ await page.evaluate(()=>v43OpenTT(2,21));
+ assert.doesNotMatch(await page.locator('#view').innerText(),/Доставка|% лог/);
+ await page.evaluate(()=>{db.transport_carriers.push({id:999,name:'Нова Пошта',active:true,carrier_type:'route'},{id:998,name:'ТОВ ТС ПЛЮС',active:true,carrier_type:'ts_plus'})});
+ await page.evaluate(()=>v435Refresh());await page.waitForSelector('.v431-fop');
+ await page.evaluate(()=>v433EditRoute(1));assert.equal(await page.locator('#v433-carrier option').getByText('Нова Пошта',{exact:true}).count(),0);
+ await page.locator('#v433-carrier-new').fill('Новий ФОП');await page.getByRole('button',{name:'+ Додати нового',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('#v433-carrier').value==='Новий ФОП');assert.equal(await page.locator('#v433-wave').inputValue(),'48');
+ await page.locator('#v433-carrier').selectOption('ТОВ ТС ПЛЮС');assert.equal(await page.locator('#v433-tariff').inputValue(),'0');assert.equal(await page.locator('#v433-tariff').getAttribute('readonly'),'');await page.evaluate(()=>v43CloseModal());
+ // Isolated full-month fixture. Another route is outside the dashboard's visible day.
+ await page.evaluate(zones=>{
+  const day=new Date().toISOString().slice(0,10),month=day.slice(0,7),other=month+'-28';
+  Object.assign(TRTS_V39_EXPEDITOR_COVERAGE,{OWN_A:'ФОП',OWN_B:'ФОП',OWN_BAK:'Пекарня',HIRED:'ФОП',PARTNER_STV:'STV',PARTNER_SAV:'SAV'});
+  db.routes=[['OWN_A',80,day],['OWN_B',81,other],['OWN_BAK',82,day],['HIRED',83,day],['PARTNER_STV',90,day],['PARTNER_SAV',91,day]].map(([expeditor_name,id,route_date])=>({id,expeditor_name,route_date,route_delivery_id:'FIN-'+id,warehouse:'Чайки STV'}));
+  db.route_facts=[80,81,82,83].map(id=>({id,route_id:id,carrier_name:id===83?'ФОП Діденко':'ТОВ ТС ПЛЮС',tariff:999,wave:'24'}));
+  db.route_points=db.routes.map(r=>({id:r.id*10,route_id:r.id,location_id:r.id,customer_id:'C'+r.id,customer_name:'ТТ '+r.id,documents_count:r.id===90?2:1}));
+  db.locations=db.routes.map(r=>({id:r.id,address_id:'A'+r.id,delivery_address:'Тестова адреса '+r.id,region:r.id===91?'Київська':'Львівська',district:r.id===91?'Білоцерківський':'Львівський'}));
+  db.source_documents=db.routes.flatMap(r=>(r.id===90?[.2,.3]:[r.id===81?3:1]).map((p,i)=>({id:r.id*100+i,document_date:r.route_date,route_delivery_id:r.route_delivery_id,customer_id:'C'+r.id,address_id:'A'+r.id,sale_code:'INV-'+r.id+'-'+i,pallets:p,bottles:p*10,weight:p*100,order_amount:1000})));
+  db.route_extra_points=[{id:8000,route_id:80,point_type:'extra_tt',name:'Додаткова',tt_count:1,pallets:0,bottles:0,weight:0}];db.fop_manual_routes=[];db.fleet_cost_entries=[];
+  db.transport_delivery_coverage=zones.map((z,i)=>({id:'zone-'+i,...z,active:true}));db.transport_monthly_rates=[];
+  db.stv_branch_directory=['Львів STV','Луцьк STV','Рівне STV'].map(name=>({name,active:true}));db.stv_interbranch_months=[];
+ },zones);
+ await page.evaluate(()=>v435Refresh());await page.waitForSelector('.v431-fop');
+ await page.evaluate(()=>v44OpenCosts());await page.getByRole('button',{name:'+ Додати витрати власного парку',exact:true}).click();
+ await page.waitForSelector('[name="v44-fleet-exp"]');assert.deepEqual(await page.locator('[name="v44-fleet-exp"]').evaluateAll(es=>es.map(e=>e.value)),['OWN_A','OWN_B']);
+ await page.locator('[name="v44-fleet-exp"][value="OWN_A"]').check();await page.locator('[name="v44-fleet-exp"][value="OWN_B"]').check();
+ for(const k of ['salary','fuel','depreciation','repair','insurance'])await page.locator('#v44-fleet-'+k).fill('100');
+ await page.evaluate(()=>window.failTable='fleet_cost_entries');await page.locator('#v44-save').click();await page.waitForFunction(()=>document.querySelector('#v44-error').textContent.includes('Не збережено'));
+ assert.equal(await page.locator('#v44-fleet-fuel').inputValue(),'100');await page.locator('#v44-save').click();await page.waitForFunction(()=>!document.body.classList.contains('trts-modal-open'));
+ const first=await page.evaluate(()=>({row:db.fleet_cost_entries[0],a:TRTS_FINANCE.fleetCost(80),b:TRTS_FINANCE.fleetCost(81),bak:TRTS_FINANCE.fleetCost(82),hired:TRTS_FINANCE.fleetCost(83)}));
+ assert.equal(first.row.total,500);assert.equal(first.a,200);assert.equal(first.b,300);assert.equal(first.bak,0);assert.equal(first.hired,0);
+ await page.evaluate(id=>v44FleetForm(id),first.row.id);await page.waitForSelector('[name="v44-fleet-exp"]');await page.locator('#v44-save').click();await page.waitForFunction(()=>!document.body.classList.contains('trts-modal-open'));
+ assert.equal(await page.evaluate(()=>db.fleet_cost_entries.length),1);
+ await page.evaluate(()=>v44FleetForm());await page.waitForSelector('[name="v44-fleet-exp"]');await page.locator('#v44-fleet-block').selectOption('bakery');assert.deepEqual(await page.locator('[name="v44-fleet-exp"]').evaluateAll(es=>es.map(e=>e.value)),['OWN_BAK']);
+ await page.locator('[name="v44-fleet-exp"]').check();await page.locator('#v44-fleet-salary').fill('200');await page.locator('#v44-save').click();await page.waitForFunction(()=>!document.body.classList.contains('trts-modal-open'));
+ assert.equal(await page.evaluate(()=>TRTS_FINANCE.fleetCost(82)),200);
+ await capture('v44-own-fleet-month');
+ await page.evaluate(()=>v435Refresh());await page.waitForSelector('.v431-fop');
+ assert.equal(await page.evaluate(()=>TRTS_FINANCE.fleetCost(80)),200);assert.equal(await page.evaluate(()=>D.routes.some(r=>r.id===81)),false);
+ const point=await page.evaluate(()=>v437AllocationSnapshot(80));assert.equal(point.tt,2);assert.equal(point.routeCost,200);assert.equal(point.points[0].cost,100);assert.equal(point.extras[0].cost,100);
+ console.log('PASS own fleet: full month regardless of dashboard day, five cost fields, FOP/bakery separation, exact extra-TT allocation, retry/edit without duplicates');
+
+ await page.evaluate(()=>v43OpenRoute(90));assert.match(await page.locator('#view').innerText(),/Оновіть довідник/);
+ await page.evaluate(()=>v44OpenCosts('STV'));await page.waitForSelector('#v44-rate-form');assert.equal(await page.locator('#v44-rate-zone1').inputValue(),'572.7587811497783');
+ await page.locator('#v44-save').click();await page.waitForFunction(()=>db.transport_monthly_rates.length===1);
+ await page.evaluate(()=>v43OpenRoute(90));assert.match(await page.locator('#view').innerText(),/Львів/);assert.match(await page.locator('#view').innerText(),/392,03/);
+ assert.doesNotMatch(await page.locator('#view').innerText(),/Оновіть довідник/);await capture('v44-stv-route');
+ await page.evaluate(()=>v43OpenTT(90,900));assert.equal(await page.locator('.v439-invoice').count(),2);assert.ok(await page.locator('#view').evaluate(el=>el.scrollWidth<=el.clientWidth));await capture('v44-stv-invoices');
+ await page.evaluate(()=>{const l=D.locations.find(l=>l.id===90);l.district='Неіснуючий';v43OpenTT(90,900)});assert.match(await page.locator('#view').innerText(),/Не знайдено філію покриття та зону/);assert.doesNotMatch(await page.locator('.v439-invoice').first().innerText(),/Доставка|% лог/);
+ await page.evaluate(()=>v44OpenCosts('SAV'));await page.waitForSelector('#v44-rate-form');await page.locator('#v44-save').click();await page.waitForFunction(()=>db.transport_monthly_rates.length===2);await page.evaluate(()=>v43OpenRoute(91));assert.match(await page.locator('#view').innerText(),/592,20/);
+ console.log('PASS SAV/STV: exact source precision, explicit month activation, coverage/zone lookup, TT formula, route total, missing geography warnings, no invented zero invoice costs');
+
+ await page.evaluate(()=>v44Interbranch());await page.getByRole('button',{name:'+ Додати міжфілійну доставку',exact:true}).click();
+ await page.locator('#v44-inter-sender').selectOption('Львів STV');
+ await page.locator('[name="v44-receiver"][value="Луцьк STV"]').check();await page.locator('#v44-pallets-1').fill('2');await page.locator('#v44-pallet-rate-1').fill('500');
+ await page.locator('[name="v44-receiver"][value="Рівне STV"]').check();await page.locator('#v44-pallets-2').fill('3');await page.locator('#v44-pallet-rate-2').fill('600');
+ await page.locator('#v44-new-branch').fill('Нова філія STV');await page.getByRole('button',{name:'+ Додати філію',exact:true}).click();await page.waitForSelector('[name="v44-receiver"][value="Нова філія STV"]');
+ assert.equal(await page.locator('#v44-inter-sender').inputValue(),'Львів STV');assert.equal(await page.locator('#v44-pallets-1').inputValue(),'2');
+ await page.locator('#v44-save').click();await page.waitForFunction(()=>!document.body.classList.contains('trts-modal-open'));
+ assert.equal(await page.evaluate(()=>db.stv_interbranch_months[0].total),2800);assert.equal(await page.evaluate(()=>db.stv_interbranch_months[0].receivers.length),2);
+ await page.getByRole('button',{name:'Редагувати',exact:true}).click();await page.locator('#v44-save').click();await page.waitForFunction(()=>!document.body.classList.contains('trts-modal-open'));assert.equal(await page.evaluate(()=>db.stv_interbranch_months.length),1);await capture('v44-stv-interbranch');
+ await page.evaluate(()=>v44ManualRoute('bakery'));await page.locator('#mr-expeditor').fill('OWN_BAK');await page.locator('#mr-carrier').selectOption('ФОП Діденко');await page.locator('#mr-tariff').fill('250');await page.locator('#mr-tt').fill('2');await page.locator('#v44-save').click();await page.waitForFunction(()=>!document.body.classList.contains('trts-modal-open'));
+ assert.equal(await page.evaluate(()=>db.fop_manual_routes[0].block),'bakery');assert.equal(await page.evaluate(()=>db.fop_manual_routes[0].tt_count),2);
+ console.log('PASS STV interbranch: monthly sender, recipient multiselect, per-pallet math, new branch preserves draft, edit/idempotency; separate bakery manual route');
+};

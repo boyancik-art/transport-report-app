@@ -9,6 +9,8 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      TRTS_DEPLOY_ENABLED: 'false'
     permissions:
       contents: read
     steps:
@@ -26,12 +28,14 @@ jobs:
 
       - name: Test mobile operation flows
         run: |
+          node tool/finance-core.test.cjs
           npm install --prefix /tmp/trts-ui-tests --no-package-lock playwright@1.58.2
           /tmp/trts-ui-tests/node_modules/.bin/playwright install --with-deps chromium
           TRTS_CAPTURE=1 TRTS_PLAYWRIGHT_MODULE=/tmp/trts-ui-tests/node_modules/playwright node tool/mobile-regression.cjs
           TRTS_PLAYWRIGHT_MODULE=/tmp/trts-ui-tests/node_modules/playwright node tool/runtime-regression.cjs
 
       - name: Ensure Cloudflare Pages production branch
+        if: env.TRTS_DEPLOY_ENABLED == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -59,34 +63,37 @@ jobs:
           NODE
 
       - name: Deploy to Cloudflare Pages production
+        if: env.TRTS_DEPLOY_ENABLED == 'true'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy web/dist --project-name=transport-report-ts-web
 
-      - name: Verify production is exact v43.9 runtime
+      - name: Verify production is exact v44.0 runtime
+        if: env.TRTS_DEPLOY_ENABLED == 'true'
         run: |
           rm -f /tmp/pages-index.html
           for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
             curl --fail --show-error --silent --location --connect-timeout 10 --max-time 20 \
               -H 'Cache-Control: no-cache, no-store, must-revalidate' \
-              "https://transport-report-ts-web.pages.dev/?verify=4390-${GITHUB_SHA}-${i}" \
+              "https://transport-report-ts-web.pages.dev/?verify=4400-${GITHUB_SHA}-${i}" \
               -o /tmp/pages-index.html || true
-            if grep -q '<meta name="trts-build" content="43.9">' /tmp/pages-index.html \
-              && grep -q '<meta name="trts-runtime" content="4390">' /tmp/pages-index.html \
-              && grep -q 'patch-v43-8-runtime.js?v=4390' /tmp/pages-index.html; then
-              echo 'Cloudflare production verified: exact v43.9 runtime 4390'
+            if grep -q '<meta name="trts-build" content="44.0">' /tmp/pages-index.html \
+              && grep -q '<meta name="trts-runtime" content="4400">' /tmp/pages-index.html \
+              && grep -q 'patch-v43-8-runtime.js?v=4400' /tmp/pages-index.html; then
+              echo 'Cloudflare production verified: exact v44.0 runtime 4400'
               exit 0
             fi
-            echo "Production not exact v43.9 runtime yet; retry ${i}/12"
+            echo "Production not exact v44.0 runtime yet; retry ${i}/12"
             sleep 10
           done
-          echo 'ERROR: Cloudflare production did not switch to exact v43.9 runtime 4390'
+          echo 'ERROR: Cloudflare production did not switch to exact v44.0 runtime 4400'
           grep -Eo 'trts-(build|runtime)[^>]*|patch-v43-7-pickup-cards.js[^\"<]*' /tmp/pages-index.html || true
           exit 1
 
       - name: Verify deployed full runtime with isolated backend
+        if: env.TRTS_DEPLOY_ENABLED == 'true'
         env:
           TRTS_BASE_URL: https://transport-report-ts-web.pages.dev
           TRTS_PLAYWRIGHT_MODULE: /tmp/trts-ui-tests/node_modules/playwright
