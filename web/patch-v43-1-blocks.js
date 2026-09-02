@@ -1,6 +1,6 @@
 (()=>{
 const data=()=>typeof D!=='undefined'?D:window.D||{};
-const defs=[['pickup','Самовивіз','truck'],['stv','STV','truck'],['sav','SAV','truck'],['fop','ФОП / TS','truck'],['courier','Кур’єрські відправлення','box'],['replen','Поповнення філій','warehouse'],['bakery','Пекарня / Фреш','box'],['other','Інші маршрути','truck']];
+const defs=[['pickup','Самовивіз','truck'],['fop','ФОП / TS','truck'],['courier','Кур’єрські відправлення','box'],['replen','Поповнення філій','warehouse']];
 const header=(key,title,count,icon)=>`<button class="v431-block-head" onclick="v431Toggle('${key}')" aria-expanded="true"><b>${window.TRTS_UI.icon(icon)}<span>${title} · ${count}</span></b><span class="v431-toggle-label">⌃</span></button>`;
 function enhance(){
  const screen=document.querySelector('.v43-screen');if(!screen||screen.dataset.v431==='1')return;
