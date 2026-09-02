@@ -1,7 +1,7 @@
 const {chromium}=require(process.env.TRTS_PLAYWRIGHT_MODULE||'playwright');
 const fs=require('node:fs'),http=require('node:http'),path=require('node:path'),assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'..'),dist=path.join(root,'web/dist');
-const expected='v44.5',live=process.env.TRTS_BASE_URL;
+const expected='v44.6',live=process.env.TRTS_BASE_URL;
 const reference=JSON.parse(fs.readFileSync(path.join(root,'web/reference-v39.js'),'utf8').match(/TRTS_V39_EXPEDITOR_COVERAGE=(\{[^\n]*?\});/)[1]);
 const date=new Date().toISOString().slice(0,10);
 const types=['ФОП','Самовивіз',"Кур'єр",'STV','SAV','Пекарня'];
@@ -196,8 +196,8 @@ async function dashboard(frame,label){
     db.source_documents.push({...db.source_documents[0],id:4450000,route_delivery_id:'DELETE-FIXTURE'});
     await reloaded.evaluate(async()=>{await v435Refresh();v442Nav('routes')});
     const action=reloaded.locator('[data-route-id="44500"] .v445-route-delete');
-    await action.waitFor({state:'visible'});deleteDecision=false;await action.click();assert.equal(archivedFixture.size,0,'Cancel must not delete');
-    deleteDecision=true;await action.click();await reloaded.waitForFunction(()=>!TRTS_OPS.dat().routes.some(r=>r.id===44500));
+    await action.waitFor({state:'visible'});await action.click();await reloaded.locator('#v446-confirm [data-confirm=false]').click();assert.equal(archivedFixture.size,0,'Cancel must not delete');
+    await action.click();assert.match(await reloaded.locator('#v446-confirm').innerText(),/Видалити маршрут DELETE-FIXTURE\? Цю дію неможливо скасувати\./);await reloaded.locator('#v446-confirm [data-confirm=true]').click();await reloaded.waitForFunction(()=>!TRTS_OPS.dat().routes.some(r=>r.id===44500));
     deleteDecision=null;assert.equal(fixtureAudit.length,1);assert.equal(fixtureAudit[0].action,'route_archived');
     assert.equal(await reloaded.locator('[data-route-id="44500"]').count(),0);
     assert.equal(await reloaded.evaluate(()=>TRTS_APP.buildReport().lines.some(x=>Number(x.routeId)===44500)),false);

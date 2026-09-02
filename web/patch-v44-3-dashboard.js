@@ -12,7 +12,7 @@
   if(!el)return;
   const selected=['today','date'].includes(p.mode)?'day':p.mode,options=[['day','День'],['week','Тиждень'],['month','Місяць'],['half','Півроку'],['year','Рік'],['custom','Свій період']];
   const time=v=>new Intl.DateTimeFormat('uk-UA',{dateStyle:'short',timeStyle:'short',timeZone:'Europe/Kyiv'}).format(new Date(v));
-  el.innerHTML='<div class="v43-period-inner v443-global-period"><div class="v43-period-buttons" aria-label="Глобальний період">'+options.map(([key,label])=>'<button type="button" aria-pressed="'+(key===selected)+'" class="'+(key===selected?'on':'')+'" onclick="v443Period(\''+key+'\')">'+label+'</button>').join('')+'</div><form id="v443-period-form" onsubmit="event.preventDefault();v443ApplyPeriod()"><label>'+(selected==='custom'?'Початок періоду':'Дата в періоді')+TRTS_UI.dateField('v443-anchor',p.from)+'</label>'+(selected==='custom'?'<label>Кінець періоду'+TRTS_UI.dateField('v443-end',p.to)+'</label>':'')+'<button type="submit">Показати</button></form><div class="v435-period-status"><small id="v435-period-range">'+E(periodText(p))+'</small><button class="v441-refresh-button" onclick="v441RefreshDialog()">'+S.icon('refresh')+'Оновити дані</button></div><details class="v441-data-status"><summary>Оновлення даних</summary><p id="v441-import-time">Останній імпорт бази: '+(p.importUnavailable?'час недоступний':p.lastImport?.imported_at?'<time datetime="'+E(p.lastImport.imported_at)+'">'+E(time(p.lastImport.imported_at))+'</time>':'немає підтвердженого імпорту')+'</p><p id="v441-loaded-time">Дані звіту завантажено: '+(p.lastLoaded?'<time datetime="'+E(p.lastLoaded)+'">'+E(time(p.lastLoaded))+'</time>':'ще не завантажено')+'</p></details></div>';
+  el.innerHTML='<div class="v43-period-inner v443-global-period"><div class="v43-period-buttons" aria-label="Глобальний період">'+options.map(([key,label])=>'<button type="button" aria-pressed="'+(key===selected)+'" class="'+(key===selected?'on':'')+'" onclick="v443Period(\''+key+'\')">'+label+'</button>').join('')+'</div><details class="v446-date-controls" '+(selected==='custom'?'open':'')+'><summary>Дата, свій період та оновлення</summary><form id="v443-period-form" onsubmit="event.preventDefault();v443ApplyPeriod()"><label>'+(selected==='custom'?'Початок періоду':'Дата в періоді')+TRTS_UI.dateField('v443-anchor',p.from)+'</label>'+(selected==='custom'?'<label>Кінець періоду'+TRTS_UI.dateField('v443-end',p.to)+'</label>':'')+'<button type="submit">Показати</button></form><div class="v435-period-status"><small id="v435-period-range">'+E(periodText(p))+'</small><button class="v441-refresh-button" onclick="v441RefreshDialog()">'+S.icon('refresh')+'Оновити дані</button></div><details class="v441-data-status"><summary>Оновлення даних</summary><p id="v441-import-time">Останній імпорт бази: '+(p.importUnavailable?'час недоступний':p.lastImport?.imported_at?'<time datetime="'+E(p.lastImport.imported_at)+'">'+E(time(p.lastImport.imported_at))+'</time>':'немає підтвердженого імпорту')+'</p><p id="v441-loaded-time">Дані звіту завантажено: '+(p.lastLoaded?'<time datetime="'+E(p.lastLoaded)+'">'+E(time(p.lastLoaded))+'</time>':'ще не завантажено')+'</p></details></details></div>';
  }
  window.v443Period=async mode=>{if(mode==='custom'){periodBar({...periodState,mode});return}const p=P.range(mode,new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Kyiv',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()));return v441LoadPeriod(p.from,p.to,mode)};
  window.v443ApplyPeriod=()=>{if(!$('#v443-period-form')?.reportValidity())return;const a=$('#v443-anchor').value,mode=periodState.mode==='today'||periodState.mode==='date'?'day':periodState.mode;if(!TRTS_UI.validDate(a))return;const p=mode==='custom'?{from:a,to:$('#v443-end').value}:P.range(mode,a);return v441LoadPeriod(p.from,p.to,mode)};
@@ -65,6 +65,7 @@
    const groups=A.group(rows,level.axis),max=Math.max(1,...groups.map(x=>x.cost));
    html+='<div class="v442-metrics-grid">'+groups.map((g,index)=>{
     const sample=rows.find(x=>String(x[level.axis])===g.name),name=level.axis==='routeId'?sample?.routeName||g.name:level.axis==='pointId'?sample?.pointName||'Додаткова ТТ':level.axis==='zone'&&/^[1-5]$/.test(g.name)?'Зона '+g.name:g.name;
+    if(level.axis==='routeId'&&window.TRTS_UI446)return TRTS_UI446.analyticsCard(g);
     return'<div>'+App.metricsCard(g,{label:name,click:level.kind==='replen'?'':'v443Group('+index+')',replen:level.kind==='replen'})+(level.axis==='zone'?'<div class="v443-bar" aria-label="Витрати зони"><i style="width:'+g.cost/max*100+'%"></i></div>':'')+'</div>';
    }).join('')+'</div>';
    if(!groups.length)html+='<p class="v43-empty">Даних немає</p>';
@@ -76,7 +77,7 @@
   if(cache.current.warnings.length)html+='<details class="v442-warning"><summary>Зауваження до даних · '+cache.current.warnings.length+'</summary><ul>'+cache.current.warnings.map(x=>'<li>'+E(x)+'</li>').join('')+'</ul></details>';
   O.view().innerHTML='<div class="v43-screen v443-report">'+html+(!trail.length?(window.TRTS_RELEASE?.attention(cache)||''):'')+'</div>';
  }
- window.v443Detail=kind=>{trail.push({kind,filters:{},axis:kind==='courier'?'carrier':'branch'});window.TRTS_NAVIGATION?.capture();show();scrollTo(0,0)};
+ window.v443Detail=kind=>{trail.push({kind,filters:{},axis:kind==='courier'?'carrier':kind==='replen'?'branch':'business'});window.TRTS_NAVIGATION?.capture();show();scrollTo(0,0)};
  window.v443DetailBack=()=>{trail.pop();show();scrollTo(0,0)};
  window.v443Axis=axis=>{if(trail.length){trail.at(-1).axis=axis;show()}};
  window.v443Group=index=>{
@@ -84,7 +85,7 @@
   const sample=rows.find(x=>String(x[level.axis])===g.name);
   if(level.axis==='pointId'){if(sample?.routeId&&sample?.pointKey){window.TRTS_NAVIGATION?.reportReturn(()=>show());v43OpenTT(Number(sample.routeId),Number(sample.pointKey))}return}
   if(level.axis==='routeId'){if(sample?.routeId&&!String(sample.routeId).startsWith('m:')){window.TRTS_NAVIGATION?.reportReturn(()=>show());v43OpenRoute(Number(sample.routeId));return}}
-  trail.push({...level,label:g.name,filters:{...level.filters,[level.axis]:g.name},axis:level.axis==='carrier'?'business':level.axis==='routeId'?'pointId':'routeId'});show();scrollTo(0,0);
+  trail.push({...level,label:g.name,filters:{...level.filters,[level.axis]:g.name},axis:(level.kind==='courier'?['carrier','business','branch','routeId']:['business','branch','carrier','section','zone','routeId','pointId']).find(k=>!Object.hasOwn({...level.filters,[level.axis]:g.name},k))||'routeId'});show();scrollTo(0,0);
  };
  window.v443Metric=key=>{metric=key;show()};
  window.v443Retry=()=>{invalidate();render(screen)};

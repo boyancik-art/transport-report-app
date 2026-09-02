@@ -14,9 +14,11 @@ module.exports=async({page,frame,capture})=>{
    if(tab==='analytics')await frame.locator('.v443-overview').first().waitFor();
    if(tab==='routes'){await frame.locator('.v437-pick-card').waitFor();assert.ok(await frame.locator('.v445-route-delete').count()>=5)}
    assert.equal(await frame.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,tab+' '+theme+' overflow');
-   if(capture&&['dashboard','analytics','routes','menu'].includes(tab)){await frame.evaluate(tab=>scrollTo(0,tab==='dashboard'?350:0),tab);await capture('v445-full-'+theme+'-'+tab)}
+   if(capture&&['dashboard','analytics','routes','menu'].includes(tab)){await frame.evaluate(tab=>scrollTo(0,0),tab);await capture('v445-full-'+theme+'-'+tab)}
   }
-  await frame.evaluate(()=>{v442Nav('routes');v43OpenRoute(1);v43OpenTT(1,10)});
+  await frame.evaluate(()=>{v442Nav('routes');v43OpenRoute(1)});
+  assert.ok(await frame.locator('[data-route-tariff]').first().isVisible());if(capture)await capture('v446-'+theme+'-route');
+  await frame.evaluate(()=>v43OpenTT(1,10));
   assert.ok(await frame.locator('.v439-invoice').isVisible());
   if(capture)await capture('v445-full-'+theme+'-invoice');
   await frame.evaluate(()=>{v442Nav('routes');v43Replenishment()});

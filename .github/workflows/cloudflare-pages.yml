@@ -14,7 +14,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      TRTS_DEPLOY_ENABLED: 'true'
+      TRTS_DEPLOY_ENABLED: 'false'
     permissions:
       contents: read
     steps:
@@ -79,25 +79,25 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy web/dist --project-name=transport-report-ts-web
 
-      - name: Verify production is exact v44.5 runtime
+      - name: Verify production is exact v44.6 runtime
         if: env.TRTS_DEPLOY_ENABLED == 'true'
         run: |
           rm -f /tmp/pages-index.html
           for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
             curl --fail --show-error --silent --location --connect-timeout 10 --max-time 20 \
               -H 'Cache-Control: no-cache, no-store, must-revalidate' \
-              "https://transport-report-ts-web.pages.dev/?verify=4450-${GITHUB_SHA}-${i}" \
+              "https://transport-report-ts-web.pages.dev/?verify=4460-${GITHUB_SHA}-${i}" \
               -o /tmp/pages-index.html || true
-            if grep -q '<meta name="trts-build" content="44.5">' /tmp/pages-index.html \
-              && grep -q '<meta name="trts-runtime" content="4450">' /tmp/pages-index.html \
-              && grep -q 'patch-v43-8-runtime.js?v=4450' /tmp/pages-index.html; then
-              echo 'Cloudflare production verified: exact v44.5 runtime 4450'
+            if grep -q '<meta name="trts-build" content="44.6">' /tmp/pages-index.html \
+              && grep -q '<meta name="trts-runtime" content="4460">' /tmp/pages-index.html \
+              && grep -q 'patch-v43-8-runtime.js?v=4460' /tmp/pages-index.html; then
+              echo 'Cloudflare production verified: exact v44.6 runtime 4460'
               exit 0
             fi
-            echo "Production not exact v44.5 runtime yet; retry ${i}/12"
+            echo "Production not exact v44.6 runtime yet; retry ${i}/12"
             sleep 10
           done
-          echo 'ERROR: Cloudflare production did not switch to exact v44.5 runtime 4450'
+          echo 'ERROR: Cloudflare production did not switch to exact v44.6 runtime 4460'
           grep -Eo 'trts-(build|runtime)[^>]*|patch-v43-7-pickup-cards.js[^\"<]*' /tmp/pages-index.html || true
           exit 1
 

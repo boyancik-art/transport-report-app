@@ -1,6 +1,6 @@
 (()=>{
  try{
-  const build='v44.5',previous=localStorage.trts_seen_build;
+  const build='v44.6',previous=localStorage.trts_seen_build;
   if(previous!==build&&(previous||localStorage.trts_token||localStorage.trts_vault)){
    const access=localStorage.trts_token;let device;try{device=JSON.parse(localStorage.trts_vault||'null')}catch{}
    localStorage.trts_update_notice=build;

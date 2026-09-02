@@ -16,7 +16,7 @@
  const field=(row,key)=>key==='carrier'&&['sav','stv'].includes(row.section)?row.section.toUpperCase():String(row[key]??'Не визначено');
  function rows(report,level){
   if(!report)return[];
-  const list=level?.kind==='replen'?report.replen:report.lines.filter(x=>level?.kind?x.kind===level.kind:['local','courier'].includes(x.kind));
+  const list=level?.kind==='replen'?report.replen:(level?.kind?report.lines.filter(x=>x.kind===level.kind):[...report.lines.filter(x=>['local','courier'].includes(x.kind)),...report.replen]);
   return list.filter(x=>Object.entries(level?.filters||{}).every(([k,v])=>field(x,k)===v));
  }
  const level=()=>trail.at(-1);
@@ -48,10 +48,25 @@
   }
   return'<section class="v445-trend '+(index===0?'v445-featured':'')+'" data-chart="'+key+'" data-value="'+(get(now,key)??'')+'"><div class="v445-chart-heading"><div><h3>'+title+'</h3><strong>'+format(get(now,key),key)+'</strong></div>'+badge(now,old,key,!!data.previous&&current.length>0&&previous.length>0)+'</div><div class="v445-plot" tabindex="0" role="group" aria-label="'+E(title+'. Торкніться графіка або використайте стрілки для перегляду значень')+'" data-plot="'+index+'" data-index="0"><svg viewBox="0 0 600 220" role="img" aria-label="'+E(title+' за вибраний і попередній періоди')+'"><defs><linearGradient id="'+id+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--v445-line)" stop-opacity=".23"/><stop offset="1" stop-color="var(--v445-line)" stop-opacity="0"/></linearGradient></defs>'+graph+'</svg><div class="v445-tooltip" aria-live="polite" hidden></div></div><div class="v445-legend"><span><i></i>Обраний період</span><span><i></i>Попередній період</span></div>'+(now.missing&&['cost','costTT','costPal','log'].includes(key)?'<p class="v445-note">Неповні витрати · '+now.missing+' ТТ потребують розрахунку.</p>':'')+(!current.length?'<p class="v445-note">Даних у цьому зрізі немає.</p>':'')+'</section>';
  }
- function composition(){
-  const amounts=Object.keys(NAMES).map(kind=>({kind,current:A.total(rows(data.current,{kind})),previous:A.total(rows(data.previous,{kind}))}));
-  const total=amounts.reduce((n,x)=>n+x.current.cost,0),max=Math.max(1,...amounts.map(x=>x.current.cost));
-  return'<section class="v445-composition"><div class="v445-eyebrow">Витрати всієї логістики</div><h2>'+O.M2(total)+'</h2><p class="v445-note">Локальна, кур’єрська доставка та поповнення філій</p><div class="v445-stack" role="img" aria-label="Частки витрат за напрямками">'+amounts.map(x=>'<i class="'+x.kind+'" style="flex-grow:'+Math.max(0,x.current.cost)+'" title="'+E(NAMES[x.kind]+': '+O.M2(x.current.cost))+'"></i>').join('')+'</div><div class="v445-directions">'+amounts.map(x=>'<button type="button" class="'+x.kind+'" data-summary="'+x.kind+'" onclick="v445Direction(\''+x.kind+'\')"><span>'+NAMES[x.kind]+'<b>↗</b></span><span class="v445-direction-bar"><i style="width:'+Math.max(0,x.current.cost/max*100)+'%"></i></span><small>'+O.M2(x.current.cost)+' · '+(total?O.F(x.current.cost/total*100,1):'0')+'%</small></button>').join('')+'</div></section>';
+ let slices=[],trendMetric='cost';
+ function slice(axis,name,label){const index=slices.length;slices.push({axis,name,label});return index}
+ function grouped(list,key){const map=new Map();for(const row of list){const name=field(row,key);if(!map.has(name))map.set(name,[]);map.get(name).push(row)}return [...map].map(([name,rows])=>({name,rows,label:label(rows[0],key,name),total:A.total(rows)}))}
+ function composition(current){
+  const key=level()?.kind==='replen'?'branch':level()?.kind==='courier'?'carrier':level()?.kind==='local'?'section':'kind';
+  const source=grouped(current,key);if(key==='kind')for(const name of Object.keys(NAMES))if(!source.some(g=>g.name===name))source.push({name,label:NAMES[name],rows:[],total:A.total([])});
+  const groups=source.sort((a,b)=>b.total.cost-a.total.cost),sum=groups.reduce((n,g)=>n+g.total.cost,0),positive=groups.reduce((n,g)=>n+Math.max(0,g.total.cost),0);
+  // Angles only describe existing costs. Negative corrections are listed, not turned into invented slices.
+  let offset=0;
+  const ring=groups.map((g,i)=>{const span=positive?Math.max(0,g.total.cost)/positive*100:0,old=offset;offset+=span;return '<circle class="v446-ring-segment" tabindex="0" role="button" aria-label="'+E((NAMES[g.name]||g.label)+' '+O.M2(g.total.cost))+'" cx="70" cy="70" r="53" pathLength="100" fill="none" stroke="var(--chart-'+i%5+')" stroke-width="17" stroke-dasharray="'+span+' '+(100-span)+'" stroke-dashoffset="'+(-old)+'" onclick="v446Slice('+slice(key,g.name,NAMES[g.name]||g.label)+')"><title>'+E((NAMES[g.name]||g.label)+' · '+O.M2(g.total.cost))+'</title></circle>'}).join('');
+  return '<section class="v446-panel v446-composition"><h3>Структура витрат</h3><div class="v446-ring"><svg viewBox="0 0 140 140" role="group" aria-label="Структура витрат"><circle cx="70" cy="70" r="53" fill="none" stroke="var(--surface-elevated)" stroke-width="17"/><g transform="rotate(-90 70 70)">'+ring+'</g></svg><div><b>'+E(short(sum))+' ₴</b><small>'+(positive?'100%':'Немає витрат')+'</small></div></div><div class="v446-ring-legend">'+groups.map((g,i)=>'<button type="button" '+(key==='kind'?'data-summary="'+g.name+'" ':'')+'onclick="v446Slice('+slice(key,g.name,NAMES[g.name]||g.label)+')"><i style="background:var(--chart-'+i%5+')"></i><span>'+E(NAMES[g.name]||g.label)+'</span><b>'+O.M2(g.total.cost)+'</b></button>').join('')+'</div></section>';
+ }
+ function rank(current,key,metric=measure){
+  const list=grouped(current.filter(x=>!(key==='business'&&x.kind==='replen')),key).sort((a,b)=>(get(b.total,metric)||0)-(get(a.total,metric)||0)),max=Math.max(1,...list.map(g=>Math.abs(get(g.total,metric)||0))),render=(g,i)=>'<button class="v446-rank" type="button" onclick="v446Slice('+slice(key,g.name,g.label)+')" title="'+E(g.label+' · '+format(get(g.total,metric),metric))+'"><span>'+E(g.label)+'</span><i style="--bar:'+Math.abs(get(g.total,metric)||0)/max*100+'%"></i><b>'+E(get(g.total,metric)==null?'—':metric==='log'?O.P(get(g.total,metric)):short(get(g.total,metric)))+'</b></button>';
+  return '<section class="v446-panel" data-ranking="'+key+'"><h3>'+(metric==='log'?'% логістики · ':metric==='cost'?'Витрати · ':'')+AXES[key]+'</h3><div class="v446-ranking">'+list.slice(0,5).map(render).join('')+'</div>'+(list.length>5?'<details><summary>Дивитися всі · '+list.length+'</summary><div class="v446-ranking">'+list.slice(5).map(render).join('')+'</div></details>':'')+(!list.length?'<p class="v445-note">Немає даних</p>':'')+'</section>';
+ }
+ function executive(current,previous,keys){
+  const now=A.total(current),old=A.total(previous);
+  return '<section class="v446-executive" aria-label="Ключові показники">'+keys.map(([key,label])=>'<button type="button" data-kpi="'+key+'" data-value="'+(get(now,key)??'')+'" aria-pressed="'+(key===trendMetric)+'" onclick="v446Metric(\''+key+'\')"><small>'+label+'</small><b>'+format(get(now,key),key)+'</b>'+badge(now,old,key,!!data.previous&&current.length>0&&previous.length>0)+'</button>').join('')+'</section>';
  }
  function breakdown(current,previous){
   const available=axes();if(!available.includes(axis))axis=available[0];
@@ -62,18 +77,27 @@
   return'<section class="v445-breakdown"><div class="v445-chart-heading"><h3>Дослідити зріз</h3><label>Показник<select aria-label="Показник розподілу" onchange="v445Measure(this.value)">'+keys.map(([k,l])=>'<option value="'+k+'" '+(measure===k?'selected':'')+'>'+l+'</option>').join('')+'</select></label></div><div class="v445-axes">'+available.map(k=>'<button type="button" aria-pressed="'+(axis===k)+'" onclick="v445Axis(\''+k+'\')">'+AXES[k]+'</button>').join('')+'</div><div class="v445-ranks">'+groups.map((g,i)=>'<button type="button" data-group="'+i+'" onclick="v445Group('+i+')"><span>'+E(g.label)+'<b>›</b></span><span class="v445-rank-track"><i style="width:'+Math.max(0,(get(g.total,measure)||0)/max*100)+'%"></i></span><small>'+format(get(g.total,measure),measure)+'</small></button>').join('')+'</div>'+(!groups.length?'<p class="v445-note">Даних у цьому зрізі немає.</p>':'')+'</section>';
  }
  function show(){
-  if(!data)return;O.screenLayout(false);plots=[];
-  const l=level(),current=rows(data.current,l),previous=rows(data.previous,l),kind=l?.kind,title=l?.label||'Вся логістика',keys=kind==='replen'?PALLETS:FIELDS;
-  if(!keys.some(([k])=>k===measure))measure='cost';
-  let html='<header class="v445-heading"><div class="v445-eyebrow">Дашборд · '+E(period(data.period))+'</div><h1>'+E(title)+'</h1><p>Порівняння: '+E(period(data.previousPeriod))+'</p></header>';
-  if(trail.length)html+='<nav class="v445-breadcrumb" aria-label="Шлях зрізу"><button onclick="v445Crumb(-1)">Вся логістика</button>'+trail.map((x,i)=>'<span>›</span><button '+(i===trail.length-1?'aria-current="page"':'')+' onclick="v445Crumb('+i+')">'+E(x.label)+'</button>').join('')+'</nav><button class="v43-back" onclick="v445Back()">‹ Попередній зріз</button>';
+  if(!data)return;O.screenLayout(false);plots=[];slices=[];
+  const l=level(),current=rows(data.current,l),previous=rows(data.previous,l),kind=l?.kind,title=l?.label||'Вся логістика',keys=kind==='replen'?PALLETS:[['cost','Витрати'],['log','% логістики'],['tt','ТТ'],['pallets','Палети'],['costTT','₴ за 1 ТТ'],['sales','Сума документів']];
+  if(!keys.some(([k])=>k===measure))measure='cost';if(!keys.some(([k])=>k===trendMetric))trendMetric='cost';
+  let html='<header class="v445-heading"><h1>'+E(title)+'</h1><p>'+E(period(data.period))+' · проти '+E(period(data.previousPeriod))+'</p></header>';
+  if(trail.length)html+='<nav class="v445-breadcrumb" aria-label="Шлях зрізу"><button onclick="v445Crumb(-1)">Вся логістика</button>'+trail.map((x,i)=>'<span>›</span><button '+(i===trail.length-1?'aria-current="page"':'')+' onclick="v445Crumb('+i+')">'+E(x.label)+'</button>').join('')+'</nav>';
   if(!data.previous)html+='<p class="v442-warning">Попередній період недоступний. <button onclick="v443Retry()">Повторити</button></p>';
-  if(!trail.length)html+=composition()+'<h2 class="v445-section-title">Динаміка доставки до ТТ</h2><p class="v445-note">Локальна + кур’єрська доставка. Поповнення філій — окремий напрямок із показниками на палету. Самовивіз не включено.</p>';
-  else html+=breakdown(current,previous);
-  html+='<div class="v445-trends">'+keys.map(([k,t])=>trend(current,previous,k,t,kind)).join('')+'</div>';
-  html+='<p class="v445-note">Торкніться графіка, щоб побачити значення. Пунктир — попередній відповідний період. ТТ з накладними різних бізнесів у загальному підсумку рахується один раз.</p>';
-  O.view().innerHTML='<div class="v43-screen v445-dashboard">'+html+'</div>';
+  html+=executive(current,previous,keys);
+  html+='<section class="v446-dynamic"><label>Динаміка<select aria-label="Показник динаміки" onchange="v446Metric(this.value)">'+keys.map(([k,t])=>'<option value="'+k+'" '+(k===trendMetric?'selected':'')+'>'+t+'</option>').join('')+'</select></label>'+trend(current,previous,trendMetric,keys.find(([k])=>k===trendMetric)[1],kind)+'</section>';
+  html+='<div class="v446-panels">'+composition(current)+(kind==='replen'?rank(current,'branch','costPal'):rank(current,'business'))+(kind==='replen'?'':rank(current,'branch')+rank(current,'carrier'))+(kind==='local'?rank(current,'section')+rank(current,'zone'):'')+'</div>';
+  if(kind!=='replen')html+=rank(current,'business','log');
+  if(trail.length)html+='<details class="v446-explore"><summary>Інші зрізи та маршрути</summary>'+breakdown(current,previous)+'</details>';
+  html+='<p class="v445-note">Самовивіз не включено. Поповнення філій має окремі показники на палету. Натисніть на сегмент чи рядок графіка, щоб застосувати зріз до всього Dashboard.</p>';
+  O.view().innerHTML='<div class="v43-screen v445-dashboard v446-dashboard">'+html+'</div>';
  }
+ window.v446Metric=key=>{if([...FIELDS,...PALLETS].some(([k])=>k===key)){trendMetric=key;show()}};
+ window.v446Slice=index=>{
+  const s=slices[index];if(!s)return;const l=level()||{filters:{}};if(l.filters?.[s.axis]===s.name)return;
+  trail.push(s.axis==='kind'?{...l,kind:s.name,label:s.label}:{...l,label:s.label,filters:{...l.filters,[s.axis]:s.name}});
+  axis=axes()[0];show();scrollTo(0,0);
+ };
+ document.addEventListener('keydown',e=>{if(['Enter',' '].includes(e.key)&&e.target.matches('.v446-ring-segment')){e.preventDefault();e.target.dispatchEvent(new MouseEvent('click',{bubbles:true}))}});
  window.v445Direction=kind=>{if(!NAMES[kind])return;trail=[{kind,label:NAMES[kind],filters:{}}];axis=kind==='courier'?'carrier':kind==='replen'?'branch':'business';show();scrollTo(0,0)};
  window.v445Axis=value=>{if(axes().includes(value)){axis=value;show()}};
  window.v445Measure=value=>{if([...FIELDS,...PALLETS].some(([k])=>k===value)){measure=value;show()}};

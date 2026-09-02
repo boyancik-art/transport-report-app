@@ -17,41 +17,41 @@ module.exports=async({page,capture})=>{
   const info=await page.evaluate(()=>TRTS_GRAPH_DASHBOARD.snapshot());
   for(const key of info.kind==='replen'?['pallets','cost','costPal']:['tt','pallets','sales','cost','costTT','log']){
    const val=key==='costPal'?(info.totals.pallets?info.totals.cost/info.totals.pallets:null):info.totals[key];
-   assert.equal(await page.locator('[data-chart='+key+']').getAttribute('data-value'),String(val??''),'All chart totals use reporting core: '+key);
+   assert.equal(await page.locator('[data-kpi='+key+']').getAttribute('data-value'),String(val??''),'All chart totals use reporting core: '+key);
   }
   assert.equal(await page.locator('.v443-overview,.v442-metric-card,table').count(),0,'Dashboard has charts, not Analytics KPI cards or tables');
-  const plot=page.locator('.v445-plot').first();await plot.focus();await plot.press('ArrowRight');assert.ok(await plot.locator('.v445-tooltip').isVisible());await plot.press('Escape');
+  const plot=page.locator('.v445-plot').first();await plot.focus();await plot.press('ArrowRight');assert.ok(await plot.locator('.v445-tooltip').isVisible());await plot.press('Escape');await page.evaluate(()=>scrollTo(0,0));
  };
  for(const theme of ['dark','light']){
   await page.evaluate(theme=>{document.documentElement.dataset.theme=theme;v442Nav('dashboard')},theme);await page.locator('[data-summary=local]').waitFor();
-  assert.equal(await page.locator('[data-chart]').count(),6);await chartParity();await capture('v445-'+theme+'-overall');
-  await page.locator('[data-summary=local]').click();await chartParity();await capture('v445-'+theme+'-local');
+  assert.equal(await page.locator('[data-chart]').count(),1);await chartParity();await capture('v446-'+theme+'-overall');
+  await page.locator('[data-summary=local]').click();await chartParity();await capture('v446-'+theme+'-local');
   // Full connected business -> branch -> carrier -> section -> zone path.
   for(const [key,name] of [['business','HoReCa'],['branch','Львів'],['carrier','STV'],['section','STV'],['zone','Зона 1']]){
-   await page.evaluate(k=>v445Axis(k),key);
+   await page.evaluate(k=>(v445Axis(k),document.querySelector('.v446-explore').open=true),key);
    await page.locator('.v445-ranks button').filter({hasText:name}).first().click();
    await chartParity();
   }
   assert.equal((await page.evaluate(()=>TRTS_GRAPH_DASHBOARD.snapshot())).totals.cost,150);
-  await capture('v445-'+theme+'-stv-zone');
-  for(const key of ['routeId','pointId']){await page.evaluate(k=>v445Axis(k),key);await page.locator('.v445-ranks button').first().click();await chartParity()}
+  await capture('v446-'+theme+'-stv-zone');
+  for(const key of ['routeId','pointId']){await page.evaluate(k=>(v445Axis(k),document.querySelector('.v446-explore').open=true),key);await page.locator('.v445-ranks button').first().click();await chartParity()}
   assert.equal(await page.locator('.v445-ranks button').count(),0,'Last graphical TT level has no dead links');
-  await page.evaluate(()=>v445Crumb(-1));await page.locator('[data-summary=local]').click();await page.evaluate(()=>v445Axis('section'));await page.locator('.v445-ranks button').filter({hasText:/^SAV/}).click();await chartParity();await page.evaluate(()=>v445Axis('zone'));await page.locator('.v445-ranks button').filter({hasText:'Без зони'}).click();await chartParity();
+  await page.evaluate(()=>v445Crumb(-1));await page.locator('[data-summary=local]').click();await page.evaluate(()=>(v445Axis('section'),document.querySelector('.v446-explore').open=true));await page.locator('.v445-ranks button').filter({hasText:/^SAV/}).click();await chartParity();await page.evaluate(()=>(v445Axis('zone'),document.querySelector('.v446-explore').open=true));await page.locator('.v445-ranks button').filter({hasText:'Без зони'}).click();await chartParity();
   await page.evaluate(()=>v445Crumb(-1));await page.locator('[data-summary=courier]').click();
   assert.equal(await page.locator('.v445-axes [aria-pressed=true]').innerText(),'Перевізники');
-  await page.locator('.v445-ranks button').filter({hasText:'Нова Пошта'}).click();await chartParity();await page.evaluate(()=>v445Axis('business'));await page.locator('.v445-ranks button').filter({hasText:'HoReCa'}).click();await page.evaluate(()=>v445Axis('branch'));await page.locator('.v445-ranks button').filter({hasText:'Київ'}).click();await chartParity();await capture('v445-'+theme+'-courier');
+  await page.evaluate(()=>document.querySelector('.v446-explore').open=true);await page.locator('.v445-ranks button').filter({hasText:'Нова Пошта'}).click();await chartParity();await page.evaluate(()=>(v445Axis('business'),document.querySelector('.v446-explore').open=true));await page.locator('.v445-ranks button').filter({hasText:'HoReCa'}).click();await page.evaluate(()=>(v445Axis('branch'),document.querySelector('.v446-explore').open=true));await page.locator('.v445-ranks button').filter({hasText:'Київ'}).click();await chartParity();await capture('v446-'+theme+'-courier');
   await page.evaluate(()=>v445Crumb(-1));await page.locator('[data-summary=replen]').click();
-  assert.equal(await page.locator('[data-chart]').count(),3);assert.equal(await page.locator('[data-chart=log],[data-chart=costTT]').count(),0);
-  await page.locator('.v445-ranks button').filter({hasText:'Львів'}).click();await chartParity();assert.equal(await page.locator('[data-chart=costPal]').getAttribute('data-value'),'200');await capture('v445-'+theme+'-replen');
+  assert.equal(await page.locator('[data-chart]').count(),1);assert.equal(await page.locator('[data-kpi=log],[data-kpi=costTT]').count(),0);
+  await page.evaluate(()=>document.querySelector('.v446-explore').open=true);await page.locator('.v445-ranks button').filter({hasText:'Львів'}).click();await chartParity();assert.equal(await page.locator('[data-kpi=costPal]').getAttribute('data-value'),'200');await capture('v446-'+theme+'-replen');
  }
  assert.deepEqual(await state(),initial,'All themes/drilldowns are read-only: previous reads never mutate operational or finance state');
  await page.evaluate(()=>{document.documentElement.dataset.theme='dark';v442Nav('analytics')});await page.locator('[data-summary=courier]').waitFor();assert.equal(await page.locator('[data-chart]').count(),0);
  await page.locator('[data-summary=courier] .v443-overview-title').click();await page.getByRole('button',{name:'Нова Пошта',exact:false}).click();assert.match(await page.locator('#view').innerText(),/Бізнеси/);
  for(const mode of ['week','month','half','year','custom']){
   await page.evaluate(async m=>{const d=new Date().toISOString().slice(0,10),p=m==='custom'?{from:TRTS_PERIODS.days(d,-8),to:d}:TRTS_PERIODS.range(m,d);await v441LoadPeriod(p.from,p.to,m);v442Nav('dashboard')},mode);
-  await page.locator('[data-summary=local]').waitFor();assert.equal(await page.locator('[data-chart]').count(),6);await chartParity();
+  await page.locator('[data-summary=local]').waitFor();assert.equal(await page.locator('[data-chart]').count(),1);await chartParity();
  }
  for(const width of [320,390,760]){await page.setViewportSize({width,height:844});for(const theme of ['dark','light']){await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Dashboard overflow '+width+' '+theme)}}
- await page.setViewportSize({width:390,height:844});await page.evaluate(()=>document.documentElement.dataset.theme='dark');await capture('v445-period-trends');
- console.log('PASS v44.5 all six charts and all drill levels in both themes, SAV/STV full metrics, carrier dimension, courier/replenishment, accessible tooltips, previous period financial parity, every period mode, 320/390/760 responsive');
+ await page.setViewportSize({width:390,height:844});await page.evaluate(()=>document.documentElement.dataset.theme='dark');await capture('v446-period-trends');
+ console.log('PASS v44.6 compact executive + varied graphs and all drill levels in both themes, SAV/STV full metrics, carrier dimension, courier/replenishment, accessible tooltips, previous period financial parity, every period mode, 320/390/760 responsive');
 };
