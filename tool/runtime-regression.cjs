@@ -1,7 +1,7 @@
 const {chromium}=require(process.env.TRTS_PLAYWRIGHT_MODULE||'playwright');
 const fs=require('node:fs'),http=require('node:http'),path=require('node:path'),assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'..'),dist=path.join(root,'web/dist');
-const expected='v44.4',live=process.env.TRTS_BASE_URL;
+const expected='v44.5',live=process.env.TRTS_BASE_URL;
 const reference=JSON.parse(fs.readFileSync(path.join(root,'web/reference-v39.js'),'utf8').match(/TRTS_V39_EXPEDITOR_COVERAGE=(\{[^\n]*?\});/)[1]);
 const date=new Date().toISOString().slice(0,10);
 const types=['ФОП','Самовивіз',"Кур'єр",'STV','SAV','Пекарня'];
@@ -20,6 +20,7 @@ const db={
  employee_directory:[{employee_id:'8000020908296',employee_name:'Мамедов Ельвін Ельхан Огли'}],
  transport_waves:[{id:1,name:'24',active:true}]
 };
+const archivedFixture=new Set(),fixtureAudit=[];
 async function mockApi(route){
  const req=route.request(),u=new URL(req.url());
  if(u.pathname==='/auth/v1/token'){
@@ -28,10 +29,17 @@ async function mockApi(route){
  if(u.pathname==='/auth/v1/user')return route.fulfill({json:{id:'00000000-0000-0000-0000-000000000443',email:'test@example.invalid'}});
  if(u.pathname==='/auth/v1/logout')return route.fulfill({status:204});
  if(req.headers()['authorization']!=='Bearer isolated-runtime-fixture')return route.fulfill({status:401,json:{message:'Authentication required'}});
+ if(u.pathname==='/rest/v1/rpc/transport_archive_route'){
+  const id=req.postDataJSON().target_route_id;
+  if(db.profiles[0].role!=='admin')return route.fulfill({status:403,json:{message:'Administrator only'}});
+  assert.equal(id,44500,'Delete only dedicated synthetic fixture');
+  archivedFixture.add(id);fixtureAudit.push({action:'route_archived',entity:'routes',entity_key:String(id)});
+  return route.fulfill({json:{ok:true}});
+ }
  assert.equal(req.method(),'GET','Runtime fixture must never write real data');
  // Delayed legacy metadata must never replace the modern screen after it has rendered.
  if(u.pathname.endsWith('/profiles'))await new Promise(resolve=>setTimeout(resolve,400));
- const rows=db[u.pathname.split('/').at(-1)]||[];
+ const table=u.pathname.split('/').at(-1),rows=(db[table]||[]).filter(row=>table!=='routes'||!archivedFixture.has(row.id));
  const matches=row=>[...u.searchParams].every(([k,v])=>
   v.startsWith('eq.')?String(row[k])===v.slice(3):
   v.startsWith('in.')?v.slice(4,-1).split(',').map(x=>x.replaceAll('"','')).includes(String(row[k])):
@@ -130,7 +138,7 @@ async function dashboard(frame,label){
    {name:'phone-preview',url:'/phone-preview.html',width:1360,height:1000}
   ]){
    const context=await browser.newContext({viewport:{width:scenario.width,height:scenario.height},serviceWorkers:'block'});
-   let logoutFault=false,logoutCalls=0;const dialogs=[],logoutWarnings=[];
+   let logoutFault=false,logoutCalls=0,deleteDecision=null;const dialogs=[],logoutWarnings=[];
    const errors=[],securityFixture=await require('./security-edge-fixture.cjs')();
    if(!live)await context.route('https://transport-report-ts-web.pages.dev/**',async route=>{const u=new URL(route.request().url()),r=await fetch(localBase+u.pathname+u.search);await route.fulfill({status:r.status,headers:{'content-type':r.headers.get('content-type')||'text/html'},body:Buffer.from(await r.arrayBuffer())})});
    await context.addInitScript(runtimeProbe);
@@ -138,7 +146,7 @@ async function dashboard(frame,label){
    await context.route('https://*.supabase.co/**',async route=>{const req=route.request(),u=new URL(req.url());if(u.pathname==='/auth/v1/logout'){logoutCalls++;if(logoutFault)return scenario.name==='phone-preview'?route.abort('failed'):route.fulfill({status:500,json:{error:'isolated logout failure'}})}if(logoutFault&&u.pathname==='/functions/v1/transport-security'&&req.postDataJSON()?.action==='disable')return route.fulfill({status:503,json:{error:'isolated device failure'}});if(route.request().url().includes('/functions/v1/transport-security')){const req=route.request(),r=await securityFixture.handle(new Request(req.url(),{method:req.method(),headers:req.headers(),body:req.postData()||undefined}));return route.fulfill({status:r.status,headers:Object.fromEntries(r.headers),body:await r.text()})}return mockApi(route)});
    const page=await context.newPage();page.setDefaultTimeout(15000);
    page.on('pageerror',e=>errors.push(e.message));
-   page.on('dialog',async d=>{dialogs.push(d.message());await d.dismiss()});
+   page.on('dialog',async d=>{if(deleteDecision!==null){assert.equal(d.message(),'Видалити маршрут DELETE-FIXTURE? Цю дію неможливо скасувати.');return deleteDecision?d.accept():d.dismiss()}dialogs.push(d.message());await d.dismiss()});
    page.on('console',m=>{if(m.type()==='warning'&&m.text().includes('[auth.logout]'))logoutWarnings.push(m.text())});
    const servedScripts=[];
    page.on('response',response=>{const u=new URL(response.url());if(u.origin===new URL(base).origin&&u.pathname.endsWith('.js'))servedScripts.push(response)});
@@ -166,6 +174,24 @@ async function dashboard(frame,label){
    await dashboard(reloaded,scenario.name+' stored session');
    assert.ok(await reloaded.locator('header.top .logo').evaluate(el=>getComputedStyle(el).objectFit==='contain'&&el.getBoundingClientRect().height>0));
    assert.ok(await reloaded.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'No full runtime horizontal overflow');
+   if(scenario.name==='mobile'){
+    await require('./theme-v445-flows.cjs')({page,frame:reloaded,capture:async label=>console.log('VISUAL:'+label+':'+(await page.screenshot({type:'jpeg',quality:70})).toString('base64'))});
+    // RLS/archive simulation is entirely inside the intercepted backend.
+    const fixture={...db.routes[0],id:44500,route_delivery_id:'DELETE-FIXTURE'};
+    db.routes.push(fixture);db.route_points.push({...db.route_points[0],id:445000,route_id:44500});
+    db.route_facts.push({route_id:44500,tariff:50,carrier_name:'ФОП Діденко'});
+    db.source_documents.push({...db.source_documents[0],id:4450000,route_delivery_id:'DELETE-FIXTURE'});
+    await reloaded.evaluate(async()=>{await v435Refresh();v442Nav('routes')});
+    const action=reloaded.locator('[data-route-id="44500"] .v445-route-delete');
+    await action.waitFor({state:'visible'});deleteDecision=false;await action.click();assert.equal(archivedFixture.size,0,'Cancel must not delete');
+    deleteDecision=true;await action.click();await reloaded.waitForFunction(()=>!TRTS_OPS.dat().routes.some(r=>r.id===44500));
+    deleteDecision=null;assert.equal(fixtureAudit.length,1);assert.equal(fixtureAudit[0].action,'route_archived');
+    assert.equal(await reloaded.locator('[data-route-id="44500"]').count(),0);
+    assert.equal(await reloaded.evaluate(()=>TRTS_APP.buildReport().lines.some(x=>Number(x.routeId)===44500)),false);
+    await reloaded.evaluate(()=>v442Nav('dashboard'));await reloaded.locator('[data-chart=cost]').waitFor();
+    assert.equal(await reloaded.evaluate(async()=>(await TRTS_DASHBOARD.reports()).current.lines.some(x=>Number(x.routeId)===44500)),false);
+    console.log('PASS visible Administrator delete, exact confirm, cancel, isolated archive/audit and exclusion from Dashboard/Analytics');
+   }
    await require('./release-flows.cjs')({page,frame:reloaded});
    if(scenario.name==='mobile'){
     await reloaded.evaluate(()=>{v442Nav('routes');v43OpenRoute(1);v43OpenTT(1,10)});
@@ -179,7 +205,8 @@ async function dashboard(frame,label){
     await reloaded.locator('.v436-detail').waitFor();assert.equal(await reloaded.locator('.v443-delete').count(),1);
     db.profiles[0].role='logistician';await reloaded.evaluate(async()=>{await TRTS_SECURITY.identify();v442Nav('menu')});
     for(const name of ['Користувачі та права','Довідники','Журнал змін','Експорт даних'])assert.equal(await reloaded.locator('.v443-settings').getByRole('button',{name,exact:false}).count(),0);
-    await reloaded.evaluate(()=>{v43OpenRoute(1);v443DeleteRoute(1)});assert.equal(await reloaded.locator('.v443-delete').count(),0);
+    await reloaded.evaluate(()=>{v43OpenRoute(1);v443DeleteRoute(1)});assert.equal(await reloaded.locator('.v443-delete,.v445-route-delete').count(),0);
+    await reloaded.evaluate(()=>v442Nav('routes'));await reloaded.locator('.v437-pick-card').waitFor();assert.equal(await reloaded.locator('.v445-route-delete').count(),0);
     db.profiles[0].role='admin';await reloaded.evaluate(()=>TRTS_SECURITY.identify());
     console.log('PASS edge swipe TT to route, restored Administrator delete action, non-admin Menu and delete actions hidden/blocked');
     await require('./security-flows.cjs')({page,context,frame:reloaded,handler:securityFixture.handle});

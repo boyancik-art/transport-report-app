@@ -5,7 +5,7 @@ module.exports=async({page,frame})=>{
  assert.match(await frame.locator('.v444-found').innerText(),/INV-1/);
  assert.match(await frame.locator('.v43-route-detail .v444-metrics').innerText(),/Сума документів ТТ/);
  await frame.getByRole('button',{name:'‹ Маршрут',exact:true}).click();assert.match(await frame.locator('[data-route-id="1"] .v444-metrics').innerText(),/Вартість 1 ТТ/);
- await frame.evaluate(()=>v442Nav('dashboard'));await frame.locator('.v444-attention').waitFor();
+ await frame.evaluate(()=>v442Nav('analytics'));await frame.locator('.v444-attention').waitFor();
  assert.ok(await frame.locator('.v444-attention .v444-results button').count()>0);
  await frame.locator('.v444-attention .v444-results button').first().click();await frame.locator('#v43-modal .v444-results button').first().click();await frame.locator('.v436-detail,.v43-route-detail').first().waitFor();
  await frame.evaluate(()=>v442Nav('menu'));await frame.getByRole('button',{name:'Експорт даних',exact:false}).click();await frame.locator('#v444-export-submit:not([disabled])').waitFor();
@@ -17,7 +17,7 @@ module.exports=async({page,frame})=>{
  await Promise.all([frame.waitForNavigation({waitUntil:'load'}),frame.locator('#trts-update').click()]);
  await frame.locator('#loginForm').waitFor({state:'visible'});assert.equal(await frame.locator('#v443-unlock').count(),0);
  assert.equal(await frame.evaluate(()=>localStorage.trts_token),undefined);
- await frame.locator('#email').fill('runtime-test@example.invalid');await frame.locator('#password').fill('isolated-fixture-only');await frame.locator('#loginForm button').click();await frame.locator('#v444-notice').waitFor();assert.match(await frame.locator('#v444-notice').innerText(),/Застосунок оновлено до версії v44\.4/);await frame.locator('#v444-ack').click();
+ await frame.locator('#email').fill('runtime-test@example.invalid');await frame.locator('#password').fill('isolated-fixture-only');await frame.locator('#loginForm button').click();await frame.locator('#v444-notice').waitFor();assert.match(await frame.locator('#v444-notice').innerText(),/Застосунок оновлено до версії v44\.5/);await frame.locator('#v444-ack').click();
  await frame.evaluate(()=>TRTS_RELEASE.notice());assert.equal(await frame.locator('#v444-notice').count(),0);
- console.log('PASS v44.4: search invoice deep-link, route/TT metrics, actionable attention, filtered XLSX, financial immutability, Update forces login and one-time acknowledged notice');
+ console.log('PASS v44.5: search invoice deep-link, route/TT metrics, actionable attention, filtered XLSX, financial immutability, Update forces login and one-time acknowledged notice');
 };

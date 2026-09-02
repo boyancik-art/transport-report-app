@@ -1,6 +1,6 @@
 (()=>{
  try{
-  const build='v44.4',previous=localStorage.trts_seen_build;
+  const build='v44.5',previous=localStorage.trts_seen_build;
   if(previous!==build&&(previous||localStorage.trts_token||localStorage.trts_vault)){
    const access=localStorage.trts_token;let device;try{device=JSON.parse(localStorage.trts_vault||'null')}catch{}
    localStorage.trts_update_notice=build;
@@ -14,6 +14,6 @@
   }
   localStorage.trts_seen_build=build;
   if(localStorage.trts_vault){localStorage.removeItem('trts_token');localStorage.removeItem('trts_refresh');window.TRTS_UNLOCKED=false}
-  const choice=localStorage.trts_theme||'dark';document.documentElement.dataset.theme=choice==='system'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):choice;
+  const choice=localStorage.trts_theme==='light'?'light':'dark';localStorage.trts_theme=choice;document.documentElement.dataset.theme=choice;
  }catch{}
 })();

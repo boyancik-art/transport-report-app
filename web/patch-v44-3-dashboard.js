@@ -1,7 +1,7 @@
 (()=>{
  'use strict';
  const O=TRTS_OPS,A=TRTS_ANALYTICS,P=TRTS_PERIODS,App=TRTS_APP,S=TRTS_SHELL,E=O.E,$=s=>document.querySelector(s);
- const LABEL={local:'Локальна доставка',courier:'Кур’єрська доставка',replen:'Поповнення філій'},FIELDS=[['tt','ТТ'],['pallets','Палети'],['sales','Продажі'],['cost','Витрати'],['costTT','Вартість 1 ТТ'],['log','% логістики']],AXES={business:'Бізнеси',branch:'Філії покриття',zone:'Зони доставки',carrier:'Перевізники',routeId:'Маршрути',pointId:'Торгові точки'};
+ const LABEL={local:'Локальна доставка',courier:'Кур’єрська доставка',replen:'Поповнення філій'},FIELDS=[['tt','ТТ'],['pallets','Палети'],['sales','Продажі'],['cost','Витрати'],['costTT','Вартість 1 ТТ'],['log','% логістики']],AXES={business:'Бізнеси',branch:'Філії покриття',zone:'Зони доставки',section:'SAV / STV · напрямки',carrier:'Перевізники',routeId:'Маршрути',pointId:'Торгові точки'};
  let version=0,cache=null,pending=null,comparisonError='',screen='dashboard',trail=[],metric='cost',periodState=null,viewSequence=0;
  const fmtDate=d=>d?.split('-').reverse().join('.')||'—',periodText=p=>fmtDate(p.from)+(p.from===p.to?'':' — '+fmtDate(p.to));
  const value=(x,key)=>key==='costPal'?(x.pallets?x.cost/x.pallets:null):x[key];
@@ -16,7 +16,7 @@
  }
  window.v443Period=async mode=>{if(mode==='custom'){periodBar({...periodState,mode});return}const p=P.range(mode,new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Kyiv',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()));return v441LoadPeriod(p.from,p.to,mode)};
  window.v443ApplyPeriod=()=>{if(!$('#v443-period-form')?.reportValidity())return;const a=$('#v443-anchor').value,mode=periodState.mode==='today'||periodState.mode==='date'?'day':periodState.mode;if(!TRTS_UI.validDate(a))return;const p=mode==='custom'?{from:a,to:$('#v443-end').value}:P.range(mode,a);return v441LoadPeriod(p.from,p.to,mode)};
- function invalidate(){++version;++viewSequence;cache=null;pending=null;trail=[]}
+ function invalidate(){++version;++viewSequence;cache=null;pending=null;trail=[];window.TRTS_GRAPH_DASHBOARD?.reset()}
  async function reports(){
   if(cache)return cache;if(pending)return pending;const generation=version,p={...v435ReportPeriod(),mode:periodState?.mode||"day"},previous=P.previous(p);
   const job=(async()=>{
@@ -31,7 +31,7 @@
    if(generation!==version)return null;cache={current,previous:old,period:p,previousPeriod:previous};return cache;
   })();pending=job;try{return await job}finally{if(pending===job)pending=null}
  }
- const rowsFor=(report,kind)=>report?(kind==='replen'?report.replen:report.lines.filter(x=>x.kind===kind)):[];
+ const rowsFor=(report,kind)=>report?(kind==='replen'?report.replen:report.lines.filter(x=>x.kind===kind).map(x=>['sav','stv'].includes(x.section)?{...x,carrier:x.section.toUpperCase()}:x)):[];
  function changeBadge(current,previous,key,hasPrevious){
   const change=hasPrevious&&(!['cost','costTT','log'].includes(key)||!current.missing&&!previous.missing)?P.change(value(current,key),value(previous,key),key):null;
   if(!change)return'<small class="v443-change neutral">Немає даних для порівняння</small>';
@@ -54,13 +54,13 @@
  }
  function filtered(report,level){return rowsFor(report,level.kind).filter(x=>Object.entries(level.filters||{}).every(([key,v])=>String(x[key])===String(v)))}
  function show(){
-  if(!cache)return;O.screenLayout(false);let html=App.title(screen==='dashboard'?'Дашборд':'Аналітика',periodText(cache.period))+'<p class="v443-compare">Порівняння: '+E(periodText(cache.previousPeriod))+' · Самовивіз не включено</p>';
+  if(!cache)return;if(screen==='dashboard'&&window.TRTS_GRAPH_DASHBOARD){TRTS_GRAPH_DASHBOARD.render(cache);return}O.screenLayout(false);let html=App.title(screen==='dashboard'?'Дашборд':'Аналітика',periodText(cache.period))+'<p class="v443-compare">Порівняння: '+E(periodText(cache.previousPeriod))+' · Самовивіз не включено</p>';
   if(comparisonError)html+='<p class="v442-warning" role="alert">'+E(comparisonError)+' <button onclick="v443Retry()">Повторити</button></p>';
   if(!trail.length){for(const kind of ['local','courier','replen']){const rows=rowsFor(cache.current,kind),oldRows=rowsFor(cache.previous,kind);html+=summary(kind,rows,oldRows)+(screen==='dashboard'?chart(kind,rows,oldRows):'')}}
   else{
    const level=trail.at(-1),rows=filtered(cache.current,level),oldRows=filtered(cache.previous,level);
    html='<button class="v43-back" onclick="v443DetailBack()">‹ Назад</button>'+html+'<h3>'+E(level.label||LABEL[level.kind])+'</h3>'+summary(level.kind,rows,oldRows,false);
-   const allowed=level.kind==='replen'?['branch']:level.kind==='courier'&&!level.filters.carrier?['carrier']:['business','branch',...(level.kind==='local'?['zone']:[]),'routeId'];
+   const allowed=level.kind==='replen'?['branch']:level.kind==='courier'&&!level.filters.carrier?['carrier']:['business','branch',...(level.kind==='local'?['carrier','section','zone']:[]),'routeId'];
    if(level.axis!=='pointId')html+='<div class="v443-facets">'+allowed.filter(key=>!Object.hasOwn(level.filters,key)).map(key=>'<button aria-pressed="'+(key===level.axis)+'" onclick="v443Axis(\''+key+'\')">'+AXES[key]+'</button>').join('')+'</div>';
    const groups=A.group(rows,level.axis),max=Math.max(1,...groups.map(x=>x.cost));
    html+='<div class="v442-metrics-grid">'+groups.map((g,index)=>{
@@ -69,7 +69,7 @@
    }).join('')+'</div>';
    if(!groups.length)html+='<p class="v43-empty">Даних немає</p>';
    if(level.kind==='local'){
-    const partner=rows.filter(x=>['sav','stv'].includes(x.section));if(partner.length)html+='<section class="v443-zone-costs"><h3>SAV / STV · витрати по зонах</h3>'+['sav','stv'].map(section=>'<h4>'+section.toUpperCase()+'</h4>'+A.group(partner.filter(x=>x.section===section),'zone').map(x=>'<div><span>'+E(/^[1-5]$/.test(x.name)?'Зона '+x.name:x.name)+'</span><b>'+O.M2(x.cost)+'</b></div>').join('')).join('')+'</section>';
+    const partner=rows.filter(x=>['sav','stv'].includes(x.section));if(partner.length)html+='<section class="v443-zone-costs"><h3>SAV / STV · показники по зонах</h3>'+['sav','stv'].map(section=>'<h4>'+section.toUpperCase()+'</h4>'+A.group(partner.filter(x=>x.section===section),'zone').map(x=>App.metricsCard(x,{label:/^[1-5]$/.test(x.name)?'Зона '+x.name:x.name})).join('')).join('')+'</section>';
    }
    html+='<p class="v442-note">ТТ з накладними різних бізнесів входить до кожного відповідного бізнесу, але в загальному підсумку рахується один раз. Додаткові ТТ без бізнесу не втрачаються.</p>';
   }
@@ -88,5 +88,5 @@
  };
  window.v443Metric=key=>{metric=key;show()};
  window.v443Retry=()=>{invalidate();render(screen)};
- window.TRTS_DASHBOARD={periodBar,invalidate,render,show,back:()=>{if(!trail.length)return false;v443DetailBack();return true},reports};
+ window.TRTS_DASHBOARD={periodBar,invalidate,render,show,back:()=>{if(screen==='dashboard'&&window.TRTS_GRAPH_DASHBOARD)return TRTS_GRAPH_DASHBOARD.back();if(!trail.length)return false;v443DetailBack();return true},reports};
 })();
