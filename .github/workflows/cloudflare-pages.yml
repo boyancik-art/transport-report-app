@@ -70,17 +70,17 @@ jobs:
           for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
             curl --fail --show-error --silent --location --connect-timeout 10 --max-time 20 \
               -H 'Cache-Control: no-cache, no-store, must-revalidate' \
-              "https://transport-report-ts-web.pages.dev/?verify=4373-${GITHUB_SHA}-${i}" \
+              "https://transport-report-ts-web.pages.dev/?verify=4374-${GITHUB_SHA}-${i}" \
               -o /tmp/pages-index.html || true
             if grep -q '<meta name="trts-build" content="43.7">' /tmp/pages-index.html \
-              && grep -q '<meta name="trts-runtime-lock" content="4373">' /tmp/pages-index.html \
-              && grep -q 'patch-v43-7-pickup-cards.js?v=4373' /tmp/pages-index.html; then
-              echo 'Cloudflare production verified: exact v43.7 runtime 4373'
+              && grep -q '<meta name="trts-runtime-lock" content="4374">' /tmp/pages-index.html \
+              && grep -q 'patch-v43-7-pickup-cards.js?v=4374' /tmp/pages-index.html; then
+              echo 'Cloudflare production verified: exact v43.7 runtime 4374'
               exit 0
             fi
             echo "Production not exact v43.7 runtime yet; retry ${i}/12"
             sleep 10
           done
-          echo 'ERROR: Cloudflare production did not switch to exact v43.7 runtime 4373'
+          echo 'ERROR: Cloudflare production did not switch to exact v43.7 runtime 4374'
           grep -Eo 'trts-(build|runtime-lock)[^>]*|patch-v43-7-pickup-cards.js[^\"<]*' /tmp/pages-index.html || true
           exit 1
