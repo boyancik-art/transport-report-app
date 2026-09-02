@@ -2,6 +2,7 @@ const assert=require('node:assert/strict');
 module.exports=async({page,pickDate,capture})=>{
  await page.evaluate(async()=>{v441HomeTab('logistics');await v43SetPeriod('today');db.cube_imports=[{id:1,status:'completed',imported_at:'2026-09-01T06:52:14.720Z',details:{start_date:'2026-09-01',end_date:'2026-09-01'}}];await v435Refresh()});
  await page.locator('.v431-fop').waitFor({state:'visible'});
+ await page.locator('#v431-courier').waitFor({state:'attached'});
  const writes=await page.evaluate(()=>window.writes.length);
  const financeBefore=await page.evaluate(()=>({facts:JSON.stringify(D.facts),entries:JSON.stringify(db.fleet_cost_entries),rates:JSON.stringify(db.transport_monthly_rates),inter:JSON.stringify(db.stv_interbranch_months),costs:D.routes.map(r=>TRTS_OPS.metrics(r).cost)}));
  assert.equal(await page.locator('.v441-home-tabs [role=tab]').count(),2);

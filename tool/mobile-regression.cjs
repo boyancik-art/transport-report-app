@@ -168,7 +168,7 @@ const root=path.resolve(__dirname,'..');
  console.log('PASS merge already-priced TT/groups without duplicate or stranded memberships');
  console.log('PASS shared courier tariff conserved to kopeck, distinct tariff, retry without duplicate rows, reopen and edit');
  await page.evaluate(()=>v433Dashboard());await page.waitForSelector('#v431-courier');
- assert.deepEqual(await page.locator('#view [data-section]').evaluateAll(els=>els.map(el=>el.dataset.section)),['pickup','fop','bakery','courier','sav','stv','replen']);
+ assert.deepEqual(await page.locator('#view [data-section]').evaluateAll(els=>els.map(el=>el.dataset.section)),['pickup','fop','bakery','courier','replen','sav','stv']);
  await page.getByRole('button',{name:'Період',exact:true}).click();
  assert.equal(await page.locator('.v43-custom input[type="date"]').count(),0);
  await page.locator('[data-date-target="v43-from"]').click();
