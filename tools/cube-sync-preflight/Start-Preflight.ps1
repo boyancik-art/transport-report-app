@@ -2,7 +2,18 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $mutex=New-Object Threading.Mutex($false,'Local\TransportReportCubePreflight')
-$locked=$false; $worker=$null; $resultCode=1
+$locked=$false; $worker=$null; $resultCode=1; $runDirectory=$null
+function Stop-OwnedExcel([string]$Directory) {
+    if(-not $Directory) { return }
+    $ownerPath=Join-Path $Directory 'excel-owner.json'
+    if(Test-Path -LiteralPath $ownerPath) {
+        $owner=Get-Content -LiteralPath $ownerPath -Raw | ConvertFrom-Json
+        $owned=Get-Process -Id $owner.pid -ErrorAction SilentlyContinue
+        if($owned -and $owned.ProcessName -eq 'EXCEL' -and $owned.StartTime.ToUniversalTime().ToString('o') -eq $owner.startedAt) {
+            Stop-Process -Id $owned.Id -Force
+        }
+    }
+}
 try {
     try { $locked=$mutex.WaitOne(0) } catch [Threading.AbandonedMutexException] { $locked=$true }
     if(-not $locked) { throw 'Another preflight is already running.' }
@@ -27,14 +38,7 @@ try {
         $resultCode=124
     } else { $worker.WaitForExit(); $resultCode=$worker.ExitCode }
     # On timeout or a leaked COM reference, terminate only the recorded owned process with matching creation time.
-    $ownerPath=Join-Path $runDirectory 'excel-owner.json'
-    if(Test-Path -LiteralPath $ownerPath) {
-        $owner=Get-Content -LiteralPath $ownerPath -Raw | ConvertFrom-Json
-        $owned=Get-Process -Id $owner.pid -ErrorAction SilentlyContinue
-        if($owned -and $owned.ProcessName -eq 'EXCEL' -and $owned.StartTime.ToUniversalTime().ToString('o') -eq $owner.startedAt) {
-            Stop-Process -Id $owned.Id -Force
-        }
-    }
+    Stop-OwnedExcel $runDirectory
     $reportPath=Join-Path $runDirectory 'report.json'
     if(Test-Path -LiteralPath $reportPath) { $report=Get-Content -LiteralPath $reportPath -Raw -Encoding UTF8 | ConvertFrom-Json }
     else { $report=[pscustomobject]@{status='error';stage='worker_start';uploadedRows=0;productionWrites=0} }
@@ -55,6 +59,10 @@ try {
     Write-Host ('Error type: '+$_.Exception.GetType().FullName)
     $resultCode=1
 } finally {
+    if($null -ne $worker) {
+        try { if(-not $worker.HasExited) { Stop-Process -Id $worker.Id -Force } } catch {}
+    }
+    try { Stop-OwnedExcel $runDirectory } catch { Write-Host 'Could not close owned Excel. Check the preflight process before retrying.' }
     if($locked) { $mutex.ReleaseMutex() }
     $mutex.Dispose()
 }
