@@ -1,8 +1,9 @@
 ﻿param([Parameter(Mandatory=$true)][string]$RunDirectory)
 . "$PSScriptRoot\Bridge.Core.ps1"
+. "$PSScriptRoot\Refresh.Core.ps1"
 $config = Get-Content -LiteralPath "$PSScriptRoot\config.json" -Raw -Encoding UTF8 | ConvertFrom-Json
-$report = [ordered]@{version=$config.version;status='running';stage='open';startedAt=[datetime]::UtcNow.ToString('o');uploadedRows=0;productionWrites=0;refreshEvidence=@();warnings=@()}
-$excel=$null; $book=$null; $ownsExcel=$false; $exitCode=1
+$report = [ordered]@{version=$config.version;status='running';stage='open';startedAt=[datetime]::UtcNow.ToString('o');uploadedRows=0;productionWrites=0;refreshEvidence=@();warnings=@();events=@()}
+$excel=$null; $book=$null; $ownsExcel=$false; $exitCode=1; $target=$null; $native=$null; $targetQueries=@()
 function Save-Report { Write-BridgeJson (Join-Path $RunDirectory 'report.json') $report }
 function Set-Stage([string]$Value) { $report.stage=$Value; Save-Report }
 function Release-Com($Value) {
@@ -10,26 +11,14 @@ function Release-Com($Value) {
         [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($Value)
     }
 }
-function Get-RefreshEvidence($Workbook) {
-    $evidence = @()
-    foreach ($sheet in $Workbook.Worksheets) {
-        foreach ($query in $sheet.QueryTables) {
-            try {
-                $evidence += [ordered]@{kind='QueryTable';connection=[string]$query.WorkbookConnection.Name;refreshDate=([datetime]$query.RefreshDate).ToUniversalTime().ToString('o')}
-            } catch { $evidence += [ordered]@{kind='QueryTable';connection='unresolved';refreshDate=$null} }
-            finally { Release-Com $query }
-        }
-        Release-Com $sheet
-    }
-    foreach ($cache in $Workbook.PivotCaches()) {
-        try {
-            if ($cache.SourceType -eq 2) {
-                $evidence += [ordered]@{kind='PivotCache';connection=[string]$cache.WorkbookConnection.Name;refreshDate=([datetime]$cache.RefreshDate).ToUniversalTime().ToString('o')}
-            }
-        } catch { $evidence += [ordered]@{kind='PivotCache';connection='unresolved';refreshDate=$null} }
-        finally { Release-Com $cache }
-    }
-    return $evidence
+function Log-Step([string]$Name, $Details=@{}) {
+    $event=[ordered]@{at=[datetime]::UtcNow.ToString('o');event=$Name;details=$Details}
+    $report.events += $event
+    $report.lastEvent=$Name
+    $line=ConvertTo-Json -InputObject $event -Depth 8 -Compress
+    [IO.File]::AppendAllText((Join-Path $RunDirectory 'stages.jsonl'),$line+[Environment]::NewLine,[Text.UTF8Encoding]::new($false))
+    Write-Host ($event.at+' '+$Name)
+    Save-Report
 }
 try {
     if (-not (Test-Path -LiteralPath $config.workbookPath -PathType Leaf)) { throw 'Workbook not available' }
@@ -49,11 +38,12 @@ public static class BridgeWindow {
     $ownsExcel=$true
     $process=Get-Process -Id $excelProcessId
     Write-BridgeJson (Join-Path $RunDirectory 'excel-owner.json') @{pid=$excelProcessId;startedAt=$process.StartTime.ToUniversalTime().ToString('o')}
-    $excel.Visible=$false; $excel.DisplayAlerts=$false; $excel.EnableEvents=$false
+    $excel.Visible=$true; $excel.DisplayAlerts=$true; $excel.EnableEvents=$false
     $excel.AutomationSecurity=3 # msoAutomationSecurityForceDisable; do not run workbook macros.
     $excel.AskToUpdateLinks=$false
     # UpdateLinks=0, ReadOnly=true. Never save changes back to the user's workbook.
     $book=$excel.Workbooks.Open($config.workbookPath,0,$true)
+    Log-Step 'Workbook opened'
     if ($book.Date1904) { throw '1904 date system requires explicit mapping' }
     $report.connectionInventory=@()
     foreach ($connection in $book.Connections) {
@@ -63,49 +53,84 @@ public static class BridgeWindow {
         Release-Com $connection
     }
     if ($report.connectionInventory.Count -eq 0) { throw 'No workbook connections: cannot verify Cube refresh' }
-    $report.evidenceBefore=@(Get-RefreshEvidence $book)
-    Set-Stage 'refresh'
-    $refreshStart=[datetime]::UtcNow
-    $report.refreshStartedAt=$refreshStart.ToString('o'); Save-Report
-    $book.RefreshAll()
-    # This call blocks on pending OLEDB/OLAP queries. Parent watchdog bounds COM hangs.
-    $excel.CalculateUntilAsyncQueriesDone()
-    $stable=0; $unknown=@()
-    while ($stable -lt 3) {
-        $busy=($excel.CalculationState -ne 0)
-        foreach ($connection in $book.Connections) {
+    $target=$book.Connections.Item($config.connectionName)
+    Log-Step 'connection base found' @{type=[int]$target.Type}
+    if($target.Type -eq 1) { $native=$target.OLEDBConnection }
+    elseif($target.Type -eq 2) { $native=$target.ODBCConnection }
+    else { throw 'Unsupported target connection type; refusing unverified refresh' }
+    $kind='ODBC'; $olap=$false
+    if($target.Type -eq 1) {
+        $kind='OLEDB'
+        try { $olap=[bool]$native.OLAP } catch {}
+        if($olap) { $kind='OLAP' }
+        else {
+            # Inspect provider locally, never log connection strings or credentials.
+            try { if(([string]$native.Connection) -match 'Microsoft.Mashup') { $kind='PowerQuery' } } catch {}
+        }
+    }
+    foreach($sheet in $book.Worksheets) {
+        # Excel exposes SQL/Power Query loads through both collections.
+        $seen=@{}
+        foreach($query in $sheet.QueryTables) {
+            if([string]$query.WorkbookConnection.Name -eq $config.connectionName) {
+                $targetQueries += $query; $seen[[string]$query.Name]=$true
+            } else { Release-Com $query }
+        }
+        foreach($table in $sheet.ListObjects) {
+            $query=$null
             try {
-                if ($connection.Type -eq 1) { if ($connection.OLEDBConnection.Refreshing) { $busy=$true } }
-                elseif ($connection.Type -eq 2) { if ($connection.ODBCConnection.Refreshing) { $busy=$true } }
-                else { $unknown += [string]$connection.Name }
-            } catch { $unknown += [string]$connection.Name }
-            finally { Release-Com $connection }
+                $query=$table.QueryTable
+                if($query -and [string]$query.WorkbookConnection.Name -eq $config.connectionName -and -not $seen.ContainsKey([string]$query.Name)) {
+                    $targetQueries += $query; $seen[[string]$query.Name]=$true
+                }
+            } catch {}
+            Release-Com $table
         }
-        foreach ($sheet in $book.Worksheets) {
-            foreach ($query in $sheet.QueryTables) {
-                if ($query.Refreshing) { $busy=$true }
-                Release-Com $query
-            }
-            Release-Com $sheet
-        }
-        if ($busy) { $stable=0 } else { $stable++ }
-        Start-Sleep -Seconds 1
+        Release-Com $sheet
     }
-    $excel.CalculateUntilAsyncQueriesDone()
-    if ($excel.CalculationState -ne 0) { throw 'Calculation did not settle' }
-    $report.refreshEvidence=@(Get-RefreshEvidence $book)
+    $report.targetKind=$kind; $report.targetQueryCount=$targetQueries.Count
+    $report.interactiveExcel=$true
+    $initial=Get-TargetRefreshState $native $targetQueries
+    $report.evidenceBefore=$initial
+    if($initial.refreshing) {
+        Log-Step 'refresh state' @{phase='existing_base_refresh';note='Waiting only for base; no second refresh launched.'}
+        $existingDeadline=[datetime]::UtcNow.AddSeconds([int]$config.refreshTimeoutSeconds)
+        do {
+            if([datetime]::UtcNow -ge $existingDeadline) { throw 'Existing base refresh timeout' }
+            Start-Sleep -Seconds 2
+            $initial=Get-TargetRefreshState $native $targetQueries
+            Log-Step 'refresh state' $initial
+        } while($initial.refreshing)
+    }
+    if($initial.stateUnavailable) { throw 'Cannot read target refreshing state' }
+    $background=$false
+    if(-not $olap) {
+        try { $native.BackgroundQuery=$true; $background=[bool]$native.BackgroundQuery } catch {}
+    }
+    $report.backgroundQuery=$background
+    $refreshStart=[datetime]::UtcNow
+    $report.refreshStartedAt=$refreshStart.ToString('o')
+    Set-Stage 'refresh'
+    Log-Step 'refresh started' @{kind=$kind;background=$background;linkedQueries=$targetQueries.Count}
+    Log-Step 'refresh state' @{phase='base.Refresh.enter';note='If COM blocks, parent watchdog keeps logging and enforces timeout. Check visible Excel for a prompt.'}
+    # Specific connection only. No RefreshAll, global async wait or global CalculationState.
+    $target.Refresh()
+    Log-Step 'refresh state' @{phase='base.Refresh.returned'}
+    $deadline=$refreshStart.AddSeconds([int]$config.refreshTimeoutSeconds)
+    $stable=0
+    Add-Type -AssemblyName System.Windows.Forms
+    do {
+        if([datetime]::UtcNow -ge $deadline) { throw 'Target refresh timeout or no successful refresh timestamp' }
+        [Windows.Forms.Application]::DoEvents()
+        $state=Get-TargetRefreshState $native $targetQueries
+        Log-Step 'refresh state' $state
+        if(Test-TargetRefreshCompleted $state $initial.refreshDate $refreshStart) { $stable++ } else { $stable=0 }
+        if($stable -lt 3) { Start-Sleep -Seconds 2 }
+    } while($stable -lt 3)
+    $report.refreshEvidence=@($state)
     $report.refreshFinishedAt=[datetime]::UtcNow.ToString('o')
-    $report.unobservableConnections=@($unknown | Sort-Object -Unique)
-    $notProven=@()
-    foreach ($connection in $report.connectionInventory) {
-        $matches=@($report.refreshEvidence | Where-Object {
-            $_.connection -eq $connection.name -and $_.refreshDate -and
-            [datetime]::Parse($_.refreshDate).ToUniversalTime() -ge $refreshStart.AddSeconds(-2)
-        })
-        if (-not $connection.refreshWithRefreshAll -or $matches.Count -eq 0) { $notProven += $connection.name }
-    }
-    $report.connectionsWithoutRefreshProof=$notProven
-    $report.refreshConfirmed=($notProven.Count -eq 0 -and $report.unobservableConnections.Count -eq 0)
+    $report.refreshConfirmed=$true
+    Log-Step 'refresh completed' @{connection=$config.connectionName;refreshDate=$state.refreshDate}
     Set-Stage 'read_source'
     # Select only a sheet with the exact import schema, never an arbitrary first sheet.
     $candidates=@()
@@ -173,6 +198,7 @@ public static class BridgeWindow {
     $report.invalidRowNumbers=@($invalidRows | Select-Object -First 50)
     $report.source=Get-BridgeSummary $rows.ToArray() $config.periodFrom $config.periodTo
     if($invalidRows.Count -gt 0 -or $rows.Count -eq 0) { throw 'Source validation failed; no upload allowed' }
+    Log-Step 'data validated' @{rows=$rows.Count;periodRows=$report.source.rowsInPeriod;invalidRows=$invalidRows.Count}
     Set-Stage 'payload_preparation'
     $periodRows=@($rows | Where-Object {$_.date -ge $config.periodFrom -and $_.date -le $config.periodTo})
     $payload=[ordered]@{schema_version=1;mode='PREFLIGHT_ONLY';start_date=$config.periodFrom;end_date=$config.periodTo;file_name='База.xlsx';rows=$periodRows}
@@ -195,11 +221,16 @@ public static class BridgeWindow {
     # Connection exceptions can contain credentials; never include the raw exception/connection string.
     $report.errorType=$_.Exception.GetType().FullName
     $report.errorHResult=$_.Exception.HResult
+    Log-Step 'error' @{stage=$report.stage;type=$report.errorType;hresult=$report.errorHResult}
 } finally {
     $report.failedStage=$report.stage
     $report.stage='close_excel'; Save-Report
+    try { if($null -ne $native) { $native.CancelRefresh() } } catch {}
+    try { if($null -ne $excel) { $excel.DisplayAlerts=$false } } catch {}
     try { if($null -ne $book) { $book.Close($false) } } catch { $report.warnings += 'Workbook close failed.' }
     try { if($ownsExcel -and $null -ne $excel) { $excel.Quit() } } catch { $report.warnings += 'Owned Excel close failed; watchdog checks its process.' }
+    foreach($query in $targetQueries) { Release-Com $query }
+    Release-Com $native; Release-Com $target
     Release-Com $book; Release-Com $excel
     [GC]::Collect(); [GC]::WaitForPendingFinalizers()
     $report.stage='finished'; $report.finishedAt=[datetime]::UtcNow.ToString('o'); Save-Report

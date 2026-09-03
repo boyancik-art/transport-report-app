@@ -26,6 +26,7 @@ jobs:
           foreach($culture in @('en-US','uk-UA')) {
             [Threading.Thread]::CurrentThread.CurrentCulture=[Globalization.CultureInfo]::GetCultureInfo($culture)
             & ./tools/cube-sync-preflight/Test-BridgeCore.ps1
+            & ./tools/cube-sync-preflight/Test-RefreshCore.ps1
           }
       - name: Missing source fails closed with no upload
         shell: powershell

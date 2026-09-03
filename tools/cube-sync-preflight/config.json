@@ -5,5 +5,7 @@
   "periodTo": "2026-09-03",
   "timeoutSeconds": 1200,
   "maxRows": 250000,
-  "version": "preflight-1.0"
+  "connectionName": "base",
+  "refreshTimeoutSeconds": 900,
+  "version": "preflight-1.1"
 }

@@ -12,7 +12,10 @@ $script:Columns = [ordered]@{
 }
 function Write-BridgeJson([string]$Path, $Value) {
     $json = ConvertTo-Json -InputObject $Value -Depth 30
-    [IO.File]::WriteAllText($Path, $json, [Text.UTF8Encoding]::new($false))
+    $temporary=$Path+'.tmp'
+    [IO.File]::WriteAllText($temporary, $json, [Text.UTF8Encoding]::new($false))
+    if([IO.File]::Exists($Path)) { [IO.File]::Replace($temporary,$Path,$null) }
+    else { [IO.File]::Move($temporary,$Path) }
 }
 function Get-BridgeText($Value) {
     if ($null -eq $Value) { return '' }
