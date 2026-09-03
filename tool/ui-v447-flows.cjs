@@ -28,7 +28,7 @@ module.exports=async({page,capture})=>{
   assert.match(await headings().innerText(),/Зона 1/);
   await page.getByLabel('Сортувати за',{exact:true}).selectOption('cost');
   await page.getByLabel('Порядок сортування').selectOption('desc');
-  if(capture){await page.locator('.v447-sort').scrollIntoViewIfNeeded();await capture('v447-'+theme+'-zone-sort')}
+  if(capture){await page.locator('.v447-sort').scrollIntoViewIfNeeded();await capture('v447-'+theme+'-zone-sort',page.locator('.v443-report'))}
   await headings().click();
   await page.locator('.v446-analytics-route [data-route-id="503"] .v436-route-id').click();
   assert.equal(await page.locator('.v436-invoice-table,.v439-invoice').count(),0,'Route only contains TT cards');

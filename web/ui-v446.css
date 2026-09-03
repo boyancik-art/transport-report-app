@@ -166,3 +166,11 @@ html[data-theme] .v436-address>.v439-carrier-tt,html[data-theme] .v436-address>b
 
 html[data-theme] .v447-point-sum{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:6px 0;color:var(--text-primary)}.v447-point-sum small{font-size:10px;color:var(--text-muted)}.v447-point-sum b{font-size:14px}
 html[data-theme] .v436-address .v44-warning{padding:7px 9px;font-size:11px;line-height:1.4;border-radius:9px;margin:6px 0}.v436-address .v44-warning p{margin:3px 0}
+
+html[data-theme] .v441-home .v431-block{background:transparent!important;border:0!important;padding:0!important;box-shadow:none!important}
+html[data-theme] .v43-route-detail>.v44-zone-fields{gap:5px 10px;margin:7px 0}
+html[data-theme] .v43-route-detail>.v44-zone-fields>div{background:transparent!important;border:0!important;border-radius:0;padding:5px 0}
+.v43-route-detail>.v44-zone-fields b{font-size:13px}.v43-route-detail>.v44-zone-fields small{font-size:10px}
+html[data-theme] .v43-route-detail>.v44-warning{padding:8px 10px;margin:7px 0;font-size:11px;line-height:1.4;border-radius:10px}
+.v43-route-detail>.v44-warning p{margin:3px 0}
+.v43-route-detail>h2{font-size:22px;margin:8px 0}.v43-route-detail>.v435-tt-address{font-size:12px;margin:5px 0 10px}
