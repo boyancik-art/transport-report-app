@@ -26,6 +26,7 @@ module.exports=async({page,frame,capture})=>{
    if(tab==='analytics')await frame.locator('.v443-overview').first().waitFor();
    if(tab==='routes'){
     await frame.locator('.v437-pick-card').waitFor();assert.ok(await frame.locator('.v445-route-delete').count()>=5);
+    await frame.locator('.v431-courier-head').waitFor({state:'visible'});
     const headers=frame.locator('.v431-block-head,.v431-courier-head');
     assert.equal(await headers.count(),8);
     const heights=await headers.evaluateAll(ns=>ns.map(n=>({height:n.getBoundingClientRect().height,text:n.textContent})));
