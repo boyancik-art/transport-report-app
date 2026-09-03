@@ -81,6 +81,7 @@ async function healthy(frame,label){
 }
 async function dashboard(frame,label){
  await frame.locator('[data-summary=local]').waitFor({state:'visible'});
+ if(await frame.locator('#v444-notice').isVisible()){assert.match(await frame.locator('#v444-notice').innerText(),new RegExp('Застосунок оновлено до версії '+expected.replaceAll('.','\\\\.')));await frame.locator('#v444-ack').click();assert.equal(await frame.evaluate(()=>localStorage.trts_update_ack),expected);}
  if(process.env.TRTS_CAPTURE==='1')console.log('VISUAL:v443-'+label.replaceAll(' ','-')+':'+(await frame.screenshot({type:'jpeg',quality:65})).toString('base64'));
  assert.equal(await frame.locator('#v442-nav button').count(),5);
  assert.deepEqual(await frame.locator('#v442-nav button>span:last-child').allTextContents(),['Дашборд','Аналітика','Маршрути','Довідник витрат','Меню']);
