@@ -14,7 +14,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      TRTS_DEPLOY_ENABLED: 'false'
+      TRTS_DEPLOY_ENABLED: 'true'
     permissions:
       contents: read
     steps:

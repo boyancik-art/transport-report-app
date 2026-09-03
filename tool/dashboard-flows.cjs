@@ -61,6 +61,6 @@ module.exports=async({page,capture})=>{
   assert.match(await plot.locator('.v445-tooltip').innerText(),new RegExp(dates.at(-1).split('-').reverse().join('\\.')));await plot.press('Escape');
  }
  for(const width of [320,390,760]){await page.setViewportSize({width,height:844});for(const theme of ['dark','light']){await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Dashboard overflow '+width+' '+theme)}}
- await page.setViewportSize({width:390,height:844});await page.evaluate(()=>document.documentElement.dataset.theme='dark');await capture('v447-period-trends',page.locator('.v446-dynamic'));
+ await page.setViewportSize({width:390,height:844});await page.evaluate(()=>document.documentElement.dataset.theme='dark');await page.locator('.v446-dynamic').evaluate(el=>scrollBy(0,el.getBoundingClientRect().top-100));await capture('v447-period-trends',page.locator('.v446-dynamic'));
  console.log('PASS v44.6 compact executive + varied graphs and all drill levels in both themes, SAV/STV full metrics, carrier dimension, courier/replenishment, accessible tooltips, previous period financial parity, every period mode, 320/390/760 responsive');
 };
