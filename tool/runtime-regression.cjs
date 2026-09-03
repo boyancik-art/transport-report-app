@@ -149,7 +149,7 @@ async function dashboard(frame,label){
    page.on('dialog',async d=>{if(deleteDecision!==null){assert.equal(d.message(),'Видалити маршрут DELETE-FIXTURE? Цю дію неможливо скасувати.');return deleteDecision?d.accept():d.dismiss()}dialogs.push(d.message());await d.dismiss()});
    page.on('console',m=>{if(m.type()==='warning'&&m.text().includes('[auth.logout]'))logoutWarnings.push(m.text())});
    const servedScripts=[];
-   page.on('response',response=>{const u=new URL(response.url());if(u.origin===new URL(base).origin&&u.pathname.endsWith('.js'))servedScripts.push(response)});
+   page.on('response',response=>{const u=new URL(response.url());if(u.origin===new URL(base).origin&&u.pathname.endsWith('.js'))servedScripts.push({response,body:response.body().then(body=>({body}),error=>({error}))})});
    const response=await page.goto(base+scenario.url,{waitUntil:'load',timeout:30000});
    const frame=scenario.url.includes('phone-preview')?await page.locator('iframe').elementHandle().then(el=>el.contentFrame()):page;
    if(live){
@@ -172,7 +172,7 @@ async function dashboard(frame,label){
      }
     }
     console.log('PASS deployed Update button reaches exact '+expected+' on '+scenario.name);
-    for(const response of servedScripts){const file=path.join(dist,new URL(response.url()).pathname);if(fs.existsSync(file)){const delivered=await response.body(),built=fs.readFileSync(file);assert.ok(delivered.equals(built),'Deployed script differs from tested build: '+new URL(response.url()).pathname)}}
+    for(const item of servedScripts){const response=item.response,file=path.join(dist,new URL(response.url()).pathname);if(fs.existsSync(file)){const captured=await item.body;if(captured.error)throw captured.error;const delivered=captured.body,built=fs.readFileSync(file);assert.ok(delivered.equals(built),'Deployed script differs from tested build: '+new URL(response.url()).pathname)}}
    }
    await frame.locator('#loginForm').waitFor({state:'visible'});
    assert.ok(await frame.locator('#loginForm button').evaluate(el=>getComputedStyle(el).display==='flex'),'Login button uses shared design');
