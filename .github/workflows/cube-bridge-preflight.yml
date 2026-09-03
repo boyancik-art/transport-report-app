@@ -1,0 +1,29 @@
+name: Cube bridge preflight tests
+on:
+  push:
+    branches: [cube-sync-preflight]
+permissions:
+  contents: read
+jobs:
+  windows-powershell:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse every script with Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Get-ChildItem tools/cube-sync-preflight/*.ps1 | ForEach-Object {
+            $tokens=$null; $parseErrors=$null
+            [void][Management.Automation.Language.Parser]::ParseFile($_.FullName,[ref]$tokens,[ref]$parseErrors)
+            if($parseErrors.Count) { $parseErrors | Format-List; throw "Parse failed: $($_.Name)" }
+          }
+      - name: Core mapping validation in English and Ukrainian cultures
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach($culture in @('en-US','uk-UA')) {
+            [Threading.Thread]::CurrentThread.CurrentCulture=[Globalization.CultureInfo]::GetCultureInfo($culture)
+            & ./tools/cube-sync-preflight/Test-BridgeCore.ps1
+          }

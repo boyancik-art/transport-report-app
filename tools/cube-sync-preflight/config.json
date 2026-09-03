@@ -1,0 +1,9 @@
+{
+  "workbookPath": "C:\\Users\\boyko.i\\OneDrive - Asnova Holding\\Desktop\\Застосунок_\\База.xlsx",
+  "preferredSheet": "base",
+  "periodFrom": "2026-08-01",
+  "periodTo": "2026-09-03",
+  "timeoutSeconds": 1200,
+  "maxRows": 250000,
+  "version": "preflight-1.0"
+}
