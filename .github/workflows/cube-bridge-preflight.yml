@@ -17,7 +17,7 @@ jobs:
           Get-ChildItem tools/cube-sync-preflight/*.ps1 | ForEach-Object {
             $tokens=$null; $parseErrors=$null
             [void][Management.Automation.Language.Parser]::ParseFile($_.FullName,[ref]$tokens,[ref]$parseErrors)
-            if($parseErrors.Count) { $parseErrors | Format-List; throw "Parse failed: $($_.Name)" }
+            if($parseErrors.Count) { $parseErrors | ForEach-Object { Write-Host $_.Extent.StartLineNumber $_.Message }; throw "Parse failed: $($_.Name)" }
           }
       - name: Core mapping validation in English and Ukrainian cultures
         shell: powershell

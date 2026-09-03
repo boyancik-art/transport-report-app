@@ -147,12 +147,17 @@ public static class BridgeWindow {
     $numeric=@('bottles','places','weight','amount','pallets')
     for($r=1;$r -le $rowCount;$r++) {
         $hasData=$false
-        foreach($field in $script:Columns.Keys) { if(-not [string]::IsNullOrWhiteSpace([string]$values[$r,$selection.map[$script:Columns[$field]]])){$hasData=$true;break} }
+        foreach($field in $script:Columns.Keys) {
+            $columnName=$script:Columns[$field]
+            $columnIndex=$selection.map[$columnName]
+            if(-not [string]::IsNullOrWhiteSpace([string]$values[$r,$columnIndex])){$hasData=$true;break}
+        }
         if(-not $hasData) { continue }
         try {
             $row=[ordered]@{}; $raw=[ordered]@{}
             foreach($field in $script:Columns.Keys) {
-                $header=$script:Columns[$field]; $value=$values[$r,$selection.map[$header]]
+                $header=$script:Columns[$field]; $columnIndex=$selection.map[$header]
+                $value=$values[$r,$columnIndex]
                 if($value -is [Runtime.InteropServices.ErrorWrapper] -or ($value -is [int] -and $value -lt -2146820000)) { throw 'Excel error cell' }
                 if($field -eq 'date') { $row[$field]=Get-BridgeDate $value }
                 elseif($numeric -contains $field) { $row[$field]=Get-BridgeNumber $value }
