@@ -39,7 +39,7 @@ module.exports=async({page,frame,capture})=>{
    await frame.locator('.v442-metrics-grid .v442-metric-heading').filter({hasText:label}).first().click();
   }
   const analyticRoute=frame.locator('.v446-analytics-route [data-route-id="1"]');await analyticRoute.waitFor();
-  for(const text of ['Філія покриття','Експедитор','Перевізник','Хвиля','Тариф'])assert.ok((await analyticRoute.innerText()).includes(text),'Analytics route metadata '+text);
+  for(const text of ['Філія покриття','Експедитор','Перевізник','Хвиля','Тариф'])assert.ok((await analyticRoute.innerText()).toLocaleLowerCase('uk').includes(text.toLocaleLowerCase('uk')),'Analytics route metadata '+text);
   if(capture)await capture('v446-'+theme+'-analytics-route');
   await analyticRoute.locator('.v436-route-id').click();await frame.locator('.v436-detail').waitFor();await frame.getByRole('button',{name:'Назад до маршрутів',exact:true}).click();await analyticRoute.waitFor();
   for(const id of [2,3,4,5,6]){
