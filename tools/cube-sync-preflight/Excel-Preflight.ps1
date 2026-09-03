@@ -150,7 +150,8 @@ public static class BridgeWindow {
         foreach($field in $script:Columns.Keys) {
             $columnName=$script:Columns[$field]
             $columnIndex=$selection.map[$columnName]
-            if(-not [string]::IsNullOrWhiteSpace([string]$values[$r,$columnIndex])){$hasData=$true;break}
+            $cellValue=$values.GetValue($r,$columnIndex)
+            if(-not [string]::IsNullOrWhiteSpace([string]$cellValue)){$hasData=$true;break}
         }
         if(-not $hasData) { continue }
         try {
