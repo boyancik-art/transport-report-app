@@ -1,7 +1,7 @@
 (()=>{
 const data=()=>typeof D!=='undefined'?D:window.D||{};
 const defs=[['base','База','warehouse'],['fop','ФОП / TS','truck'],['bakery','Пекарня / Fresh','truck'],['courier','Кур’єрські відправлення','box'],['replen','Поповнення філій','warehouse'],['sav','SAV','truck'],['stv','STV','truck'],['pickup','Самовивіз','truck']];
-const header=(key,title,count,icon)=>`<button class="v431-block-head" onclick="v431Toggle('${key}')" aria-expanded="true"><b>${window.TRTS_SHELL?.icon(key)||window.TRTS_UI.icon(icon)}<span>${title} · ${count}</span></b><span class="v431-toggle-label">⌃</span></button>`;
+const header=(key,title,count,icon,kpi)=>`<button class="v431-block-head" onclick="v431Toggle('${key}')" aria-expanded="true"><b>${window.TRTS_SHELL?.icon(key)||window.TRTS_UI.icon(icon)}<span>${title} · ${count}</span><small class="v447-block-kpi">${kpi}</small></b><span class="v431-toggle-label">⌃</span></button>`;
 function enhance(){
  const screen=document.querySelector('.v43-screen');if(!screen||screen.dataset.v431==='1')return;
  const head=screen.querySelector(':scope > .v43-head'),filters=screen.querySelector(':scope > .v43-filters'),groupbar=screen.querySelector(':scope > .v43-groupbar'),stack=screen.querySelector(':scope > .v43-stack');
@@ -14,7 +14,8 @@ function enhance(){
   if(key==='courier'){const anchor=document.createElement('div');anchor.id='v436-courier-anchor';frag.append(anchor);continue}
   const sec=document.createElement('section');sec.className='v431-block'+(key==='fop'?' v431-fop':'');sec.dataset.section=key;
   const count=key==='replen'?(replen?.querySelector('.v43-section-title small')?.textContent.match(/\d+/)?.[0]||0):routes.length;
-  sec.innerHTML=header(key,title,count,icon);
+  const O=window.TRTS_OPS,kpi=key==='replen'?(O.F(O.meta().replenishments.reduce((n,x)=>n+Number(x.pallets||0),0),3)+' пал.'):routes.reduce((n,r)=>n+O.metrics(r).tt,0)+' ТТ';
+  sec.innerHTML=header(key,title,count,icon,kpi);
   const body=document.createElement('div');body.className='v436-block-body'+(key==='pickup'?' v431-pickup-body':'');
   if(key==='fop'){body.append(head);if(window.TRTS_APP)body.insertAdjacentHTML('beforeend',window.TRTS_APP.carrierFilter(key));body.append(filters,groupbar,stack);}
   else if(key==='replen'&&replen)body.append(...replen.children);

@@ -14,3 +14,9 @@ assert.equal(P.change(20,0,'cost').percent,null);assert.equal(P.change(null,10,'
 const points=[{pointId:'1',date:'2026-09-01',tt:1,cost:20,sales:100,pallets:1},{pointId:'1',date:'2026-09-01',tt:1,cost:30,sales:200,pallets:2}];
 const series=P.buckets(points,{from:'2026-09-01',to:'2026-09-03'},A.total);assert.equal(series.length,3);assert.equal(series[0].tt,1);assert.equal(series[0].cost,50);assert.equal(series[1].hasData,false);
 console.log('PASS dashboard periods: calendar boundaries, leap year, previous periods, direction colors, missing values, deduplicated chart points');
+
+const daily=P.buckets(points,{from:'2026-01-01',to:'2026-12-31'},A.total,{daily:true});
+assert.equal(daily.length,365);assert.equal(daily[0].date,'2026-01-01');assert.equal(daily[364].date,'2026-12-31');
+assert.equal(daily.filter(x=>x.cost===0).length,364);assert.equal(daily.reduce((n,x)=>n+x.cost,0),50);
+assert.equal(P.buckets([],{from:'2024-01-01',to:'2024-12-31'},A.total,{daily:true}).length,366);
+console.log('PASS daily chart keeps zero days, every date, annual/leap-year values and original totals');

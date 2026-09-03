@@ -2,6 +2,7 @@
  'use strict';
  const O=TRTS_OPS,A=TRTS_ANALYTICS,P=TRTS_PERIODS,App=TRTS_APP,S=TRTS_SHELL,E=O.E,$=s=>document.querySelector(s);
  const LABEL={local:'Локальна доставка',courier:'Кур’єрська доставка',replen:'Поповнення філій'},FIELDS=[['tt','ТТ'],['pallets','Палети'],['sales','Продажі'],['cost','Витрати'],['costTT','Вартість 1 ТТ'],['log','% логістики']],AXES={business:'Бізнеси',branch:'Філії покриття',zone:'Зони доставки',section:'SAV / STV · напрямки',carrier:'Перевізники',routeId:'Маршрути',pointId:'Торгові точки'};
+ let sortKey='cost',sortDirection='desc';
  let version=0,cache=null,pending=null,comparisonError='',screen='dashboard',trail=[],metric='cost',periodState=null,viewSequence=0;
  const fmtDate=d=>d?.split('-').reverse().join('.')||'—',periodText=p=>fmtDate(p.from)+(p.from===p.to?'':' — '+fmtDate(p.to));
  const value=(x,key)=>key==='costPal'?(x.pallets?x.cost/x.pallets:null):x[key];
@@ -52,7 +53,19 @@
   screen=section;trail=[];const request=++viewSequence;O.view().innerHTML='<div class="v43-loading" role="status">Завантаження показників і порівняння періодів…</div>';
   try{const data=await reports();if(!data||request!==viewSequence||App.current()!==section)return;show()}catch(e){if(request===viewSequence)O.view().innerHTML='<section class="v43-screen"><p class="v442-warning" role="alert">'+E(e.message)+'</p><button onclick="v442Nav(\''+section+'\')">Спробувати ще раз</button></section>'}
  }
- function filtered(report,level){return rowsFor(report,level.kind).filter(x=>Object.entries(level.filters||{}).every(([key,v])=>String(x[key])===String(v)))}
+ function filtered(report,level){return rowsFor(report,level.kind).filter(x=>(!level.zoneFlow||['sav','stv'].includes(x.section))&&Object.entries(level.filters||{}).every(([key,v])=>String(x[key])===String(v)))}
+
+ function sortedGroups(rows,level){
+  let list=A.group(level.zoneFlow==='carrier'?rows.filter(x=>['sav','stv'].includes(x.section)):rows,level.axis);
+  const key=(level.kind==='replen'?!['pallets','cost','costPal'].includes(sortKey):sortKey==='costPal')?'cost':sortKey;
+  return list.sort((a,b)=>{const x=value(a,key),y=value(b,key);if(x==null||y==null)return x==null?(y==null?a.name.localeCompare(b.name,'uk'):1):-1;return (sortDirection==='asc'?x-y:y-x)||a.name.localeCompare(b.name,'uk')});
+ }
+ function sorting(level){
+  const keys=level.kind==='replen'?[['pallets','Палети'],['cost','Витрати'],['costPal','Вартість 1 палети']]:FIELDS.map(([k,n])=>[k,k==='sales'?'Сума документів':n]);
+  const selected=keys.some(([k])=>k===sortKey)?sortKey:'cost';
+  return '<div class="v447-sort"><label>Сортувати за<select aria-label="Сортувати за" onchange="v447Sort(this.value,null)">'+keys.map(([k,n])=>'<option value="'+k+'" '+(selected===k?'selected':'')+'>'+n+'</option>').join('')+'</select></label><select aria-label="Порядок сортування" onchange="v447Sort(null,this.value)"><option value="desc" '+(sortDirection==='desc'?'selected':'')+'>↓ За спаданням</option><option value="asc" '+(sortDirection==='asc'?'selected':'')+'>↑ За зростанням</option></select></div>';
+ }
+ window.v447Sort=(key,direction)=>{if(key&&['tt','pallets','sales','cost','costTT','log','costPal'].includes(key))sortKey=key;if(['asc','desc'].includes(direction))sortDirection=direction;show()};
  function show(){
   if(!cache)return;if(screen==='dashboard'&&window.TRTS_GRAPH_DASHBOARD){TRTS_GRAPH_DASHBOARD.render(cache);return}O.screenLayout(false);let html=App.title(screen==='dashboard'?'Дашборд':'Аналітика',periodText(cache.period))+'<p class="v443-compare">Порівняння: '+E(periodText(cache.previousPeriod))+' · Самовивіз не включено</p>';
   if(comparisonError)html+='<p class="v442-warning" role="alert">'+E(comparisonError)+' <button onclick="v443Retry()">Повторити</button></p>';
@@ -62,16 +75,13 @@
    html='<button class="v43-back" onclick="v443DetailBack()">‹ Назад</button>'+html+'<h3>'+E(level.label||LABEL[level.kind])+'</h3>'+summary(level.kind,rows,oldRows,false);
    const allowed=level.kind==='replen'?['branch']:level.kind==='courier'&&!level.filters.carrier?['carrier']:['business','branch',...(level.kind==='local'?['carrier','section','zone']:[]),'routeId'];
    if(level.axis!=='pointId')html+='<div class="v443-facets">'+allowed.filter(key=>!Object.hasOwn(level.filters,key)).map(key=>'<button aria-pressed="'+(key===level.axis)+'" onclick="v443Axis(\''+key+'\')">'+AXES[key]+'</button>').join('')+'</div>';
-   const groups=A.group(rows,level.axis),max=Math.max(1,...groups.map(x=>x.cost));
-   html+='<div class="v442-metrics-grid">'+groups.map((g,index)=>{
+   const groups=sortedGroups(rows,level),max=Math.max(1,...groups.map(x=>x.cost));
+   html+=sorting(level)+'<div class="v442-metrics-grid">'+groups.map((g,index)=>{
     const sample=rows.find(x=>String(x[level.axis])===g.name),name=level.axis==='section'?({fop:'ФОП / TS',bakery:'Пекарня / Fresh',sav:'SAV',stv:'STV'}[g.name]||g.name):level.axis==='routeId'?sample?.routeName||g.name:level.axis==='pointId'?sample?.pointName||'Додаткова ТТ':level.axis==='zone'&&/^[1-5]$/.test(g.name)?'Зона '+g.name:g.name;
-    if(level.axis==='routeId'&&window.TRTS_UI446)return TRTS_UI446.analyticsCard(g);
-    return'<div>'+App.metricsCard(g,{label:name,click:level.kind==='replen'?'':'v443Group('+index+')',replen:level.kind==='replen'})+(level.axis==='zone'?'<div class="v443-bar" aria-label="Витрати зони"><i style="width:'+g.cost/max*100+'%"></i></div>':'')+'</div>';
+    if(level.axis==='routeId'&&window.TRTS_UI446)return '<div data-group-name="'+E(g.name)+'">'+TRTS_UI446.analyticsCard(g)+'</div>';
+    return'<div data-group-name="'+E(g.name)+'">'+App.metricsCard(g,{label:name,click:level.kind==='replen'?'':'v443Group('+index+')',replen:level.kind==='replen'})+(level.axis==='zone'?'<div class="v443-bar" aria-label="Витрати зони"><i style="width:'+g.cost/max*100+'%"></i></div>':'')+'</div>';
    }).join('')+'</div>';
    if(!groups.length)html+='<p class="v43-empty">Даних немає</p>';
-   if(level.kind==='local'){
-    const partner=rows.filter(x=>['sav','stv'].includes(x.section));if(partner.length)html+='<section class="v443-zone-costs"><h3>SAV / STV · показники по зонах</h3>'+['sav','stv'].map(section=>'<h4>'+section.toUpperCase()+'</h4>'+A.group(partner.filter(x=>x.section===section),'zone').map(x=>App.metricsCard(x,{label:/^[1-5]$/.test(x.name)?'Зона '+x.name:x.name})).join('')).join('')+'</section>';
-   }
    html+='<p class="v442-note">ТТ з накладними різних бізнесів входить до кожного відповідного бізнесу, але в загальному підсумку рахується один раз. Додаткові ТТ без бізнесу не втрачаються.</p>';
   }
   if(cache.current.warnings.length)html+='<details class="v442-warning"><summary>Зауваження до даних · '+cache.current.warnings.length+'</summary><ul>'+cache.current.warnings.map(x=>'<li>'+E(x)+'</li>').join('')+'</ul></details>';
@@ -79,13 +89,14 @@
  }
  window.v443Detail=kind=>{trail.push({kind,filters:{},axis:kind==='courier'?'carrier':kind==='replen'?'branch':'business'});window.TRTS_NAVIGATION?.capture();show();scrollTo(0,0)};
  window.v443DetailBack=()=>{trail.pop();show();scrollTo(0,0)};
- window.v443Axis=axis=>{if(trail.length){trail.at(-1).axis=axis;show()}};
+ window.v443Axis=axis=>{if(!trail.length)return;const l=trail.at(-1);if(axis==='zone'&&l.kind==='local'){const filters={...l.filters};delete filters.section;delete filters.carrier;delete filters.zone;trail.push({...l,filters,axis:'section',zoneFlow:'carrier',label:'Зони доставки · SAV / STV'})}else{l.axis=axis;delete l.zoneFlow}show()};
  window.v443Group=index=>{
-  const level=trail.at(-1),rows=filtered(cache.current,level),g=A.group(rows,level.axis)[index];if(!g)return;
+  const level=trail.at(-1),rows=filtered(cache.current,level),g=sortedGroups(rows,level)[index];if(!g)return;
   const sample=rows.find(x=>String(x[level.axis])===g.name);
   if(level.axis==='pointId'){if(sample?.routeId&&sample?.pointKey){window.TRTS_NAVIGATION?.reportReturn(()=>show());v43OpenTT(Number(sample.routeId),Number(sample.pointKey))}return}
   if(level.axis==='routeId'){if(sample?.routeId&&!String(sample.routeId).startsWith('m:')){window.TRTS_NAVIGATION?.reportReturn(()=>show());v43OpenRoute(Number(sample.routeId));return}}
-  trail.push({...level,label:g.name,filters:{...level.filters,[level.axis]:g.name},axis:(level.kind==='courier'?['carrier','business','branch','routeId']:['business','branch','carrier','section','zone','routeId','pointId']).find(k=>!Object.hasOwn({...level.filters,[level.axis]:g.name},k))||'routeId'});show();scrollTo(0,0);
+  if(level.zoneFlow){const filters={...level.filters,[level.axis]:g.name};trail.push({...level,filters,label:g.name,zoneFlow:level.zoneFlow==='carrier'&&!filters.branch?'branch':level.zoneFlow==='zone'?'routes':'zone',axis:level.zoneFlow==='carrier'&&!filters.branch?'branch':level.zoneFlow==='zone'?'routeId':'zone'});show();scrollTo(0,0);return}
+  trail.push({...level,label:g.name,filters:{...level.filters,[level.axis]:g.name},axis:(level.kind==='courier'?['carrier','business','branch','routeId']:['business','branch','carrier','section','routeId','pointId']).find(k=>!Object.hasOwn({...level.filters,[level.axis]:g.name},k))||'routeId'});show();scrollTo(0,0);
  };
  window.v443Metric=key=>{metric=key;show()};
  window.v443Retry=()=>{invalidate();render(screen)};

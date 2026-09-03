@@ -28,7 +28,7 @@
   return'<span class="v445-delta '+(!change.direction?'neutral':change.good?'good':'bad')+'">'+(change.direction>0?'↑':change.direction<0?'↓':'→')+' '+(change.percent===null?'з нульової бази':O.F(change.percent,1)+'%')+'</span>';
  }
  function trend(current,previous,key,title,kind){
-  const now=A.total(current),old=A.total(previous),b=P.buckets(current,data.period,A.total),p=P.buckets(previous,data.previousPeriod,A.total),index=plots.length;
+  const now=A.total(current),old=A.total(previous),b=P.buckets(current,data.period,A.total,{daily:true}),p=P.buckets(previous,data.previousPeriod,A.total,{daily:true}),index=plots.length;
   plots.push({b,p,key,title});
   const valid=b.concat(data.previous?p:[]).map(x=>get(x,key)).filter(Number.isFinite),max=Math.max(1,...valid)*1.1,min=Math.min(0,...valid),span=max-min;
   const x=(i,n)=>64+i/Math.max(1,n-1)*508,y=v=>180-(v-min)/span*156;
@@ -43,8 +43,8 @@
   }else{
    if(b.every(v=>get(v,key)!=null))graph+='<path fill="url(#'+id+')" d="'+path(b)+' L572 '+y(0)+' L64 '+y(0)+'Z"/>';
    if(data.previous)graph+='<path class="v445-previous" d="'+path(p)+'"/>';
-   graph+='<path class="v445-current" d="'+path(b)+'"/>'+b.map((v,i)=>get(v,key)==null?'':'<circle class="v445-dot" cx="'+x(i,b.length)+'" cy="'+y(get(v,key))+'" r="3"/>').join('');
-   graph+='<text x="64" y="206">'+E(date(data.period.from))+'</text><text x="584" y="206" text-anchor="end">'+E(date(data.period.to))+'</text>';
+   graph+='<path class="v445-current" d="'+path(b)+'"/>'+b.map((v,i)=>'<circle class="v445-dot" data-date="'+v.date+'" cx="'+x(i,b.length)+'" cy="'+y(get(v,key)??0)+'" r="3" '+(get(v,key)==null?'opacity="0"':'')+'><title>'+E(date(v.date)+' · '+format(get(v,key),key))+'</title></circle>').join('');
+   const stride=Math.max(1,Math.ceil(b.length/7));graph+=b.map((v,i)=>(i%stride===0&&(i===0||b.length-1-i>=stride*.7))||i===b.length-1?'<text x="'+x(i,b.length)+'" y="206" text-anchor="'+(i===0?'start':i===b.length-1?'end':'middle')+'">'+E(date(v.date).slice(0,5))+'</text>':'').join('');
   }
   return'<section class="v445-trend '+(index===0?'v445-featured':'')+'" data-chart="'+key+'" data-value="'+(get(now,key)??'')+'"><div class="v445-chart-heading"><div><h3>'+title+'</h3><strong>'+format(get(now,key),key)+'</strong></div>'+badge(now,old,key,!!data.previous&&current.length>0&&previous.length>0)+'</div><div class="v445-plot" tabindex="0" role="group" aria-label="'+E(title+'. Торкніться графіка або використайте стрілки для перегляду значень')+'" data-plot="'+index+'" data-index="0"><svg viewBox="0 0 600 220" role="img" aria-label="'+E(title+' за вибраний і попередній періоди')+'"><defs><linearGradient id="'+id+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--v445-line)" stop-opacity=".23"/><stop offset="1" stop-color="var(--v445-line)" stop-opacity="0"/></linearGradient></defs>'+graph+'</svg><div class="v445-tooltip" aria-live="polite" hidden></div></div><div class="v445-legend"><span><i></i>Обраний період</span><span><i></i>Попередній період</span></div>'+(now.missing&&['cost','costTT','costPal','log'].includes(key)?'<p class="v445-note">Неповні витрати · '+now.missing+' ТТ потребують розрахунку.</p>':'')+(!current.length?'<p class="v445-note">Даних у цьому зрізі немає.</p>':'')+'</section>';
  }
@@ -78,7 +78,7 @@
  }
  function show(){
   if(!data)return;O.screenLayout(false);plots=[];slices=[];
-  const l=level(),current=rows(data.current,l),previous=rows(data.previous,l),kind=l?.kind,title=l?.label||'Вся логістика',keys=kind==='replen'?PALLETS:[['cost','Витрати'],['log','% логістики'],['tt','ТТ'],['pallets','Палети'],['costTT','₴ за 1 ТТ'],['sales','Сума документів']];
+  const l=level(),current=rows(data.current,l),previous=rows(data.previous,l),kind=l?.kind,title=l?.label||'Вся логістика',keys=kind==='replen'?PALLETS:[['tt','К-ть ТТ'],['pallets','Палети'],['sales','Сума документів'],['cost','Витрати'],['costTT','Вартість 1 ТТ'],['log','% логістики']];
   if(!keys.some(([k])=>k===measure))measure='cost';if(!keys.some(([k])=>k===trendMetric))trendMetric='cost';
   let html='<header class="v445-heading"><h1>'+E(title)+'</h1><p>'+E(period(data.period))+' · проти '+E(period(data.previousPeriod))+'</p></header>';
   if(trail.length)html+='<nav class="v445-breadcrumb" aria-label="Шлях зрізу"><button onclick="v445Crumb(-1)">Вся логістика</button>'+trail.map((x,i)=>'<span>›</span><button '+(i===trail.length-1?'aria-current="page"':'')+' onclick="v445Crumb('+i+')">'+E(x.label)+'</button>').join('')+'</nav>';

@@ -30,12 +30,12 @@ module.exports=async({page,frame,capture})=>{
    if(capture&&['dashboard','analytics','routes','menu'].includes(tab)){await frame.evaluate(tab=>scrollTo(0,0),tab);await capture('v445-full-'+theme+'-'+tab);if(tab==='dashboard'){await frame.locator('.v446-panels').scrollIntoViewIfNeeded();await capture('v446-'+theme+'-composition-rankings')}}
   }
   await frame.evaluate(()=>{v442Nav('routes');v43OpenRoute(1)});
-  assert.ok(await frame.locator('[data-route-tariff]').first().isVisible());if(capture)await capture('v446-'+theme+'-route');
+  assert.equal(await frame.locator('.v436-invoice-table,.v439-invoice,.v437-inv').count(),0,'No invoices at route level');assert.ok(await frame.locator('[data-route-tariff]').first().isVisible());if(capture)await capture('v446-'+theme+'-route');
   await frame.evaluate(()=>v43OpenTT(1,10));
   assert.ok(await frame.locator('.v439-invoice').isVisible());
   if(capture)await capture('v445-full-'+theme+'-invoice');
   await frame.evaluate(()=>v442Nav('analytics'));await frame.locator('[data-summary=local] .v443-overview-title').click();
-  for(const label of ['HoReCa','Київ','Тестовий перевізник','ФОП / TS','Не застосовується']){
+  for(const label of ['HoReCa','Київ','Тестовий перевізник','ФОП / TS']){
    await frame.locator('.v442-metrics-grid .v442-metric-heading').filter({hasText:label}).first().click();
   }
   const analyticRoute=frame.locator('.v446-analytics-route [data-route-id="1"]');await analyticRoute.waitFor();

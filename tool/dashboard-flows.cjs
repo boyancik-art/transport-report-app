@@ -28,7 +28,7 @@ module.exports=async({page,capture})=>{
  };
  for(const theme of ['dark','light']){
   await page.evaluate(theme=>{document.documentElement.dataset.theme=theme;v442Nav('dashboard')},theme);await page.locator('[data-summary=local]').waitFor();
-  assert.equal(await page.locator('[data-chart]').count(),1);await chartParity();await capture('v446-'+theme+'-overall');
+  assert.deepEqual(await page.locator('[data-kpi]').evaluateAll(ns=>ns.map(n=>n.dataset.kpi)),['tt','pallets','sales','cost','costTT','log']);assert.equal(await page.locator('[data-chart]').count(),1);await chartParity();await capture('v446-'+theme+'-overall');
   await page.locator('[data-summary=local]').click();await chartParity();await capture('v446-'+theme+'-local');
   // Full connected business -> branch -> carrier -> section -> zone path.
   for(const [key,name] of [['business','HoReCa'],['branch','Львів'],['carrier','STV'],['section','STV'],['zone','Зона 1']]){
@@ -51,9 +51,14 @@ module.exports=async({page,capture})=>{
  assert.deepEqual(await state(),initial,'All themes/drilldowns are read-only: previous reads never mutate operational or finance state');
  await page.evaluate(()=>{document.documentElement.dataset.theme='dark';v442Nav('analytics')});await page.locator('[data-summary=courier]').waitFor();assert.equal(await page.locator('[data-chart]').count(),0);
  await page.locator('[data-summary=courier] .v443-overview-title').click();await page.getByRole('button',{name:'Нова Пошта',exact:false}).click();assert.match(await page.locator('#view').innerText(),/Бізнеси/);
+ await require('./ui-v447-flows.cjs')({page,capture});
  for(const mode of ['week','month','half','year','custom']){
   await page.evaluate(async m=>{const d=new Date().toISOString().slice(0,10),p=m==='custom'?{from:TRTS_PERIODS.days(d,-8),to:d}:TRTS_PERIODS.range(m,d);await v441LoadPeriod(p.from,p.to,m);v442Nav('dashboard')},mode);
   await page.locator('[data-summary=local]').waitFor();assert.equal(await page.locator('[data-chart]').count(),1);await chartParity();
+  const dates=await page.evaluate(async()=>{const p=(await TRTS_DASHBOARD.reports()).period;return Array.from({length:TRTS_PERIODS.count(p.from,p.to)},(_,i)=>TRTS_PERIODS.days(p.from,i))});
+  assert.deepEqual(await page.locator('[data-chart] [data-date]').evaluateAll(ns=>ns.map(n=>n.dataset.date)),dates,'Every day retained: '+mode);
+  const plot=page.locator('.v445-plot');await plot.focus();for(let i=1;i<dates.length;i++)await plot.press('ArrowRight');
+  assert.match(await plot.locator('.v445-tooltip').innerText(),new RegExp(dates.at(-1).split('-').reverse().join('\\.')));await plot.press('Escape');
  }
  for(const width of [320,390,760]){await page.setViewportSize({width,height:844});for(const theme of ['dark','light']){await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Dashboard overflow '+width+' '+theme)}}
  await page.setViewportSize({width:390,height:844});await page.evaluate(()=>document.documentElement.dataset.theme='dark');await capture('v446-period-trends');

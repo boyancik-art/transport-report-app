@@ -20,5 +20,5 @@ module.exports=async({page,frame})=>{
  await frame.locator('#email').fill('runtime-test@example.invalid');await frame.locator('#password').fill('isolated-fixture-only');await frame.locator('#loginForm button').click();await frame.locator('#v444-notice').waitFor();assert.match(await frame.locator('#v444-notice').innerText(),/Застосунок оновлено до версії v44\.6/);await frame.locator('#v444-ack').click();
  assert.equal(await frame.locator('html').getAttribute('data-theme'),theme,'Theme survives version logout and fresh email/password login');
  await frame.evaluate(()=>TRTS_RELEASE.notice());assert.equal(await frame.locator('#v444-notice').count(),0);
- console.log('PASS v44.6: search invoice deep-link, route/TT metrics, actionable attention, filtered XLSX, financial immutability, Update forces login and one-time acknowledged notice');
+ console.log('PASS v44.7: search invoice deep-link, route/TT metrics, actionable attention, filtered XLSX, financial immutability, Update forces login and one-time acknowledged notice');
 };

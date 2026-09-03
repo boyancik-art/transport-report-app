@@ -1,7 +1,7 @@
 const {chromium}=require(process.env.TRTS_PLAYWRIGHT_MODULE||'playwright');
 const fs=require('node:fs'),http=require('node:http'),path=require('node:path'),assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'..'),dist=path.join(root,'web/dist');
-const expected='v44.6',live=process.env.TRTS_BASE_URL;
+const expected='v44.7',live=process.env.TRTS_BASE_URL;
 const reference=JSON.parse(fs.readFileSync(path.join(root,'web/reference-v39.js'),'utf8').match(/TRTS_V39_EXPEDITOR_COVERAGE=(\{[^\n]*?\});/)[1]);
 const date=new Date().toISOString().slice(0,10);
 const types=['ФОП','Самовивіз',"Кур'єр",'STV','SAV','Пекарня'];
@@ -98,8 +98,11 @@ async function dashboard(frame,label){
  await frame.locator('.v437-pick-card').click();
  await frame.locator('.v437-tt').waitFor({state:'visible'});
  assert.match(await frame.locator('.v437-meta').innerText(),/Мамедов Ельвін Ельхан Огли/);
- assert.match(await frame.locator('.v437-inv').innerText(),/INV-2/);
- assert.match(await frame.locator('.v437-inv').innerText(),/6,2 кг/);
+ assert.equal(await frame.locator('.v437-inv,.v436-invoice-table').count(),0);
+ await frame.locator('.v437-tt').click();
+ assert.match(await frame.locator('.v439-invoice').innerText(),/INV-2/);
+ assert.match(await frame.locator('.v439-invoice').innerText(),/6,2/);
+ await frame.locator('.v43-back').click();
  await healthy(frame,label+' pickup details');
  await frame.locator('.v437-detail-head button').first().click();
  await frame.locator('.v431-fop').waitFor({state:'visible'});
