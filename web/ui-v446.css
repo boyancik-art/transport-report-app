@@ -163,3 +163,6 @@ html[data-theme] .v437-tt .v437-sum{display:flex;justify-content:space-between;a
 
 .v446-route .v436-metrics{grid-column:1/-1}
 html[data-theme] .v436-address>.v439-carrier-tt,html[data-theme] .v436-address>button.primary{display:inline-flex;align-items:center;min-height:36px;padding:7px 9px;margin:4px 4px 4px 0;width:auto;font-size:11px;border-radius:9px}
+
+html[data-theme] .v447-point-sum{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:6px 0;color:var(--text-primary)}.v447-point-sum small{font-size:10px;color:var(--text-muted)}.v447-point-sum b{font-size:14px}
+html[data-theme] .v436-address .v44-warning{padding:7px 9px;font-size:11px;line-height:1.4;border-radius:9px;margin:6px 0}.v436-address .v44-warning p{margin:3px 0}
