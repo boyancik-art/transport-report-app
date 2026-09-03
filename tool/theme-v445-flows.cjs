@@ -3,7 +3,7 @@ module.exports=async({page,frame,capture})=>{
  const before=await frame.evaluate(()=>TRTS_APP.buildReport());
  const contrast=async()=>{
   const values=await frame.locator('.v446-executive b,.v444-metrics dd,.v444-metrics dt,.v436-route-id,.v431-ckpi b,.v437-point-finance b').evaluateAll(nodes=>{
-   const lum=c=>{const a=c.match(/[\\d.]+/g).slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4});return a[0]*.2126+a[1]*.7152+a[2]*.0722};
+   const lum=c=>{const a=c.match(/[\d.]+/g).slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4});return a[0]*.2126+a[1]*.7152+a[2]*.0722};
    return nodes.filter(n=>n.getClientRects().length).map(n=>{
     let b=n;while(b&&['rgba(0, 0, 0, 0)','transparent'].includes(getComputedStyle(b).backgroundColor))b=b.parentElement;
     if(!b)return null;const ink=lum(getComputedStyle(n).color),paper=lum(getComputedStyle(b).backgroundColor);
