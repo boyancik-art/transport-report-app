@@ -107,3 +107,11 @@ body:has(.v446-dashboard) #v444-search{font-size:0!important;min-width:38px;widt
 body:has(.v446-dashboard) #v444-search::before{content:'⌕';font-size:24px;line-height:1}
 .v446-route>.v431-edit-transport,.v446-route>.v435-delivered-edit{font-size:10px!important}
 @media(prefers-reduced-motion:reduce){.v446-dashboard *{transition:none!important}}
+
+html[data-theme=light] #trts-update{background:var(--surface)!important;color:var(--text-secondary)!important;border-color:var(--border)!important;box-shadow:0 3px 12px #2030500a!important}
+html[data-theme=light] #v442-nav{box-shadow:0 -4px 18px #2030500a!important}
+html[data-theme=light] #v442-nav button:not([aria-current=page]){color:var(--text-secondary)!important;background:transparent!important}
+html[data-theme=light] #v442-nav .v441-icon{color:inherit!important}
+html[data-theme=light] .v43-screen :is(.v43-back,.v436-swap,.v436-change) .v436-icon{color:var(--accent)!important}
+html[data-theme=light] :is(.v436-address,.v43-route-detail,.v439-invoice,.v437-tt){box-shadow:0 4px 16px #2030500a!important}
+html[data-theme=light] .v439-invoice header>.v436-icon{background:var(--surface-elevated)!important;color:var(--accent)!important}
