@@ -1,6 +1,18 @@
 const assert=require('node:assert/strict');
 module.exports=async({page,frame,capture})=>{
  const before=await frame.evaluate(()=>TRTS_APP.buildReport());
+ const contrast=async()=>{
+  const values=await frame.locator('.v446-executive b,.v444-metrics dd,.v444-metrics dt,.v436-route-id,.v431-ckpi b,.v437-point-finance b').evaluateAll(nodes=>{
+   const lum=c=>{const a=c.match(/[\\d.]+/g).slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4});return a[0]*.2126+a[1]*.7152+a[2]*.0722};
+   return nodes.filter(n=>n.getClientRects().length).map(n=>{
+    let b=n;while(b&&['rgba(0, 0, 0, 0)','transparent'].includes(getComputedStyle(b).backgroundColor))b=b.parentElement;
+    if(!b)return null;const ink=lum(getComputedStyle(n).color),paper=lum(getComputedStyle(b).backgroundColor);
+    return {text:n.textContent,ratio:(Math.max(ink,paper)+.05)/(Math.min(ink,paper)+.05)};
+   }).filter(Boolean);
+  });
+  for(const v of values)assert.ok(v.ratio>=4.5,'KPI/text contrast '+JSON.stringify(v));
+ };
+
  for(const theme of ['light','dark']){
   await frame.evaluate(()=>v442Nav('menu'));
   await frame.getByRole('button',{name:'Тема',exact:false}).click();
@@ -14,6 +26,7 @@ module.exports=async({page,frame,capture})=>{
    if(tab==='analytics')await frame.locator('.v443-overview').first().waitFor();
    if(tab==='routes'){await frame.locator('.v437-pick-card').waitFor();assert.ok(await frame.locator('.v445-route-delete').count()>=5)}
    assert.equal(await frame.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,tab+' '+theme+' overflow');
+   await contrast();
    if(capture&&['dashboard','analytics','routes','menu'].includes(tab)){await frame.evaluate(tab=>scrollTo(0,0),tab);await capture('v445-full-'+theme+'-'+tab)}
   }
   await frame.evaluate(()=>{v442Nav('routes');v43OpenRoute(1)});
@@ -38,6 +51,7 @@ module.exports=async({page,frame,capture})=>{
    await frame.evaluate(id=>v43OpenTT(id,id*10),id);
    assert.equal(await frame.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'TT '+id+' '+theme);
    if(capture&&[3,4].includes(id))await capture('v446-'+theme+'-tt-'+id);
+   await contrast();
    if(theme==='light'){
     const colors=await frame.locator('.v444-metrics dd,.v431-ckpi b,.v437-point-finance b').evaluateAll(nodes=>nodes.filter(n=>n.getClientRects().length).map(n=>({text:n.textContent,color:getComputedStyle(n).color,bg:getComputedStyle(n.parentElement).backgroundColor})));
     for(const c of colors)assert.notEqual(c.color,'rgb(255, 255, 255)','Light KPI must not retain white ink: '+c.text);
