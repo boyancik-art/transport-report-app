@@ -27,3 +27,16 @@ jobs:
             [Threading.Thread]::CurrentThread.CurrentCulture=[Globalization.CultureInfo]::GetCultureInfo($culture)
             & ./tools/cube-sync-preflight/Test-BridgeCore.ps1
           }
+      - name: Missing source fails closed with no upload
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $runDirectory=Join-Path $env:TEMP ([guid]::NewGuid().ToString('N'))
+          New-Item -ItemType Directory -Path $runDirectory | Out-Null
+          & powershell.exe -NoProfile -STA -File ./tools/cube-sync-preflight/Excel-Preflight.ps1 -RunDirectory $runDirectory
+          if($LASTEXITCODE -ne 1) { throw 'Missing workbook must fail' }
+          $report=Get-Content (Join-Path $runDirectory 'report.json') -Raw | ConvertFrom-Json
+          if($report.status -ne 'error' -or $report.productionWrites -ne 0 -or $report.uploadedRows -ne 0) { throw 'Unsafe failure state' }
+          if(Test-Path (Join-Path $runDirectory 'payload.dpapi')) { throw 'Failed run must not create payload' }
+          Write-Host 'Missing workbook fails closed; no payload or production writes.'
+          exit 0

@@ -14,4 +14,9 @@ Assert-Equal $summary.dailyCounts.Count 3
 Assert-Equal $summary.dailyCounts[1].rows 0
 Assert-Equal $summary.candidateKeyCollisionGroups 1
 Assert-Equal $summary.coverageConfirmed $false
+$empty=Get-BridgeSummary @() '2026-08-01' '2026-09-03'
+Assert-Equal $empty.dailyCounts.Count 34
+Assert-Equal $empty.rowsTotal 0
+Assert-Equal $empty.datesWithoutRows.Count 34
+Assert-Equal $empty.candidateKeyCollisionGroups 0
 Write-Host 'Core tests passed.'
