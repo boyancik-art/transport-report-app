@@ -160,3 +160,6 @@ html[data-theme] .v437-tt .v437-sum{display:flex;justify-content:space-between;a
 .v437-tt .v437-sum b{font-size:15px;margin:0}
 .v437-tt .v439-carrier-tt{min-height:36px;font-size:11px;padding:6px 0;background:transparent!important;border:0!important;color:var(--accent)!important}
 @media(max-width:350px){.v441-home .v431-block-head .v447-block-kpi,.v441-home .v431-courier-head small{font-size:9px!important}.v441-home :is(.v431-block-head,.v431-courier-head) b{font-size:12px!important;gap:5px!important}.v446-executive{padding:11px!important;gap:10px 0}}
+
+.v446-route .v436-metrics{grid-column:1/-1}
+html[data-theme] .v436-address>.v439-carrier-tt,html[data-theme] .v436-address>button.primary{display:inline-flex;align-items:center;min-height:36px;padding:7px 9px;margin:4px 4px 4px 0;width:auto;font-size:11px;border-radius:9px}

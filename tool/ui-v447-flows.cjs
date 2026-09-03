@@ -28,9 +28,9 @@ module.exports=async({page,capture})=>{
   assert.match(await headings().innerText(),/Зона 1/);
   await page.getByLabel('Сортувати за',{exact:true}).selectOption('cost');
   await page.getByLabel('Порядок сортування').selectOption('desc');
-  if(capture)await capture('v447-'+theme+'-zone-sort');
+  if(capture){await page.locator('.v447-sort').scrollIntoViewIfNeeded();await capture('v447-'+theme+'-zone-sort')}
   await headings().click();
-  await page.locator('.v446-analytics-route [data-route-id="503"]').click();
+  await page.locator('.v446-analytics-route [data-route-id="503"] .v436-route-id').click();
   assert.equal(await page.locator('.v436-invoice-table,.v439-invoice').count(),0,'Route only contains TT cards');
   await page.locator('.v436-address-head').first().click();
   assert.ok(await page.locator('.v439-invoice').count()>0);
@@ -46,4 +46,3 @@ module.exports=async({page,capture})=>{
  assert.equal(await page.evaluate(()=>JSON.stringify(TRTS_APP.buildReport())),before,'Sorting and navigation never mutate finance');
  console.log('PASS v44.7 Analytics six metrics x five axes x two sort directions x two themes; explicit partner/branch/zone; TT-only route; pallet sorting; report parity');
 };
-

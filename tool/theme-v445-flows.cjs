@@ -24,7 +24,17 @@ module.exports=async({page,frame,capture})=>{
    await frame.evaluate(t=>v442Nav(t),tab);
    if(tab==='dashboard'){await frame.locator('[data-chart=cost]').waitFor();assert.equal(await frame.locator('[data-kpi=cost]').evaluate(n=>getComputedStyle(n).backgroundColor),'rgba(0, 0, 0, 0)','Executive selected state must not inherit purple button surface')}
    if(tab==='analytics')await frame.locator('.v443-overview').first().waitFor();
-   if(tab==='routes'){await frame.locator('.v437-pick-card').waitFor();assert.ok(await frame.locator('.v445-route-delete').count()>=5)}
+   if(tab==='routes'){
+    await frame.locator('.v437-pick-card').waitFor();assert.ok(await frame.locator('.v445-route-delete').count()>=5);
+    const headers=frame.locator('.v431-block-head,.v431-courier-head');
+    assert.equal(await headers.count(),8);
+    const heights=await headers.evaluateAll(ns=>ns.map(n=>({height:n.getBoundingClientRect().height,text:n.textContent})));
+    for(const h of heights)assert.ok(h.height>=44&&h.height<=72,'Compact touch-friendly block: '+JSON.stringify(h));
+    const open=await headers.evaluateAll(ns=>ns.filter(n=>n.getAttribute('aria-expanded')==='true').map(n=>n.closest('[data-section]').dataset.section));
+    await frame.evaluate(keys=>keys.forEach(v431Toggle),open);
+    if(capture){await frame.evaluate(()=>scrollTo(0,0));await capture('v447-'+theme+'-compact-blocks')}
+    await frame.evaluate(keys=>keys.forEach(v431Toggle),open);
+   }
    assert.equal(await frame.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,tab+' '+theme+' overflow');
    await contrast();
    if(capture&&['dashboard','analytics','routes','menu'].includes(tab)){await frame.evaluate(tab=>scrollTo(0,0),tab);await capture('v445-full-'+theme+'-'+tab);if(tab==='dashboard'){await frame.locator('.v446-panels').scrollIntoViewIfNeeded();await capture('v446-'+theme+'-composition-rankings')}}

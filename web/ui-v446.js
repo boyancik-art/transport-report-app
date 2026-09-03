@@ -34,6 +34,6 @@
   if(!r){const manual=O.meta().manual.find(r=>'m:'+r.id===id);return manual?O.manualCard(manual):'<p class="v43-empty">Маршрут недоступний</p>'}
   return '<div class="v446-analytics-route">'+v436RouteCard(r).replace('onclick="v43OpenRoute('+r.id+')"','onclick="v446AnalyticsRoute('+r.id+')"')+'<small class="v446-slice-note">Картка показує маршрут цілком. У вибраному зрізі: '+O.F(group.tt)+' ТТ · '+O.M2(group.cost)+' витрат.</small></div>';
  }
- window.v446AnalyticsRoute=id=>{TRTS_NAVIGATION.reportReturn(()=>TRTS_DASHBOARD.show());v43OpenRoute(id)};
+ window.v446AnalyticsRoute=id=>{window.TRTS_NAVIGATION?.reportReturn(()=>TRTS_DASHBOARD.show());v43OpenRoute(id)};
  window.TRTS_UI446={coverage,tariff,analyticsCard};
 })();
