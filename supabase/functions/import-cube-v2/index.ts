@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2.112.4";
 import { buildSafeSync, type JsonRecord, type SafeSyncBuild } from "./core.ts";
 import { executeSafeSync, type SafeSyncStore } from "./workflow.ts";
 
@@ -58,7 +58,8 @@ Deno.serve(async(req)=>{
       validate:async(id,expected)=>{stage="validate_staging";await must("validate_staging",db.rpc("validate_cube_sync_run_v2",{p_run_id:id,p_expected:expected}));},
       promote:async(id)=>{stage="atomic_promotion";return await must("atomic_promotion",db.rpc("promote_cube_sync_run_v2",{p_run_id:id})) as JsonRecord;},
     };
-    const result=await executeSafeSync(store,built,sourceHash);
+    const promotionRequested=new URL(req.url).searchParams.get("promote") === "true";
+    const result=await executeSafeSync(store,built,sourceHash,{promote:promotionRequested});
     runId=result.runId;
     return json({ok:true,...result,legacyProductionTablesTouched:false});
   } catch(error){
