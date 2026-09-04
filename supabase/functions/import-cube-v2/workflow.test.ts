@@ -1,0 +1,8 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { executeSafeSync, type SafeSyncStore } from "./workflow.ts";
+
+const build:any={run:{source_namespace:"ts-plus-cube"},documents:[],baseLinks:[],movements:[],businessLinks:[],report:{validationPassed:true,promoted:false}};
+test("repeated identical promoted import is idempotent",async()=>{let stages=0,promotions=0;const store:SafeSyncStore={find:async()=>({id:"run-1",status:"promoted",validation_report:{financialFacts:1}}),stage:async()=>{stages++;return"x"},validate:async()=>{},promote:async()=>{promotions++;return{}}};const result=await executeSafeSync(store,build,"same-hash");assert.equal(result.idempotent,true);assert.equal(stages,0);assert.equal(promotions,0)});
+test("failed validation leaves current snapshot unchanged",async()=>{const current=["old-current"];let promotions=0;const store:SafeSyncStore={find:async()=>null,stage:async()=>"run-2",validate:async()=>{throw new Error("control totals mismatch")},promote:async()=>{promotions++;current.splice(0,current.length,"new-current");return{}}};await assert.rejects(executeSafeSync(store,build,"bad-hash"),/control totals/);assert.deepEqual(current,["old-current"]);assert.equal(promotions,0)});
+test("successful validation invokes one atomic promotion",async()=>{const calls:string[]=[];const store:SafeSyncStore={find:async()=>null,stage:async()=>{calls.push("stage");return"run-3"},validate:async()=>{calls.push("validate")},promote:async()=>{calls.push("atomic-promote");return{financialFacts:1}}};const result=await executeSafeSync(store,build,"good-hash");assert.deepEqual(calls,["stage","validate","atomic-promote"]);assert.equal(result.promoted,true)});
