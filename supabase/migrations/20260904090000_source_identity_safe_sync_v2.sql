@@ -167,8 +167,8 @@ revoke all on public.cube_sync_runs_v2,public.cube_sync_stage_documents_v2,
   public.cube_sync_stage_business_units_v2,public.cube_documents_current_v2,
   public.cube_base_links_current_v2,public.cube_movements_current_v2,
   public.cube_business_units_current_v2 from anon,authenticated;
-revoke all on function public.validate_cube_sync_run_v2(uuid,jsonb),function public.promote_cube_sync_run_v2(uuid) from public,anon,authenticated;
+revoke all on function public.validate_cube_sync_run_v2(uuid,jsonb),public.promote_cube_sync_run_v2(uuid) from public,anon,authenticated;
 grant all on public.cube_sync_runs_v2,public.cube_sync_stage_documents_v2,public.cube_sync_stage_base_links_v2,
   public.cube_sync_stage_movements_v2,public.cube_sync_stage_business_units_v2,public.cube_documents_current_v2,
   public.cube_base_links_current_v2,public.cube_movements_current_v2,public.cube_business_units_current_v2 to service_role;
-grant execute on function public.validate_cube_sync_run_v2(uuid,jsonb),function public.promote_cube_sync_run_v2(uuid) to service_role;
+grant execute on function public.validate_cube_sync_run_v2(uuid,jsonb),public.promote_cube_sync_run_v2(uuid) to service_role;

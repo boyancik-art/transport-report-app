@@ -114,10 +114,8 @@ export function buildSafeSync(payload: any, sourceHash: string, fileName = "sour
       weight: numberValue(fact.weight, "weight"), pallets: numberValue(fact.pallets, "pallets"),
       order_amount: numberValue(fact.amount, "amount"),
       included_trade_line_count: Number(fact.includedTradeLineCount ?? 0),
-      measure_issue_line_count: Number(fact.measureIssueLineCount ?? 0), raw_identity: fact,
+      measure_issue_line_count: Number(fact.measureIssueLineCount ?? 0),
     });
-    const rawBase: JsonRecord = {};
-    headers.forEach((header: string, column: number) => { if (header) rawBase[header] = values[column]; });
     baseLinks.push({ base_row_no: baseRowNo, financial_key: key,
       document_date: text(at(values, HEADERS.date)) || null, route_delivery_id: text(at(values, HEADERS.route)) || null,
       operation_group_id: group || null, operation_code: text(at(values, HEADERS.operation)) || null,
@@ -130,7 +128,7 @@ export function buildSafeSync(payload: any, sourceHash: string, fileName = "sour
       base_places: numberValue(at(values, HEADERS.places), "base places"),
       base_weight: numberValue(at(values, HEADERS.weight), "base weight"),
       base_pallets: numberValue(at(values, HEADERS.pallets), "base pallets"),
-      base_order_amount: numberValue(at(values, HEADERS.amount), "base amount"), raw_base: rawBase });
+      base_order_amount: numberValue(at(values, HEADERS.amount), "base amount") });
   }
   if (unmatched.length || ambiguous.length || baseLinks.length !== projection.rows.length) {
     throw new Error(`Base identity matching failed: unmatched=${unmatched.length}, ambiguous=${ambiguous.length}`);
@@ -152,7 +150,7 @@ export function buildSafeSync(payload: any, sourceHash: string, fileName = "sour
         source_operation_id: optionalIdText(movement.sourceOperationId, "movement.sourceOperationId"),
         source_warehouse_id: optionalIdText(movement.sourceWarehouseId, "movement.sourceWarehouseId"),
         warehouse_address_id: optionalIdText(movement.warehouseAddressId, "movement.warehouseAddressId"),
-        warehouse: text(movement.warehouse) || null, raw_movement: movement });
+        warehouse: text(movement.warehouse) || null });
     }
     for (const business of Array.isArray(fact.businessUnits) ? fact.businessUnits : []) {
       const businessId = idText(business?.sourceBusinessUnitId, "sourceBusinessUnitId");
@@ -160,7 +158,7 @@ export function buildSafeSync(payload: any, sourceHash: string, fileName = "sour
       if (businessKeys.has(associationKey)) continue;
       businessKeys.add(associationKey);
       businessLinks.push({ financial_key: key, source_business_unit_id: businessId,
-        business_unit_name: text(business.business) || null, membership_count: Number(business.membershipRows ?? 0), raw_business_unit: business });
+        business_unit_name: text(business.business) || null, membership_count: Number(business.membershipRows ?? 0) });
     }
   }
   const sum = (field: string) => documents.reduce((total, row) => total + Number(row[field] ?? 0), 0);
