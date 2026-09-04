@@ -13,7 +13,7 @@ return case when nullif(trim(p_route_key),'') is null or (nullif(trim(p_customer
 
 create view public.cube_route_identity_candidates_v2 with (security_invoker=true) as
 select document_date,trim(route_delivery_id) route_delivery_id,
-  public.cube_route_key_v2(document_date,route_delivery_id) route_key,
+  public.cube_route_key_v2(document_date,trim(route_delivery_id)) route_key,
   case when document_date is null then 'missing_document_date' when nullif(trim(route_delivery_id),'') is null then 'missing_route_delivery_id' else 'valid' end identity_status,
   array_agg(distinct nullif(trim(warehouse),'')) filter(where nullif(trim(warehouse),'') is not null) warehouses,
   array_agg(distinct nullif(trim(expeditor_name),'')) filter(where nullif(trim(expeditor_name),'') is not null) expeditors
