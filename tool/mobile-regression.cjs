@@ -29,6 +29,13 @@ const root=path.resolve(__dirname,'..');
   Object.values(window.db).forEach(rows=>rows.forEach(row=>{row.active??=true}));
   window.writes=[];window.reads=[];let seq=1000;
   window.api=async(url,opt={})=>{
+   if(url==='/functions/v1/transport-adapter-read'){
+    const request=JSON.parse(opt.body||'{}'),tables={routes:'routes',routePoints:'route_points',locations:'locations',sourceDocuments:'source_documents',businessAllocations:'route_business_allocations',routeFacts:'route_facts',routeExtraPoints:'route_extra_points'},table=tables[request.resource],rows=window.db[table]||[];
+    if(!table)throw Error('Unexpected adapter resource '+request.resource);window.reads.push({resource:request.resource,...request});
+    const matches=row=>(request.filters||[]).every(({field,op,value})=>op==='in'?value.map(String).includes(String(row[field])):op==='gte'?String(row[field])>=String(value):op==='lte'?String(row[field])<=String(value):op==='eq'?String(row[field])===String(value):false);
+    if(window.failRead===table){window.failRead=null;throw Error('Тестова помилка завантаження')}const from=(request.filters||[]).find(x=>x.field==='route_date'&&x.op==='gte')?.value;if(table==='routes'&&(window.slowRange===from||window.slowRange==='gte.'+from))await new Promise(r=>setTimeout(r,180));
+    const offset=Number(request.offset||0),limit=Number(request.limit||1000);return{resource:request.resource,rows:structuredClone(rows.filter(matches).slice(offset,offset+limit)),limit,offset};
+   }
    await new Promise(r=>setTimeout(r,10));const u=new URL(url,'https://test.invalid'),table=u.pathname.split('/').at(-1),rows=window.db[table]||[],method=opt.method||'GET';
    const matches=row=>[...u.searchParams].every(([k,v])=>v.startsWith('eq.')?String(row[k])===v.slice(3):v.startsWith('in.')?v.slice(4,-1).split(',').includes(String(row[k])):v.startsWith('gte.')?String(row[k])>=v.slice(4):v.startsWith('lte.')?String(row[k])<=v.slice(4):true);
    if(method==='GET'){window.reads.push(url);if(window.failRead===table){window.failRead=null;throw Error('Тестова помилка завантаження')}if(table==='routes'&&window.slowRange===u.searchParams.get('route_date'))await new Promise(r=>setTimeout(r,180));const offset=Number(u.searchParams.get('offset')||0),limit=Number(u.searchParams.get('limit')||1000);return structuredClone(rows.filter(matches).slice(offset,offset+limit))}
@@ -42,7 +49,7 @@ const root=path.resolve(__dirname,'..');
   };
  });
  // Execute the production operation handlers and styles against an isolated fake API.
- for(const file of ['transport-costs.js','tariff-template-v44.js','patch-v40-pickup.js','patch-v41-sections.js','patch-v41-mobile-scale.js','patch-v41-route-scale.js','patch-v43-operations.js','patch-v44-finance.js','patch-v43-1-blocks.js','patch-v43-1-ops-courier.js','patch-v43-1-header.js','patch-v43-6-ui.js','patch-v44-1-shell.js','analytics-v44-2.js','patch-v44-2-app.js'])await page.addScriptTag({content:fs.readFileSync(path.join(root,'web',file),'utf8')});
+ for(const file of ['transport-costs.js','adapter-read-client.js','stable-key-joins.js','tariff-template-v44.js','patch-v40-pickup.js','patch-v41-sections.js','patch-v41-mobile-scale.js','patch-v41-route-scale.js','patch-v43-operations.js','patch-v44-finance.js','patch-v43-1-blocks.js','patch-v43-1-ops-courier.js','patch-v43-1-header.js','patch-v43-6-ui.js','patch-v44-1-shell.js','analytics-v44-2.js','patch-v44-2-app.js'])await page.addScriptTag({content:fs.readFileSync(path.join(root,'web',file),'utf8')});
  await page.evaluate(()=>v442Nav('routes'));
  await page.waitForSelector('.v431-pickup-card');
  assert.match(await page.locator('.v431-pickup-card .v431-cell').innerText(),/Хмельницький STV/);
@@ -188,8 +195,8 @@ const root=path.resolve(__dirname,'..');
  assert.ok(await page.locator('#v43-period').isVisible());
  assert.equal(await page.locator('main > .filters').isVisible(),false);
  await page.getByRole('button',{name:'Тиждень',exact:true}).click();await page.waitForSelector('.v43-loading',{state:'hidden'});
- const week=await page.evaluate(()=>{const d=new Date(new Date().toISOString().slice(0,10)+'T12:00:00'),day=d.getDay()||7;d.setDate(d.getDate()-day+1);const start=d.toISOString().slice(0,10);d.setDate(d.getDate()+6);return{start,end:d.toISOString().slice(0,10),url:reads.filter(u=>u.startsWith('/rest/v1/routes?')).at(-1)}});
- assert.ok(week.url.includes('route_date=gte.'+week.start)&&week.url.includes('route_date=lte.'+week.end));
+ const week=await page.evaluate(()=>{const d=new Date(new Date().toISOString().slice(0,10)+'T12:00:00'),day=d.getDay()||7;d.setDate(d.getDate()-day+1);const start=d.toISOString().slice(0,10);d.setDate(d.getDate()+6);return{start,end:d.toISOString().slice(0,10),request:reads.filter(x=>x.resource==='routes').at(-1)}});
+ assert.deepEqual(week.request.filters,[{field:'route_date',op:'gte',value:week.start},{field:'route_date',op:'lte',value:week.end}]);
  await page.evaluate(()=>{
   db.routes.push(...[{id:40,route_delivery_id:'PERIOD-1',route_date:'2026-01-01'},{id:41,route_delivery_id:'PERIOD-2',route_date:'2026-01-02'},{id:42,route_delivery_id:'OUTSIDE',route_date:'2025-12-31'}].map(r=>({...r,expeditor_name:'FOP',warehouse:'Чайки STV'})));
   db.route_points.push({id:401,route_id:40,customer_id:'period',documents_count:1001});
@@ -201,7 +208,7 @@ const root=path.resolve(__dirname,'..');
  assert.deepEqual(await page.evaluate(()=>D.routes.map(r=>r.id)),[40,41]);
  assert.equal(await page.evaluate(()=>D.docs.length),1001);
  assert.equal(await page.locator('#v435-period-range').innerText(),'01.01.2026 — 02.01.2026');
- assert.ok(await page.evaluate(()=>reads.some(u=>u.includes('/source_documents?')&&u.includes('offset=1000'))));
+ assert.ok(await page.evaluate(()=>reads.some(x=>x.resource==='sourceDocuments'&&x.offset===1000)));
  await page.evaluate(()=>v435Refresh());await page.waitForSelector('.v43-loading',{state:'hidden'});
  assert.deepEqual(await page.evaluate(()=>D.routes.map(r=>r.id)),[40,41]);
  await page.evaluate(()=>v43OpenRoute(40));await page.locator('.v435-delivered-edit').click();
