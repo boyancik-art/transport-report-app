@@ -1,10 +1,14 @@
 (()=>{
  'use strict';
- const $=s=>document.querySelector(s),E=TRTS_OPS.E,VAULT='trts_vault',CONFIG='trts_security',encoder=new TextEncoder(),decoder=new TextDecoder();
+ const $=s=>document.querySelector(s),E=TRTS_OPS.E,VAULT='trts_vault',SESSION_STORE='trts_session_v1',CONFIG='trts_security',encoder=new TextEncoder(),decoder=new TextDecoder();
  let session=null,key=null,profile=null,userInfo=null,refreshing=null,busy=false,signingOut=false,epoch=0,activity=Date.now();
  const b64=bytes=>btoa(String.fromCharCode(...new Uint8Array(bytes))),un64=text=>Uint8Array.from(atob(text),c=>c.charCodeAt(0)),url64=b=>b64(b).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'');
  const fromURL=s=>un64(s.replaceAll('-','+').replaceAll('_','/')+'='.repeat((4-s.length%4)%4));
  const vault=()=>{try{return JSON.parse(localStorage.getItem(VAULT)||'null')}catch{return null}},config=()=>{try{return{minutes:5,leave:true,...JSON.parse(localStorage.getItem(CONFIG)||'{}')}}catch{return{minutes:5,leave:true}}};
+ const validPair=s=>Boolean(s&&typeof s.access_token==='string'&&s.access_token&&typeof s.refresh_token==='string'&&s.refresh_token);
+ const storedSession=()=>{try{const s=JSON.parse(localStorage.getItem(SESSION_STORE)||'null');return validPair(s)?s:null}catch{return null}};
+ function clearLocalSession(){for(const storage of [localStorage,sessionStorage])for(const name of [SESSION_STORE,VAULT,'trts_token','trts_refresh'])storage.removeItem(name)}
+ function persistPlainPair(s){if(!validPair(s))throw Error('Сервер не повернув повну сесію');const pair={access_token:s.access_token,refresh_token:s.refresh_token,expires_at:s.expires_at??null};localStorage.setItem(SESSION_STORE,JSON.stringify(pair));localStorage.setItem('trts_token',pair.access_token);localStorage.setItem('trts_refresh',pair.refresh_token)}
  const locked=()=>Boolean(vault()&&!window.TRTS_UNLOCKED);
  async function security(action,extra={}){
   if(signingOut)throw Error('Сесію завершено');const generation=epoch;
@@ -15,8 +19,8 @@
   if(signingOut||!session)return;const generation=epoch;if(key&&vault()){
    const iv=crypto.getRandomValues(new Uint8Array(12)),cipher=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,encoder.encode(JSON.stringify(session))),v=vault();
    if(signingOut||generation!==epoch||!v)return;
-   localStorage.setItem(VAULT,JSON.stringify({...v,iv:b64(iv),cipher:b64(cipher)}));localStorage.removeItem('trts_token');localStorage.removeItem('trts_refresh');
-  }else if(!vault()){localStorage.trts_token=session.access_token;if(session.refresh_token)localStorage.trts_refresh=session.refresh_token}
+   localStorage.setItem(VAULT,JSON.stringify({...v,iv:b64(iv),cipher:b64(cipher)}));localStorage.removeItem(SESSION_STORE);localStorage.removeItem('trts_token');localStorage.removeItem('trts_refresh');
+  }else if(!vault())persistPlainPair(session)
  }
  async function refresh(force=false){
   if(locked())throw Error('Застосунок заблоковано');if(!session)return;
@@ -24,13 +28,24 @@
   if(!force&&(!expiry||expiry*1000>Date.now()+60000))return;
   if(!session.refresh_token){if(expiry&&expiry*1000<=Date.now())throw Error('Сесія завершилась. Увійдіть через email і пароль');return}
   if(refreshing)return refreshing;const generation=epoch;
+  const usedRefresh=session.refresh_token;
   refreshing=(async()=>{
-   const r=await fetch(SB+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:session.refresh_token})}),s=await r.json();if(!r.ok)throw Error('Сесія завершилась. Увійдіть через email і пароль');
-   if(generation!==epoch)throw Error('Застосунок заблоковано');session=s;token=s.access_token;await saveSession();
+   const r=await fetch(SB+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:usedRefresh})}),s=await r.json();
+   if(!r.ok||!validPair(s)){clearLocalSession();session=null;token='';throw Error('Сесія завершилась. Увійдіть через email і пароль')}
+   if(generation!==epoch||session?.refresh_token!==usedRefresh)throw Error('Застосунок заблоковано');session=s;token=s.access_token;await saveSession();
   })();try{await refreshing}finally{refreshing=null}
  }
- const originalApi=window.api;
- window.api=async(path,options={})=>{if(locked())throw Error('Спочатку розблокуйте застосунок');const generation=epoch;await refresh();const result=await originalApi(path,options);if(generation!==epoch)throw Error('Сесію заблоковано');if(options.method&&options.method!=='GET')window.TRTS_DASHBOARD?.invalidate();return result};
+ const sessionFailure=(status,text)=>status===401||(status===403&&/session[_ ]id|session .*does not exist|invalid.*session|jwt/i.test(text));
+ async function request(path,options={},retry=true){
+  if(locked())throw Error('Спочатку розблокуйте застосунок');const generation=epoch;await refresh();
+  const run=()=>fetch(SB+path,{...options,headers:{apikey:KEY,Authorization:'Bearer '+token,'Content-Type':'application/json',...(options.headers||{})}});
+  let r=await run(),text=await r.text();
+  if(sessionFailure(r.status,text)&&retry){try{await refresh(true);r=await run();text=await r.text()}catch(e){clearLocalSession();session=null;token='';throw e}}
+  if(sessionFailure(r.status,text)){clearLocalSession();session=null;token='';throw Error('Сесія завершилась. Увійдіть через email і пароль')}
+  if(!r.ok)throw Error(text||('HTTP '+r.status));if(generation!==epoch)throw Error('Сесію заблоковано');
+  if(options.method&&options.method!=='GET')window.TRTS_DASHBOARD?.invalidate();return text?JSON.parse(text):null;
+ }
+ window.api=request;
  async function identify(){
   const u=await api('/auth/v1/user');if(!u?.id)throw Error('Не вдалося перевірити користувача');
   const rows=await api('/rest/v1/profiles?id=eq.'+encodeURIComponent(u.id)+'&select=id,full_name,role,active,allowed_waves');
@@ -41,16 +56,16 @@
   try{
    const r=await fetch(SB+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},body:JSON.stringify({email:$('#email').value.trim(),password:$('#password').value})}),s=await r.json();
    $('#password').value='';if(signingOut||generation!==epoch)return;if(!r.ok)throw Error(s.error_description||s.msg||'Помилка входу');
-   const old=vault();session=s;token=s.access_token;window.TRTS_UNLOCKED=true;await identify();
-   if(old){try{await security('disable')}catch{}localStorage.removeItem(VAULT);key=null}
+   if(!validPair(s))throw Error('Сервер не повернув повну сесію');const old=vault();clearLocalSession();session=s;token=s.access_token;window.TRTS_UNLOCKED=true;await saveSession();await identify();
+   if(old){try{await security('disable',{deviceId:old.id,secret:old.secret})}catch{}localStorage.removeItem(VAULT);key=null}
    await saveSession();activity=Date.now();$('#v443-unlock')?.remove();await window.start();window.TRTS_RELEASE?.notice();
-  }catch(e){token='';session=null;if(err)err.textContent=e.message}finally{busy=false;if(button)button.disabled=false}
+  }catch(e){clearLocalSession();token='';session=null;if(err)err.textContent=e.message}finally{busy=false;if(button)button.disabled=false}
  };
  window.logout=async(options={})=>{
   if(signingOut)return;signingOut=true;busy=true;
   const accessToken=token,device=vault();++epoch;
   session=null;key=null;token='';profile=null;userInfo=null;window.TRTS_UNLOCKED=false;
-  for(const storage of [localStorage,sessionStorage])for(const name of [VAULT,'trts_token','trts_refresh'])storage.removeItem(name);
+  for(const storage of [localStorage,sessionStorage])for(const name of ['trts_session_v1',VAULT,'trts_token','trts_refresh'])storage.removeItem(name);
   $('#v443-unlock')?.remove();$('#app')?.classList.add('hide');$('#login')?.classList.remove('hide');if($('#login'))$('#login').style.display='';
   if($('#password'))$('#password').value='';if($('#loginErr'))$('#loginErr').textContent='';
   // Independent, bounded best-effort server revocations. Local logout never depends on either server.
@@ -59,7 +74,7 @@
    try{const r=await fetch(SB+path,{method:'POST',keepalive:true,signal:controller.signal,headers:{apikey:KEY,Authorization:'Bearer '+accessToken,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});if(!r.ok&&r.status!==401&&r.status!==403)console.warn('[auth.logout] remote revocation failed',path,r.status)}
    catch(e){console.warn('[auth.logout] remote revocation unavailable',path,e.name)}finally{clearTimeout(timer)}
   }
-  try{if(accessToken)await Promise.all([revoke('/auth/v1/logout?scope=global'),...(device?[revoke('/functions/v1/transport-security',{action:'disable',deviceId:device.id,secret:device.secret})]:[])])}
+  try{if(accessToken)await Promise.all([revoke('/auth/v1/logout?scope=local'),...(device?[revoke('/functions/v1/transport-security',{action:'disable',deviceId:device.id,secret:device.secret})]:[])])}
   finally{if(options.redirect)location.replace(options.redirect);else location.reload()}
  };
  function showLock(){
@@ -81,7 +96,7 @@
  window.v443BiometricUnlock=async()=>{if(busy)return;busy=true;try{const options=await security('authenticate-start'),credential=await navigator.credentials.get({publicKey:decodeOptions(options)});if(!credential)throw Error('Підтвердження скасовано');const result=await security('authenticate-finish',{response:credentialJSON(credential)});await unlock(result.key)}catch(e){$('#v443-unlock-error').textContent=e.name==='NotAllowedError'?'Підтвердження скасовано або пристрій недоступний':e.message}finally{busy=false}};
  window.v443PasswordRecovery=()=>{window.TRTS_UNLOCKED=true;token='';session=null;key=null;$('#v443-unlock')?.remove();$('#login')?.classList.remove('hide');if($('#login'))$('#login').style.display='';$('#email')?.focus()};
  function lock(reload=true){
-  if(!vault()||locked())return;window.TRTS_UNLOCKED=false;++epoch;token='';session=null;key=null;profile=null;localStorage.removeItem('trts_token');localStorage.removeItem('trts_refresh');showLock();
+  if(!vault()||locked())return;window.TRTS_UNLOCKED=false;++epoch;token='';session=null;key=null;profile=null;localStorage.removeItem(SESSION_STORE);localStorage.removeItem('trts_token');localStorage.removeItem('trts_refresh');showLock();
   // Reload clears every old module's in-memory data and pending requests.
   if(reload)location.reload();
  }
@@ -106,7 +121,8 @@
  for(const event of ['pointerdown','keydown','touchstart'])addEventListener(event,()=>{activity=Date.now()},{passive:true});
  setInterval(()=>{if(vault()&&!locked()&&Date.now()-activity>=config().minutes*60000)lock()},10000);
  window.TRTS_SECURITY={identify,profile:()=>profile,user:()=>userInfo,isAdmin:()=>profile?.active&&profile.role==='admin',isLocked:locked,enroll,changePin:async(oldPin,pin)=>{if(vault())await security("unlock",{pin:oldPin});return enroll(pin)},biometric,supported,vault,config,lock,saveConfig:value=>localStorage.setItem(CONFIG,JSON.stringify(value))};
+ window.TRTS_AUTH_SESSION={refresh:async()=>{await refresh(true);return true},verify:async()=>Boolean((await identify())?.active),hasAuthoritativePair:()=>validPair(storedSession())};
  const startOriginal=window.start;
  window.start=async()=>{if(signingOut)return;if(locked()){showLock();return}if(!profile)await identify();return startOriginal()};
- if(locked())showLock();else if(typeof token!=='undefined'&&token){session={access_token:token,refresh_token:localStorage.trts_refresh||null};identify().catch(e=>{TRTS_OPS.view().innerHTML='<p class="v442-warning">'+E(e.message)+'</p>'})}
+ if(locked())showLock();else{const restored=storedSession();if(restored){session=restored;token=restored.access_token;identify().catch(e=>{clearLocalSession();token='';session=null;TRTS_OPS.view().innerHTML='<p class="v442-warning">'+E(e.message)+'</p>'})}else{clearLocalSession();token='';session=null}}
 })();
