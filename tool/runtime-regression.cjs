@@ -29,6 +29,13 @@ async function mockApi(route){
  if(u.pathname==='/auth/v1/user')return route.fulfill({json:{id:'00000000-0000-0000-0000-000000000443',email:'test@example.invalid'}});
  if(u.pathname==='/auth/v1/logout')return route.fulfill({status:204});
  if(req.headers()['authorization']!=='Bearer isolated-runtime-fixture')return route.fulfill({status:401,json:{message:'Authentication required'}});
+ if(u.pathname==='/functions/v1/transport-adapter-read'){
+  const request=req.postDataJSON(),tables={routes:'routes',routePoints:'route_points',locations:'locations',sourceDocuments:'source_documents',businessAllocations:'route_business_allocations',routeFacts:'route_facts',routeExtraPoints:'route_extra_points'},table=tables[request.resource];
+  assert.ok(table,'Only allowlisted adapter resources are readable');
+  const rows=(db[table]||[]).filter(row=>(request.filters||[]).every(({field,op,value})=>op==='in'?value.map(String).includes(String(row[field])):op==='gte'?String(row[field])>=String(value):op==='lte'?String(row[field])<=String(value):op==='eq'?String(row[field])===String(value):false));
+  const offset=Number(request.offset||0),limit=Number(request.limit||1000);
+  return route.fulfill({json:{resource:request.resource,rows:rows.slice(offset,offset+limit),limit,offset}});
+ }
  if(u.pathname==='/rest/v1/rpc/transport_archive_route'){
   const id=req.postDataJSON().target_route_id;
   if(db.profiles[0].role!=='admin')return route.fulfill({status:403,json:{message:'Administrator only'}});
