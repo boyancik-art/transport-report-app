@@ -24,7 +24,7 @@ const archivedFixture=new Set(),fixtureAudit=[];
 async function mockApi(route){
  const req=route.request(),u=new URL(req.url());
  if(u.pathname==='/auth/v1/token'){
-  return route.fulfill({json:{access_token:'isolated-runtime-fixture',token_type:'bearer',expires_in:3600}});
+  return route.fulfill({json:{access_token:'isolated-runtime-fixture',refresh_token:'isolated-runtime-refresh-fixture',token_type:'bearer',expires_in:3600}});
  }
  if(u.pathname==='/auth/v1/user')return route.fulfill({json:{id:'00000000-0000-0000-0000-000000000443',email:'test@example.invalid'}});
  if(u.pathname==='/auth/v1/logout')return route.fulfill({status:204});
