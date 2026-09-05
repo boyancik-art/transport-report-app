@@ -24,9 +24,9 @@ const isTariff=r=>isFop(r)||isBakery(r);
 let groupSection='fop';
 function isPickup(r){return /самовивіз/i.test(T(coverage(r)))}
 const points=r=>(dat().points||[]).filter(p=>+p.route_id===+r.id), facts=r=>(dat().facts||[]).find(x=>+x.route_id===+r.id)||{};
-const docs=r=>(dat().docs||[]).filter(x=>T(x.route_delivery_id)===T(r.route_delivery_id));
+const docs=r=>window.TRTS_STABLE_KEY_JOINS.routeDocuments(dat().docs||[],r);
 const loc=p=>(dat().locations||[]).find(x=>+x.id===+p.location_id)||{};
-function pointDocs(r,p){const l=loc(p);return docs(r).filter(x=>T(x.customer_id)===T(p.customer_id)&&(!l.address_id||T(x.address_id)===T(l.address_id)))}
+function pointDocs(r,p){return window.TRTS_STABLE_KEY_JOINS.pointDocuments(dat().docs||[],r,p,loc(p))}
 function pointAddress(r,p){return T(loc(p).delivery_address)||T(pointDocs(r,p).find(d=>T(d.delivery_address))?.delivery_address)||'Адреса не вказана'}
 function invoiceGroups(ds){
  const groups=new Map();
@@ -105,13 +105,15 @@ window.v435ReportPeriod=()=>({from,to});
 window.v435ReadRange=apiRange;
 function screenLayout(detail=false){document.body.classList.add('pk-only');document.body.classList.toggle('trts-route-view',detail)}
 async function byIds(table,column,ids){const result=[];for(let i=0;i<ids.length;i+=150)result.push(...await apiRange('/rest/v1/'+table+'?select=*&'+column+'=in.('+ids.slice(i,i+150).join(',')+')'));return result}
+const adapterRange=(resource,filters=[],sort=[])=>window.TRTS_ADAPTER_READ.all(api,resource,filters,sort);
+async function adapterByIds(resource,column,ids){const result=[];for(let i=0;i<ids.length;i+=150)result.push(...await adapterRange(resource,[{field:column,op:'in',value:ids.slice(i,i+150)}]));return result}
 async function readSnapshot(rangeFrom,rangeTo){
-  const routes=await apiRange(`/rest/v1/routes?select=*&route_date=gte.${rangeFrom}&route_date=lte.${rangeTo}&order=route_date,route_delivery_id,id`),ids=routes.map(x=>x.id);
+  const routes=await adapterRange('routes',[{field:'route_date',op:'gte',value:rangeFrom},{field:'route_date',op:'lte',value:rangeTo}],[{field:'route_date',direction:'asc'},{field:'route_delivery_id',direction:'asc'},{field:'id',direction:'asc'}]),ids=routes.map(x=>x.id);
   const [pts,ff,dd,ee,pp,cc,wm,gg,mm,rr,ru]=await Promise.all([
-   byIds('route_points','route_id',ids),
-   byIds('route_facts','route_id',ids),
-   apiRange(`/rest/v1/source_documents?select=*&document_date=gte.${rangeFrom}&document_date=lte.${rangeTo}`),
-   byIds('route_extra_points','route_id',ids),
+   adapterByIds('routePoints','route_id',ids),
+   adapterByIds('routeFacts','route_id',ids),
+   adapterRange('sourceDocuments',[{field:'document_date',op:'gte',value:rangeFrom},{field:'document_date',op:'lte',value:rangeTo}]),
+   adapterByIds('routeExtraPoints','route_id',ids),
    apiRange('/rest/v1/employee_directory?select=employee_id,employee_name&order=employee_id'),
    apiRange('/rest/v1/transport_carriers?select=id,name,carrier_type&active=eq.true&order=name'),
    apiRange('/rest/v1/warehouse_display_map?select=source_warehouse,display_name&active=eq.true&order=id'),
@@ -121,7 +123,7 @@ async function readSnapshot(rangeFrom,rangeTo){
    apiSafe('/rest/v1/expeditor_section_rules?select=expeditor_name,coverage&active=eq.true')
   ]);
   const lids=[...new Set(pts.map(x=>x.location_id).filter(Boolean))],pids=pts.map(x=>x.id);
-  const [ll,aa]=await Promise.all([byIds("locations","id",lids),byIds("route_business_allocations","route_point_id",pids)]);
+  const [ll,aa]=await Promise.all([adapterByIds('locations',"id",lids),adapterByIds('businessAllocations',"route_point_id",pids)]);
   return{data:{routes,points:pts,facts:ff,docs:dd,locations:ll,alloc:aa},meta:{people:new Map(pp.map(x=>[T(x.employee_id),T(x.employee_name)])),carriers:cc.filter(x=>!['stv','sav'].includes(x.carrier_type)),whMap:wm,warehouses:[...new Set(wm.map(x=>T(x.display_name)).filter(Boolean))].sort(),extras:ee,groups:gg,manual:mm,replenishments:rr,rules:new Map(ru.map(x=>[norm(x.expeditor_name),T(x.coverage)]))}};
 }
 function withSnapshot(snapshot,fn){const oldData=snapshotData,oldMeta=meta;snapshotData=snapshot.data;meta=snapshot.meta;try{const result=fn();if(result?.then)throw Error('Snapshot calculation must be synchronous');return result}finally{snapshotData=oldData;meta=oldMeta}}
