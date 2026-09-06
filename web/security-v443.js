@@ -43,7 +43,7 @@
   if(sessionFailure(r.status,text)&&retry){try{await refresh(true);r=await run();text=await r.text()}catch(e){clearLocalSession();session=null;token='';throw e}}
   if(sessionFailure(r.status,text)){clearLocalSession();session=null;token='';throw Error('Сесія завершилась. Увійдіть через email і пароль')}
   if(!r.ok)throw Error(text||('HTTP '+r.status));if(generation!==epoch)throw Error('Сесію заблоковано');
-  if(options.method&&options.method!=='GET')window.TRTS_DASHBOARD?.invalidate();return text?JSON.parse(text):null;
+  if(options.method&&options.method!=='GET'&&path!=='/functions/v1/transport-adapter-read')window.TRTS_DASHBOARD?.invalidate();return text?JSON.parse(text):null;
  }
  window.api=request;
  async function identify(){

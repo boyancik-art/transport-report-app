@@ -9,10 +9,10 @@ const names=types.map(t=>Object.keys(reference).find(n=>reference[n]===t));
 assert.ok(names.every(Boolean),'Fixture categories must exist in the system reference');
 const db={
  profiles:[{id:'00000000-0000-0000-0000-000000000443',full_name:'Тестовий користувач',role:'admin',active:true}],
- routes:names.map((name,i)=>({id:i+1,route_date:date,route_delivery_id:'TEST-'+(i+1),expeditor_name:name,warehouse:i===1?'Львівська обл., Жовківський р-н, с.Малехів, вул. Тараса Дороша 20 А':'Чайки STV',total_points:1,total_documents:1,total_weight:6.2,total_pallets:.011,total_bottles:5,total_order_amount:1000})),
- route_points:[1,2,3,4,5,6].map(id=>({id:id*10,route_id:id,customer_id:'customer-'+id,customer_name:'Тестова ТТ '+id,location_id:id,documents_count:1,weight:6.2,pallets:.011,bottles:5,order_amount:1000})),
+ routes:names.map((name,i)=>({id:i+1,route_key:`route:${date}:TEST-${i+1}`,route_date:date,route_delivery_id:'TEST-'+(i+1),expeditor_name:name,warehouse:i===1?'Львівська обл., Жовківський р-н, с.Малехів, вул. Тараса Дороша 20 А':'Чайки STV',total_points:1,total_documents:1,total_weight:6.2,total_pallets:.011,total_bottles:5,total_order_amount:1000})),
+ route_points:[1,2,3,4,5,6].map(id=>({id:id*10,route_id:id,route_key:`route:${date}:TEST-${id}`,point_key:`point:${date}:TEST-${id}:customer-${id}:address-${id}`,customer_id:'customer-'+id,customer_name:'Тестова ТТ '+id,location_id:id,documents_count:1,weight:6.2,pallets:.011,bottles:5,order_amount:1000})),
  locations:[1,2,3,4,5,6].map(id=>({id,address_id:'address-'+id,delivery_address:'Тестова адреса '+id})),
- source_documents:[1,2,3,4,5,6].map(id=>({id,route_delivery_id:'TEST-'+id,document_date:date,sale_code:'INV-'+id,customer_id:'customer-'+id,address_id:'address-'+id,business_unit:'HoReCa',employee_id:'8000020908296',weight:6.2,pallets:.011,bottles:5,order_amount:1000})),
+ source_documents:[1,2,3,4,5,6].map(id=>({id,route_key:`route:${date}:TEST-${id}`,point_key:`point:${date}:TEST-${id}:customer-${id}:address-${id}`,financial_key:`financial:fixture:${id}`,route_delivery_id:'TEST-'+id,document_date:date,sale_code:'INV-'+id,customer_id:'customer-'+id,address_id:'address-'+id,business_unit:'HoReCa',employee_id:'8000020908296',weight:6.2,pallets:.011,bottles:5,order_amount:1000})),
  route_facts:[{id:1,route_id:1,carrier_name:'Тестовий перевізник',tariff:1000,wave:'24'}],
  transport_carriers:[{id:1,name:'Тестовий перевізник',active:true}],
  courier_carriers:[{id:1,name:'Тестовий перевізник',active:true}],
@@ -30,9 +30,9 @@ async function mockApi(route){
  if(u.pathname==='/auth/v1/logout')return route.fulfill({status:204});
  if(req.headers()['authorization']!=='Bearer isolated-runtime-fixture')return route.fulfill({status:401,json:{message:'Authentication required'}});
  if(u.pathname==='/functions/v1/transport-adapter-read'){
-  const request=req.postDataJSON(),tables={routes:'routes',routePoints:'route_points',locations:'locations',sourceDocuments:'source_documents',businessAllocations:'route_business_allocations',routeFacts:'route_facts',routeExtraPoints:'route_extra_points'},table=tables[request.resource];
+ const request=req.postDataJSON(),tables={routes:'routes',routePoints:'route_points',locations:'locations',sourceDocuments:'source_documents',businessAllocations:'route_business_allocations',routeFacts:'route_facts',routeExtraPoints:'route_extra_points'},table=tables[request.resource];
   assert.ok(table,'Only allowlisted adapter resources are readable');
-  const rows=(db[table]||[]).filter(row=>(request.filters||[]).every(({field,op,value})=>op==='in'?value.map(String).includes(String(row[field])):op==='gte'?String(row[field])>=String(value):op==='lte'?String(row[field])<=String(value):op==='eq'?String(row[field])===String(value):false));
+  const rows=(db[table]||[]).filter(row=>(table!=='routes'||!archivedFixture.has(row.id))&&(request.filters||[]).every(({field,op,value})=>op==='in'?value.map(String).includes(String(row[field])):op==='gte'?String(row[field])>=String(value):op==='lte'?String(row[field])<=String(value):op==='eq'?String(row[field])===String(value):false));
   const offset=Number(request.offset||0),limit=Number(request.limit||1000);
   return route.fulfill({json:{resource:request.resource,rows:rows.slice(offset,offset+limit),limit,offset}});
  }
@@ -87,7 +87,7 @@ async function healthy(frame,label){
  console.log('PASS full runtime responsive: '+label+'; idle mutations='+mutations);
 }
 async function dashboard(frame,label){
- await frame.locator('[data-summary=local]').waitFor({state:'visible'});
+ try{await frame.locator('[data-summary=local]').waitFor({state:'visible'})}catch(error){console.error('Dashboard startup failure '+label,await frame.locator('body').innerText());throw error}
  if(await frame.locator('#v444-notice').isVisible()){assert.ok((await frame.locator('#v444-notice').innerText()).includes('Застосунок оновлено до версії '+expected));await frame.locator('#v444-ack').click();assert.equal(await frame.evaluate(()=>localStorage.trts_update_ack),expected);}
  if(process.env.TRTS_CAPTURE==='1')console.log('VISUAL:v443-'+label.replaceAll(' ','-')+':'+(await frame.screenshot({type:'jpeg',quality:65})).toString('base64'));
  assert.equal(await frame.locator('#v442-nav button').count(),5);

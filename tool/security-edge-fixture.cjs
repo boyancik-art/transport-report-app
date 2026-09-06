@@ -1,8 +1,8 @@
 // Runs the shipped Edge handler unchanged (TypeScript transpilation only).
 // Only Supabase storage/Auth are isolated; WebAuthn verification is the real library.
-const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path'),crypto=require('node:crypto');
+const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path'),crypto=require('node:crypto'),{pathToFileURL}=require('node:url');
 module.exports=async function makeFixture(){
- const deps=process.env.TRTS_TEST_DEPS||'/tmp/trts-ui-tests/node_modules',ts=require(path.join(deps,'typescript')),webauthn=await import(path.join(deps,'@simplewebauthn/server/esm/index.js'));
+ const deps=process.env.TRTS_TEST_DEPS||'/tmp/trts-ui-tests/node_modules',ts=require(path.join(deps,'typescript')),webauthn=await import(pathToFileURL(path.join(deps,'@simplewebauthn/server/esm/index.js')).href);
  const id='00000000-0000-0000-0000-000000000443',devices=new Map(),hash=s=>'\\x'+crypto.createHash('sha256').update(s).digest('hex');
  const json=x=>new Response(JSON.stringify(x),{headers:{'Content-Type':'application/json'}});
  const fetchMock=async(url,options={})=>{

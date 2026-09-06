@@ -35,3 +35,8 @@ test('adapter client pages exclusively through the read proxy',async()=>{
  assert.deepEqual(await adapter.all(api,'routes',[],[]),[{id:1}]);
  assert.equal(calls[0].path,'/functions/v1/transport-adapter-read');assert.equal(calls[0].opt.method,'POST');assert.equal(calls[0].body.limit,1000);
 });
+
+test('read-only adapter POST does not invalidate dashboard state',()=>{
+ const security=readFileSync(require.resolve('./security-v443.js'),'utf8');
+ assert.match(security,/path!==['"]\/functions\/v1\/transport-adapter-read['"]/);
+});
