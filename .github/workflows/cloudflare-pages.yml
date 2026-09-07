@@ -38,6 +38,7 @@ jobs:
           node tool/finance-core.test.cjs
           node tool/analytics-core.test.cjs
           node tool/dashboard-core.test.cjs
+          node tool/bounded-rendering-core.test.cjs
           node tool/auth-session-core.test.cjs
           npm install --prefix /tmp/trts-ui-tests --no-package-lock playwright@1.58.2 @simplewebauthn/server@13.2.2 typescript@5.9.3
           /tmp/trts-ui-tests/node_modules/.bin/playwright install --with-deps chromium

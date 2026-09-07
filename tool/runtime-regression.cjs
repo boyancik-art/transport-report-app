@@ -193,6 +193,7 @@ async function dashboard(frame,label){
    await frame.locator('#password').fill('isolated-fixture-only');
    await frame.locator('#loginForm button').click();
    await dashboard(frame,scenario.name+' signed in');
+   await require('./bounded-rendering-flows.cjs')(frame);
    await page.reload({waitUntil:'load'});
    const reloaded=scenario.url.includes('phone-preview')?await page.locator('iframe').elementHandle().then(el=>el.contentFrame()):page;
    await dashboard(reloaded,scenario.name+' stored session');

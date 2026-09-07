@@ -1,0 +1,17 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
+const C=require('../web/transport-costs.js'),original=C.zoneQuote;
+const context={window:{TRTS_COSTS:C},document:{getElementById:()=>null},setTimeout:()=>0};
+vm.createContext(context);vm.runInContext(fs.readFileSync(path.join(__dirname,'../web/patch-v43-1-blocks.js'),'utf8'),context);
+const zones=[{carrier:'STV',region:'Київська обл.',district:'Бучанський р-н',branch:'Київ',zone:1},{carrier:'SAV',region:'Київська',district:'Бучанський',branch:'Київ SAV',zone:2}];
+const rates=[{carrier:'STV',month:'2026-09-01',tt_fixed:10,zone1:250},{carrier:'SAV',month:'2026-09-01',tt_fixed:20,zone2:350}];
+const cases=[];for(const carrier of ['STV','SAV'])for(const month of ['2026-09-01','2026-08-01'])for(const region of ['Київська область','Київська','Невідома',''])for(const pallets of [0,.12345,2])for(const rows of [zones,[...zones,zones[0]],[]])cases.push({carrier,month,region,district:'Бучанський район',pallets,zones:rows,rates});
+const expected=cases.map(original);let actual;
+context.window.TRTS_ROUTE_PAGES.html('parity',[1],()=>{actual=cases.map(args=>C.zoneQuote(args));return ''});
+assert.deepEqual(actual,expected,'Indexed lookup must preserve every original quote and error');
+assert.equal(C.zoneQuote,original,'Scope restores original function');
+assert.throws(()=>context.window.TRTS_ROUTE_PAGES.html('failure',[1],()=>{throw Error('render failure')}));
+assert.equal(C.zoneQuote,original,'Failed rendering also restores original function');
+zones[0].zone=5;rates[0].zone5=777;
+context.window.TRTS_ROUTE_PAGES.html('fresh',[1],()=>{assert.deepEqual(C.zoneQuote(cases[0]),original(cases[0]));return ''});
+let rendered=0;context.window.TRTS_ROUTE_PAGES.html('bounded',Array.from({length:716},(_,i)=>i),rows=>{rendered+=rows.length;return ''});assert.equal(rendered,24);
+console.log('PASS bounded lookup:',cases.length,'unchanged quotes/errors, duplicate and missing zones, precise pallets, scope cleanup, fresh metadata, 24-card initial bound');
