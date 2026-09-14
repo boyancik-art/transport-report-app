@@ -1,19 +1,18 @@
-/* Pixel-locked visual overrides: scale from the approved 1536x1024 reference by viewport width. */
-html,body{overflow-x:hidden!important;overflow-y:auto!important;background:#070b10!important}
-#stage{width:100vw!important;height:auto;min-height:100vh;overflow:visible!important;background:#070b10!important}
-#app{width:1536px!important;height:1024px!important;transform-origin:top left!important}
-.brand{background:url('./logo.jpg') center/cover no-repeat!important}
-.brand img{opacity:0!important}
-.hero{background:#141017 url('./hero.jpg') center center/cover no-repeat!important}
-.hero>img{display:none!important}
-.heroShade,.heroText,.heroRight{display:none!important}
-/* retain the exact approved geometry */
-.side{width:250px!important;flex:0 0 250px!important}
-main{width:1286px!important;flex:0 0 1286px!important}
-header{height:88px!important}
-.content{padding:14px 18px!important}
-.hero{height:179px!important}
-.kpis{height:104px!important;margin-top:12px!important;gap:12px!important}
-.middle{height:302px!important;margin-top:12px!important;gap:12px!important;grid-template-columns:1.08fr 1.08fr .92fr!important}
-.routes{height:286px!important;margin-top:12px!important}
-@media(max-width:900px){body{min-width:900px}}
+/* Full-width pixel-match pass for the approved Retail reference. */
+:root{--sidebar:16.3vw;--wine:#a91f42;--wine2:#7f1732;--bg:#080c11;--panel:#101720;--line:#29333f;--text:#f4eff2;--muted:#98a3b2;--orange:#ff7a35;--green:#31d883;--blue:#2f8dde}
+*{box-sizing:border-box}html,body{margin:0;min-width:1180px;background:var(--bg)!important;color:var(--text);overflow-x:hidden!important;overflow-y:auto!important;font-family:Inter,Segoe UI,Arial,sans-serif}
+#stage{width:100vw!important;min-height:100vh!important;height:auto!important;overflow:visible!important;background:var(--bg)!important}
+#app{width:100vw!important;min-height:100vh!important;height:auto!important;display:flex!important;transform:none!important;background:var(--bg)!important}
+.side{width:clamp(218px,var(--sidebar),292px)!important;flex:0 0 clamp(218px,var(--sidebar),292px)!important;min-height:100vh!important;height:auto!important;position:sticky!important;top:0!important;background:linear-gradient(180deg,#28101a 0%,#160d13 58%,#201019 100%)!important;border-right:1px solid #3a202c!important}
+.brand{width:72%!important;height:auto!important;aspect-ratio:173/129!important;margin:15px auto 10px!important;border-radius:14px!important;background:url('./logo.jpg?v=6') center/cover no-repeat!important;overflow:hidden!important;box-shadow:0 0 0 1px #62283b!important}
+.brand img{display:none!important}
+.side nav{padding:0 7%!important}.side nav a{height:41px!important;border-radius:9px!important;gap:11px!important;padding:0 12px!important;font-size:14px!important;margin:3px 0!important}.side nav a.active{background:linear-gradient(90deg,#ad2145,#8c1736)!important;box-shadow:inset 0 0 0 1px #bd3151!important}.side nav hr{margin:10px 0!important;border-color:#472631!important}
+.road{left:55%!important;bottom:-28px!important;width:43%!important;height:286px!important;opacity:.8!important}.foot{left:8%!important;bottom:18px!important}.foot b{font-size:13px!important}.foot small{font-size:9px!important}
+main{width:auto!important;flex:1 1 auto!important;min-width:0!important;height:auto!important;background:var(--bg)!important}
+header{height:78px!important;padding:0 26px!important;border-bottom:1px solid #25303b!important;background:#0a1017!important;display:flex!important;align-items:center!important}header h1{font-size:27px!important;line-height:1!important;margin:0!important}header p{font-size:12px!important;margin:6px 0 0!important}.headright{gap:14px!important}.date>b{font-size:13px!important}.date>small{font-size:9px!important}.avatar{width:40px!important;height:40px!important}.who b{font-size:12px!important}.who small{font-size:8px!important}
+.content{padding:12px 16px 16px!important}
+.hero{width:100%!important;aspect-ratio:1250/178!important;height:auto!important;max-height:none!important;border-radius:16px!important;border:1px solid #61283a!important;background:#141017 url('./hero.jpg?v=6') center/100% 100% no-repeat!important;overflow:hidden!important}.hero>img,.heroShade,.heroText,.heroRight{display:none!important}
+.kpis{height:96px!important;margin-top:10px!important;display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:10px!important}.kpi{height:96px!important;border-radius:13px!important;padding:0 15px!important}.kpi .ico{font-size:25px!important;width:38px!important}.kpi strong{font-size:27px!important}.kpi b{font-size:13px!important;margin-top:5px!important}.kpi small{font-size:9px!important}.kpi em{font-size:24px!important}
+.middle{height:250px!important;margin-top:10px!important;gap:10px!important;display:grid!important;grid-template-columns:1.12fr 1.05fr .93fr!important}.middle>.card{padding:13px!important}.card{border-radius:13px!important;background:#101720!important;border:1px solid #2a3440!important}.title{height:28px!important;margin-bottom:6px!important}.title b{font-size:14px!important}.title button,.routehead button{padding:8px 14px!important;font-size:11px!important;border-radius:8px!important}.title a{font-size:10px!important}.card table{font-size:10px!important}.card th{padding:5px 6px!important}.card td{padding:6px!important}.tag{padding:3px 8px!important;font-size:9px!important}.bar{height:8px!important;width:min(96px,8vw)!important}.more{right:12px!important;bottom:9px!important;font-size:10px!important}.types .type{height:53px!important;margin-top:7px!important;padding:0 11px!important;gap:10px!important}.types .type>span{font-size:19px!important}.types .type b{font-size:12px!important}.types .type small{font-size:8px!important}.types .type strong{font-size:20px!important}.types .type em{font-size:20px!important}
+.routes{height:219px!important;margin-top:10px!important;padding:11px 14px!important;border-radius:13px!important}.routehead{height:34px!important}.routehead>b{font-size:14px!important}.tabs{gap:6px!important;margin-left:20px!important}.tabs span{padding:6px 10px!important;font-size:10px!important;border-radius:7px!important}.routes table{font-size:10px!important}.routes th{padding:5px 6px!important}.routes td{padding:6px!important}.pill{padding:4px 11px!important;font-size:9px!important}.routes .more{bottom:8px!important}
+@media(max-width:1350px){.side{width:220px!important;flex-basis:220px!important}.headright .who{display:none!important}.middle{grid-template-columns:1.08fr 1.08fr .92fr!important}.kpi b{font-size:12px!important}}
