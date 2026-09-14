@@ -22,6 +22,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Materialize Retail visual assets and print fingerprints
+        run: |
+          curl --fail --location --silent \
+            https://raw.githubusercontent.com/boyancik-art/transport-report-app/08481e8ec2fb07437877d6be5a4f93dd0851b532/lib/retail_dashboard_v6.dart \
+            -o /tmp/retail_dashboard_v6.dart
+          python - <<'PY'
+          import base64,re,pathlib,hashlib
+          s=pathlib.Path('/tmp/retail_dashboard_v6.dart').read_text()
+          out=pathlib.Path('web/retail-cloudflare')
+          for key,name in [('logoBase64','logo.jpg'),('heroBase64','hero.jpg')]:
+              m=re.search(r"const String "+key+r" = '([^']+)'",s)
+              if not m: raise SystemExit('missing '+key)
+              data=base64.b64decode(m.group(1))
+              (out/name).write_bytes(data)
+              print(name, 'bytes=', len(data), 'sha256=', hashlib.sha256(data).hexdigest())
+          PY
+
       - name: Ensure isolated Cloudflare Pages project
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -56,11 +73,17 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy web/retail-cloudflare --project-name=transport-report-ts-retail-preview --branch=retail-cloudflare-preview
 
-      - name: Verify preview
+      - name: Verify preview and asset fingerprints
         run: |
           for i in 1 2 3 4 5 6; do
             if curl --fail --silent --location --max-time 20 \
-              'https://transport-report-ts-retail-preview.pages.dev/?verify=1' | grep -q 'Retail ТОВ'; then
+              'https://transport-report-ts-retail-preview.pages.dev/?verify=asset-check' | grep -q 'Retail ТОВ'; then
+              curl --fail --silent --location --max-time 20 \
+                'https://transport-report-ts-retail-preview.pages.dev/hero.jpg?verify=asset-check' -o /tmp/deployed-hero.jpg
+              curl --fail --silent --location --max-time 20 \
+                'https://transport-report-ts-retail-preview.pages.dev/logo.jpg?verify=asset-check' -o /tmp/deployed-logo.jpg
+              echo 'deployed hero:' $(wc -c </tmp/deployed-hero.jpg) $(sha256sum /tmp/deployed-hero.jpg | cut -d' ' -f1)
+              echo 'deployed logo:' $(wc -c </tmp/deployed-logo.jpg) $(sha256sum /tmp/deployed-logo.jpg | cut -d' ' -f1)
               echo 'Retail Cloudflare preview verified'
               exit 0
             fi
