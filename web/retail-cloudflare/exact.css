@@ -1,0 +1,19 @@
+/* Pixel-locked visual overrides: scale from the approved 1536x1024 reference by viewport width. */
+html,body{overflow-x:hidden!important;overflow-y:auto!important;background:#070b10!important}
+#stage{width:100vw!important;height:auto;min-height:100vh;overflow:visible!important;background:#070b10!important}
+#app{width:1536px!important;height:1024px!important;transform-origin:top left!important}
+.brand{background:url('./logo.jpg') center/cover no-repeat!important}
+.brand img{opacity:0!important}
+.hero{background:#141017 url('./hero.jpg') center center/cover no-repeat!important}
+.hero>img{display:none!important}
+.heroShade,.heroText,.heroRight{display:none!important}
+/* retain the exact approved geometry */
+.side{width:250px!important;flex:0 0 250px!important}
+main{width:1286px!important;flex:0 0 1286px!important}
+header{height:88px!important}
+.content{padding:14px 18px!important}
+.hero{height:179px!important}
+.kpis{height:104px!important;margin-top:12px!important;gap:12px!important}
+.middle{height:302px!important;margin-top:12px!important;gap:12px!important;grid-template-columns:1.08fr 1.08fr .92fr!important}
+.routes{height:286px!important;margin-top:12px!important}
+@media(max-width:900px){body{min-width:900px}}
