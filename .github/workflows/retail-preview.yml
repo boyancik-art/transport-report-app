@@ -2,7 +2,7 @@ name: Retail Test Preview
 
 on:
   push:
-    branches: [transport-control-retail-v1]
+    branches: [transport-control-retail-v1, retail-online-shipments-v1]
   workflow_dispatch:
 
 permissions:
@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: transport-control-retail-v1
+          ref: ${{ github.ref_name }}
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
