@@ -37,6 +37,14 @@ jobs:
               data=base64.b64decode(m.group(1))
               (out/name).write_bytes(data)
               print(name,'bytes=',len(data),'sha256=',hashlib.sha256(data).hexdigest())
+          p=out/'index.html'
+          html=p.read_text()
+          html=html.replace('exact.css?v=11','exact.css?v=13')
+          html=html.replace('app.js?v=11','app.js?v=13')
+          html=html.replace('logo-v11.jpg','logo-v13.jpg')
+          html=html.replace('<div class="hero"><img src="./hero-v11.jpg" alt="Логістика"></div>','<div class="hero"></div>')
+          p.write_text(html)
+          print('index cache-busted to v13')
           PY
 
       - name: Ensure isolated Cloudflare Pages project
@@ -75,7 +83,7 @@ jobs:
         run: |
           for i in 1 2 3 4 5 6; do
             if curl --fail --silent --location --max-time 20 \
-              'https://transport-report-ts-retail-preview.pages.dev/?verify=v13' | grep -q 'v=13'; then
+              'https://transport-report-ts-retail-preview.pages.dev/?verify=v13' | grep -q 'exact.css?v=13'; then
               curl --fail --silent --location --max-time 20 \
                 'https://transport-report-ts-retail-preview.pages.dev/hero-v13.jpg?verify=v13' -o /tmp/deployed-hero.jpg
               test $(wc -c </tmp/deployed-hero.jpg) -gt 50000
