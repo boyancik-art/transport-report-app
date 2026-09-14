@@ -22,22 +22,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Materialize approved visual assets
-        run: |
-          curl --fail --location --silent \
-            https://raw.githubusercontent.com/boyancik-art/transport-report-app/08481e8ec2fb07437877d6be5a4f93dd0851b532/lib/retail_dashboard_v6.dart \
-            -o /tmp/retail_dashboard_v6.dart
-          python - <<'PY'
-          import base64,re,pathlib
-          s=pathlib.Path('/tmp/retail_dashboard_v6.dart').read_text()
-          out=pathlib.Path('web/retail-cloudflare')
-          for key,name in [('logoBase64','logo.jpg'),('heroBase64','hero.jpg')]:
-              m=re.search(r"const String "+key+r" = '([^']+)'",s)
-              if not m: raise SystemExit('missing '+key)
-              (out/name).write_bytes(base64.b64decode(m.group(1)))
-          print('assets ready')
-          PY
-
       - name: Ensure isolated Cloudflare Pages project
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
