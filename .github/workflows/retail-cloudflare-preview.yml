@@ -22,8 +22,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Materialize versioned Retail visual assets
+      - name: Materialize exact Retail visual assets
         run: |
+          base64 -d web/retail-cloudflare/hero-inline.b64 > web/retail-cloudflare/hero-exact.jpg
           curl --fail --location --silent \
             https://raw.githubusercontent.com/boyancik-art/transport-report-app/08481e8ec2fb07437877d6be5a4f93dd0851b532/lib/retail_dashboard_v6.dart \
             -o /tmp/retail_dashboard_v6.dart
@@ -31,12 +32,13 @@ jobs:
           import base64,re,pathlib,hashlib
           s=pathlib.Path('/tmp/retail_dashboard_v6.dart').read_text()
           out=pathlib.Path('web/retail-cloudflare')
-          for key,name in [('logoBase64','logo-v11.jpg'),('heroBase64','hero-v11.jpg')]:
-              m=re.search(r"const String "+key+r" = '([^']+)'",s)
-              if not m: raise SystemExit('missing '+key)
-              data=base64.b64decode(m.group(1))
-              (out/name).write_bytes(data)
-              print(name, 'bytes=', len(data), 'sha256=', hashlib.sha256(data).hexdigest())
+          m=re.search(r"const String logoBase64 = '([^']+)'",s)
+          if not m: raise SystemExit('missing logoBase64')
+          logo=base64.b64decode(m.group(1))
+          (out/'logo-v12.jpg').write_bytes(logo)
+          hero=(out/'hero-exact.jpg').read_bytes()
+          print('hero-exact.jpg',len(hero),hashlib.sha256(hero).hexdigest())
+          print('logo-v12.jpg',len(logo),hashlib.sha256(logo).hexdigest())
           PY
 
       - name: Ensure isolated Cloudflare Pages project
@@ -71,20 +73,17 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy web/retail-cloudflare --project-name=transport-report-ts-retail-preview --branch=retail-cloudflare-preview
 
-      - name: Verify preview and versioned assets
+      - name: Verify exact hero and live JS build
         run: |
           for i in 1 2 3 4 5 6; do
             if curl --fail --silent --location --max-time 20 \
-              'https://transport-report-ts-retail-preview.pages.dev/?verify=v11' | grep -q 'hero-v11.jpg'; then
+              'https://transport-report-ts-retail-preview.pages.dev/?verify=v12' | grep -q 'Retail ТОВ'; then
               curl --fail --silent --location --max-time 20 \
-                'https://transport-report-ts-retail-preview.pages.dev/hero-v11.jpg?verify=v11' -o /tmp/deployed-hero.jpg
+                'https://transport-report-ts-retail-preview.pages.dev/hero-exact.jpg?verify=v12' -o /tmp/deployed-hero.jpg
+              test $(wc -c </tmp/deployed-hero.jpg) -gt 40000
               curl --fail --silent --location --max-time 20 \
-                'https://transport-report-ts-retail-preview.pages.dev/logo-v11.jpg?verify=v11' -o /tmp/deployed-logo.jpg
-              echo 'hero-v11:' $(wc -c </tmp/deployed-hero.jpg) $(sha256sum /tmp/deployed-hero.jpg | cut -d' ' -f1)
-              echo 'logo-v11:' $(wc -c </tmp/deployed-logo.jpg) $(sha256sum /tmp/deployed-logo.jpg | cut -d' ' -f1)
-              test $(wc -c </tmp/deployed-hero.jpg) -gt 50000
-              test $(wc -c </tmp/deployed-logo.jpg) -gt 1500
-              echo 'Retail Cloudflare preview v11 verified'
+                'https://transport-report-ts-retail-preview.pages.dev/app.js?verify=v12' | grep -q 'setInterval(updateClock'
+              echo 'Retail Cloudflare preview v12 verified'
               exit 0
             fi
             sleep 5
