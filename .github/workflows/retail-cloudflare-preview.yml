@@ -1,0 +1,85 @@
+name: Retail Cloudflare Preview
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - retail-cloudflare-preview
+    paths:
+      - 'web/retail-cloudflare/**'
+      - '.github/workflows/retail-cloudflare-preview.yml'
+
+concurrency:
+  group: retail-cloudflare-preview
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Materialize approved visual assets
+        run: |
+          curl --fail --location --silent \
+            https://raw.githubusercontent.com/boyancik-art/transport-report-app/08481e8ec2fb07437877d6be5a4f93dd0851b532/lib/retail_dashboard_v6.dart \
+            -o /tmp/retail_dashboard_v6.dart
+          python - <<'PY'
+          import base64,re,pathlib
+          s=pathlib.Path('/tmp/retail_dashboard_v6.dart').read_text()
+          out=pathlib.Path('web/retail-cloudflare')
+          for key,name in [('logoBase64','logo.jpg'),('heroBase64','hero.jpg')]:
+              m=re.search(r"const String "+key+r" = '([^']+)'",s)
+              if not m: raise SystemExit('missing '+key)
+              (out/name).write_bytes(base64.b64decode(m.group(1)))
+          print('assets ready')
+          PY
+
+      - name: Ensure isolated Cloudflare Pages project
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          node --input-type=module <<'NODE'
+          const base = 'https://api.cloudflare.com/client/v4/accounts/' + process.env.CLOUDFLARE_ACCOUNT_ID + '/pages/projects';
+          const headers = { Authorization: 'Bearer ' + process.env.CLOUDFLARE_API_TOKEN, 'Content-Type': 'application/json' };
+          const name = 'transport-report-ts-retail-preview';
+          const desiredBranch = 'retail-cloudflare-preview';
+          const check = await fetch(base + '/' + name, { headers });
+          const current = await check.json();
+          if (check.ok && current.success) {
+            if ((current.result?.production_branch || '') !== desiredBranch) {
+              const updated = await fetch(base + '/' + name, { method: 'PATCH', headers, body: JSON.stringify({ production_branch: desiredBranch }) });
+              const result = await updated.json();
+              if (!updated.ok || !result.success) throw new Error(JSON.stringify(result.errors));
+            }
+          } else if (current.errors?.some(e => e.code === 8000007)) {
+            const created = await fetch(base, { method: 'POST', headers, body: JSON.stringify({ name, production_branch: desiredBranch }) });
+            const result = await created.json();
+            if (!created.ok || !result.success) throw new Error(JSON.stringify(result.errors));
+          } else {
+            throw new Error('Pages project lookup failed: ' + JSON.stringify(current.errors));
+          }
+          NODE
+
+      - name: Deploy isolated Retail preview
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy web/retail-cloudflare --project-name=transport-report-ts-retail-preview --branch=retail-cloudflare-preview
+
+      - name: Verify preview
+        run: |
+          for i in 1 2 3 4 5 6; do
+            if curl --fail --silent --location --max-time 20 \
+              'https://transport-report-ts-retail-preview.pages.dev/?verify=1' | grep -q 'Retail ТОВ'; then
+              echo 'Retail Cloudflare preview verified'
+              exit 0
+            fi
+            sleep 5
+          done
+          exit 1
