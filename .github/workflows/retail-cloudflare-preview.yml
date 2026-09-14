@@ -22,7 +22,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Materialize Retail visual assets and print fingerprints
+      - name: Materialize versioned Retail visual assets
         run: |
           curl --fail --location --silent \
             https://raw.githubusercontent.com/boyancik-art/transport-report-app/08481e8ec2fb07437877d6be5a4f93dd0851b532/lib/retail_dashboard_v6.dart \
@@ -31,7 +31,7 @@ jobs:
           import base64,re,pathlib,hashlib
           s=pathlib.Path('/tmp/retail_dashboard_v6.dart').read_text()
           out=pathlib.Path('web/retail-cloudflare')
-          for key,name in [('logoBase64','logo.jpg'),('heroBase64','hero.jpg')]:
+          for key,name in [('logoBase64','logo-v11.jpg'),('heroBase64','hero-v11.jpg')]:
               m=re.search(r"const String "+key+r" = '([^']+)'",s)
               if not m: raise SystemExit('missing '+key)
               data=base64.b64decode(m.group(1))
@@ -61,9 +61,7 @@ jobs:
             const created = await fetch(base, { method: 'POST', headers, body: JSON.stringify({ name, production_branch: desiredBranch }) });
             const result = await created.json();
             if (!created.ok || !result.success) throw new Error(JSON.stringify(result.errors));
-          } else {
-            throw new Error('Pages project lookup failed: ' + JSON.stringify(current.errors));
-          }
+          } else throw new Error('Pages project lookup failed: ' + JSON.stringify(current.errors));
           NODE
 
       - name: Deploy isolated Retail preview
@@ -73,18 +71,20 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy web/retail-cloudflare --project-name=transport-report-ts-retail-preview --branch=retail-cloudflare-preview
 
-      - name: Verify preview and asset fingerprints
+      - name: Verify preview and versioned assets
         run: |
           for i in 1 2 3 4 5 6; do
             if curl --fail --silent --location --max-time 20 \
-              'https://transport-report-ts-retail-preview.pages.dev/?verify=asset-check' | grep -q 'Retail ТОВ'; then
+              'https://transport-report-ts-retail-preview.pages.dev/?verify=v11' | grep -q 'hero-v11.jpg'; then
               curl --fail --silent --location --max-time 20 \
-                'https://transport-report-ts-retail-preview.pages.dev/hero.jpg?verify=asset-check' -o /tmp/deployed-hero.jpg
+                'https://transport-report-ts-retail-preview.pages.dev/hero-v11.jpg?verify=v11' -o /tmp/deployed-hero.jpg
               curl --fail --silent --location --max-time 20 \
-                'https://transport-report-ts-retail-preview.pages.dev/logo.jpg?verify=asset-check' -o /tmp/deployed-logo.jpg
-              echo 'deployed hero:' $(wc -c </tmp/deployed-hero.jpg) $(sha256sum /tmp/deployed-hero.jpg | cut -d' ' -f1)
-              echo 'deployed logo:' $(wc -c </tmp/deployed-logo.jpg) $(sha256sum /tmp/deployed-logo.jpg | cut -d' ' -f1)
-              echo 'Retail Cloudflare preview verified'
+                'https://transport-report-ts-retail-preview.pages.dev/logo-v11.jpg?verify=v11' -o /tmp/deployed-logo.jpg
+              echo 'hero-v11:' $(wc -c </tmp/deployed-hero.jpg) $(sha256sum /tmp/deployed-hero.jpg | cut -d' ' -f1)
+              echo 'logo-v11:' $(wc -c </tmp/deployed-logo.jpg) $(sha256sum /tmp/deployed-logo.jpg | cut -d' ' -f1)
+              test $(wc -c </tmp/deployed-hero.jpg) -gt 50000
+              test $(wc -c </tmp/deployed-logo.jpg) -gt 1500
+              echo 'Retail Cloudflare preview v11 verified'
               exit 0
             fi
             sleep 5
