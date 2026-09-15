@@ -1,10 +1,31 @@
 /* Presentation navigation. operations.js owns the active Base Excel/import workflow. */
 (() => {
+  // Preview-only clean reset requested for parser retest. Run once per browser after this deploy.
+  const RESET_TAG='retail_preview_reset_20260915_01';
+  if(localStorage.getItem(RESET_TAG)!=='done'){
+    ['tc_retail_docs_v2','tc_retail_docs_v3','tc_retail_imports_v1','tc_retail_tickets_v1'].forEach(k=>localStorage.removeItem(k));
+    localStorage.setItem(RESET_TAG,'done');
+    sessionStorage.setItem('retail_reset_reload','1');
+    location.reload();
+    return;
+  }
+  // operations-fix currently writes the corrected parser result to v3; the Base screen reads v2.
+  // Mirror v3 into v2 after an import, then reload once so counters/history/details use one dataset.
+  const v3=localStorage.getItem('tc_retail_docs_v3');
+  const v2=localStorage.getItem('tc_retail_docs_v2');
+  if(v3 && v3!==v2 && sessionStorage.getItem('retail_sync_reload')!=='1'){
+    localStorage.setItem('tc_retail_docs_v2',v3);
+    sessionStorage.setItem('retail_sync_reload','1');
+    location.reload();
+    return;
+  }
+  sessionStorage.removeItem('retail_sync_reload');
+  sessionStorage.removeItem('retail_reset_reload');
+
   const dashboard=document.querySelector('.dashboard');
   const ops=()=>document.getElementById('ops-documents');
   const links=[...document.querySelectorAll('.side nav a')];
 
-  // Final agreed menu structure for the current stage.
   const byText=t=>links.find(a=>a.textContent.trim()===t);
   byText('Консолідація')?.remove();
   byText('Тарифи')?.remove();
@@ -56,13 +77,11 @@
       setActive('#home'); return;
     }
     if(key==='base-excel'){
-      // operations.js renders the real Base Excel screen. Do not hide/overwrite it here.
       dashboard?.classList.add('ops-hidden');
       const h=ops(); if(h){h.hidden=false;h.style.display='block';}
       setActive('#base-excel'); return;
     }
     if(titles[key]){showDevelopment(key);setActive('#'+key);return;}
-    // Unknown anchors from dashboard cards stay on Home instead of jumping to arbitrary sections.
     location.hash='home';
   }
 
