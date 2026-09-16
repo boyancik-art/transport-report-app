@@ -1,5 +1,7 @@
 # Retail Preview — аудит і стабілізація, 16.09.2026
 
+> Історичний звіт для commit `5240ad2`. Подальше дозволене відновлення довідників, clean-profile verification і поточний статус описані в [retail-directory-restoration.md](retail-directory-restoration.md). Згадані нижче protected syntax/initialization blockers усунені на наступному етапі.
+
 ## Baseline
 
 - Repository: `boyancik-art/transport-report-app`; branch: `retail-cloudflare-preview`.

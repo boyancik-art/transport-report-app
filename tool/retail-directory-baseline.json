@@ -1,0 +1,16 @@
+{
+  "baseline": "5240ad2d3cadf40efe73752b3e57b5d0eb06aff0",
+  "sourceCommits": [
+    "b6d5db05922fdfe025dc1f3e07271dc0a55fa402",
+    "f260b111b7ad0a7bb8f39f9256554754b16032f7"
+  ],
+  "stores": {
+    "count": 39,
+    "sha256": "42da6e94cc749ae3c8fb8e0e820ccf06aaef5dd3f04ca1fb0c7eda8c66affd4f"
+  },
+  "warehouses": {
+    "count": 4,
+    "sha256": "199f4481b123d2e5401d101b12e887b945a50b6784cbd95c6a64ce5302a42aa6"
+  },
+  "approvedUiSha256": "7d80bf60cec04005bf2dfd58b44405ed1ed07c4afadedfaa4b287bd7b7db75c4"
+}

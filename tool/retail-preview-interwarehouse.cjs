@@ -15,13 +15,6 @@ const fs = require("fs"),
     errors = [];
   p.on("pageerror", (e) => errors.push(e.message));
   p.on("dialog", (d) => (d.type() === "confirm" ? d.accept() : d.dismiss()));
-  for (const name of [
-    "directory-data-repair-v3",
-    "store-directory-migration-v2",
-  ])
-    await c.route("**/" + name + ".js*", (r) =>
-      r.fulfill({ body: "", contentType: "text/javascript" }),
-    );
   const f = JSON.parse(fs.readFileSync(path.join(output, "fixtures.json")));
   await c.addInitScript((f) => {
     if (!sessionStorage.getItem("fixture")) {
@@ -95,10 +88,7 @@ const fs = require("fs"),
     ),
   );
   assert(await p.locator("[data-upload]").isEnabled());
-  assert.deepEqual(errors, [
-    "Unexpected token 'function'",
-    "Unexpected token 'function'",
-  ]);
+  assert.deepEqual(errors, []);
   fs.writeFileSync(
     path.join(output, "interwarehouse-tests.json"),
     JSON.stringify(

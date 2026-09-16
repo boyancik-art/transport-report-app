@@ -29,7 +29,7 @@
         maximumFractionDigits: 2,
       }) + " грн";
   function wh() {
-    return g(W).map((x) => ({
+    return window.RetailDirectories.warehouses().map((x) => ({
       id: x.id,
       label: [x.index || x.postcode, x.city, x.address]
         .filter(Boolean)

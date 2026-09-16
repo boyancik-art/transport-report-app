@@ -18,16 +18,6 @@ const fs = require("fs"),
     errors = [];
   p.on("pageerror", (e) => errors.push(e.message));
   p.on("dialog", (d) => d.dismiss());
-  for (const name of [
-    "directory-data-repair-v3",
-    "store-directory-migration-v2",
-  ])
-    await context.route("**/" + name + ".js*", (r) =>
-      r.fulfill({
-        body: "/* disabled in isolated test */",
-        contentType: "text/javascript",
-      }),
-    );
   await context.route("**/xlsx.full.min.js", (r) =>
     r.fulfill({ path: xlsxPath, contentType: "text/javascript" }),
   );
@@ -212,10 +202,7 @@ const fs = require("fs"),
     await p.evaluate(() => localStorage.getItem("tc_retail_docs_v3")),
     persisted,
   );
-  assert(
-    errors.every((message) => message === "Unexpected token 'function'"),
-    JSON.stringify(errors),
-  );
+  assert.deepEqual(errors, []);
   fs.writeFileSync(
     path.join(output, "extended-tests.json"),
     JSON.stringify(

@@ -2,10 +2,6 @@
 const fs = require("node:fs"),
   path = require("node:path"),
   os = require("node:os");
-const root = path.resolve(__dirname, "../web/retail-cloudflare");
-const text = fs.readFileSync(path.join(root, "retail-directories.js"), "utf8");
-const seedW = JSON.parse(text.match(/seedW=(\[.*?\]),seedS=/)[1]),
-  seedS = JSON.parse(text.match(/seedS=(\[.*?\]);const g=/)[1]);
 const doc = {
   id: "900001",
   key: "900001|15.09.2026|WH-001|Test",
@@ -38,8 +34,6 @@ const doc = {
   ],
 };
 const fixtures = {
-  tc_retail_warehouses_v1: seedW,
-  tc_retail_stores_directory_v1: seedS,
   tc_retail_docs_v3: [doc],
   tc_retail_docs_v2: [doc],
   tc_retail_imports_v1: [],
