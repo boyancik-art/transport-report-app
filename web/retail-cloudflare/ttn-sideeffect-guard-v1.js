@@ -1,1 +1,13 @@
-(()=>{'use strict';const J='tc_retail_ttn_journal_v1',L='tc_retail_loading_register_v1',R='tc_retail_routes_v1';const api=window.RetailRouteTTN;if(!api||!window.RetailState)return;const clone=v=>JSON.parse(JSON.stringify(v??[])),snap=()=>({j:clone(RetailState.read(J,[])),r:clone(RetailState.read(R,[]))}),restore=s=>RetailState.commit({[J]:s.j,[R]:s.r});const originalPreview=api.preview?.bind(api),originalRegister=api.editRegister?.bind(api),originalGenerate=api.generate?.bind(api);if(originalPreview)api.preview=RetailState.guard(no=>{const s=snap();try{return originalPreview(no)}finally{restore(s);window.RetailRoutes?.render?.()}});if(originalRegister)api.editRegister=RetailState.guard(no=>{const s=snap(),before=clone(RetailState.read(L,[]));try{return originalRegister(no)}finally{const after=clone(RetailState.read(L,[]));restore(s);if(after.length!==before.length||JSON.stringify(after)!==JSON.stringify(before))RetailState.write(L,after);window.RetailRoutes?.render?.()}});if(originalGenerate)api.generate=RetailState.guard(no=>{const route=(RetailState.read(R,[])||[]).find(x=>x.number===no),reg=(RetailState.read(L,[])||[]).find(x=>x.route===no);if(!route)return alert('Маршрут не знайдено.');if(!reg){alert('Спочатку сформуйте та збережіть реєстр завантаження.');return api.editRegister(no)}const missing=(route.ticketIds||[]).filter(id=>!String(reg.seals?.[id]||'').trim());if(missing.length){alert(`Перед формуванням ТТН вкажіть номер пломби для кожного магазину в реєстрі завантаження. Не заповнено: ${missing.length}.`);return api.editRegister(no)}return originalGenerate(no)});})();
+(()=>{'use strict';
+const L='tc_retail_loading_register_v1',R='tc_retail_routes_v1';
+const api=window.RetailRouteTTN;if(!api||!window.RetailState)return;
+const originalGenerate=api.generate?.bind(api);
+if(originalGenerate)api.generate=RetailState.guard(no=>{
+  const route=(RetailState.read(R,[])||[]).find(x=>x.number===no),reg=(RetailState.read(L,[])||[]).find(x=>x.route===no);
+  if(!route)return alert('Маршрут не знайдено.');
+  if(!reg){alert('Спочатку сформуйте та збережіть реєстр завантаження.');return api.editRegister(no)}
+  const missing=(route.ticketIds||[]).filter(id=>!String(reg.seals?.[id]||'').trim());
+  if(missing.length){alert(`Перед формуванням ТТН вкажіть номер пломби для кожного магазину в реєстрі завантаження. Не заповнено: ${missing.length}.`);return api.editRegister(no)}
+  return originalGenerate(no)
+});
+})();
