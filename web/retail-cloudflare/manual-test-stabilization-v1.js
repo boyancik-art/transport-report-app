@@ -1,0 +1,10 @@
+(()=>{'use strict';
+const D='tc_retail_docs_v3',T='tc_retail_tickets_v1';
+if(!window.RetailState||!window.RetailCanonicalStores)return;
+const oldRead=RetailState.read.bind(RetailState),oldDocuments=RetailState.documents.bind(RetailState),oldDocsFor=RetailState.docsFor.bind(RetailState);
+const canon=x=>{if(!x||typeof x!=='object')return x;const hit=RetailCanonicalStores.match(x.store)||RetailCanonicalStores.match(x.receiverWarehouse)||RetailCanonicalStores.match(x.storeAddress);return hit?{...x,store:hit.name,storeAddress:hit.address}:x};
+RetailState.documents=()=>oldDocuments().map(canon);
+RetailState.read=(key,fallback=[])=>{const value=oldRead(key,fallback);return key===T&&Array.isArray(value)?value.map(canon):key===D&&Array.isArray(value)?value.map(canon):value};
+RetailState.docsFor=(ticket,all=RetailState.documents())=>oldDocsFor(canon(ticket),Array.isArray(all)?all.map(canon):all).map(canon);
+window.RetailManualTestStabilization={canonicalAddress:true};
+})();
