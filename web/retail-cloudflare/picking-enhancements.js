@@ -1,13 +1,187 @@
-(()=>{
-const DOCS='tc_retail_docs_v3',TICKETS='tc_retail_tickets_v1',FOCUS='tc_retail_completed_focus';
-const get=(k,d=[])=>{try{return JSON.parse(localStorage.getItem(k)||JSON.stringify(d))}catch{return d}},set=(k,v)=>localStorage.setItem(k,JSON.stringify(v)),n=v=>Number(v)||0,esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function docsFor(t){const all=get(DOCS);return(t.documentIds||[]).map(id=>all.find(d=>String(d.id)===String(id))).filter(Boolean)}
-function captureActualPallets(t){const i=document.getElementById('ops-documents')?.querySelector('[data-ap]');if(i&&i.value!=='')t.actualPallets=i.value}
-function finish(t,ts,mode,changes=[]){captureActualPallets(t);t.status='Скомплектовано';t.completedAt=new Date().toISOString();t.completionMode=mode;t.changes=changes;set(TICKETS,ts);const ids=new Set((t.documentIds||[]).map(String));set(DOCS,get(DOCS).map(d=>ids.has(String(d.id))?{...d,status:'Скомплектовано',workflowStatus:'picked',pickingChanges:changes.filter(x=>String(x.documentId)===String(d.id))}:d));sessionStorage.setItem(FOCUS,String(t.number));location.hash='#completed'}
-function changedDialog(t,ts){captureActualPallets(t);const docs=docsFor(t),rows=docs.flatMap(d=>(d.lines||[]).map(x=>({d,x}))),changes=[];const w=document.createElement('div');w.style.cssText='position:fixed;inset:0;background:#000c;z-index:9999;display:grid;place-items:center;padding:18px';w.innerHTML=`<div style="width:min(1450px,97vw);max-height:92vh;overflow:auto;background:#111923;border:1px solid #34404d;border-radius:12px;padding:22px;color:#fff"><h2>Зібрано зі змінами</h2><p>Знайдіть позицію за документом, ШК, артикулом або назвою та вкажіть фактичну кількість.</p><div style="display:grid;grid-template-columns:300px 1fr;gap:10px"><select data-doc><option value="">Всі документи</option>${docs.map(d=>`<option value="${esc(d.id)}">№ ${esc(d.id)}</option>`).join('')}</select><input data-q placeholder="ШК / артикул / назва"></div><div data-r style="margin-top:12px;overflow:auto"></div><h3>Зміни</h3><div data-c>Ще немає змін.</div><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px"><button data-x>Скасувати</button><button class="ops-primary" data-save>Завершити зі змінами</button></div></div>`;document.body.appendChild(w);const r=w.querySelector('[data-r]'),c=w.querySelector('[data-c]');
-function rc(){c.innerHTML=changes.length?changes.map((z,i)=>`<div>№ ${esc(z.documentId)} · ${esc(z.sku)} · ${esc(z.name)}: ${z.plan} → <b>${z.actual}</b> <button data-del="${i}">×</button></div>`).join(''):'Ще немає змін.'}
-function rr(){const q=w.querySelector('[data-q]').value.trim().toLowerCase(),di=w.querySelector('[data-doc]').value,f=rows.filter(({d,x})=>(!di||String(d.id)===di)&&(!q||[x.barcode,x.sku,x.name].some(v=>String(v||'').toLowerCase().includes(q)))).slice(0,60);r.innerHTML=`<table class="ops-register"><thead><tr><th>Документ</th><th>Артикул</th><th>ШК</th><th>Назва</th><th>План</th><th>Факт</th><th></th></tr></thead><tbody>${f.map(({d,x},i)=>`<tr><td>№ ${esc(d.id)}</td><td>${esc(x.sku)}</td><td>${esc(x.barcode||'—')}</td><td>${esc(x.name)}</td><td>${n(x.qty)}</td><td><input type="number" min="0" data-a="${i}" value="${n(x.qty)}" style="width:90px"></td><td><button data-add="${i}">Додати зміну</button></td></tr>`).join('')}</tbody></table>`;r.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{const z=f[+b.dataset.add],actual=n(r.querySelector(`[data-a="${b.dataset.add}"]`).value);changes.push({documentId:String(z.d.id),sku:z.x.sku,barcode:z.x.barcode||'',name:z.x.name,plan:n(z.x.qty),actual});rc()})}
-w.querySelector('[data-q]').oninput=rr;w.querySelector('[data-doc]').onchange=rr;w.querySelector('[data-x]').onclick=()=>w.remove();w.querySelector('[data-save]').onclick=()=>{if(!changes.length)return alert('Додайте хоча б одну змінену позицію.');finish(t,ts,'changed',changes);w.remove()};c.onclick=e=>{if(e.target.dataset.del!==undefined){changes.splice(+e.target.dataset.del,1);rc()}};rr();rc()}
-function enhance(){if(location.hash!=='#picking-tickets')return;const h=document.getElementById('ops-documents'),h2=h?.querySelector('h2');if(!h2||!/^Талон комплектації /.test(h2.textContent))return;const no=h2.textContent.replace('Талон комплектації ','').trim(),ts=get(TICKETS),t=ts.find(x=>x.number===no),bar=h.querySelector('.ops-toolbar');if(!t||!bar)return;bar.querySelector('[data-complete]')?.remove();if(!bar.querySelector('[data-complete-ok]')){const ok=document.createElement('button');ok.className='ops-primary';ok.dataset.completeOk='1';ok.textContent='Зібрано без змін';ok.onclick=()=>{captureActualPallets(t);t.picked={};docsFor(t).forEach(d=>(d.lines||[]).forEach(x=>t.picked[`${d.id}|${x.sku}`]=n(x.qty)));finish(t,ts,'unchanged')};bar.prepend(ok)}if(!bar.querySelector('[data-complete-changed]')){const ch=document.createElement('button');ch.className='ops-primary';ch.dataset.completeChanged='1';ch.textContent='Зібрано зі змінами';ch.onclick=()=>changedDialog(t,ts);bar.insertBefore(ch,bar.querySelector('[data-complete-ok]').nextSibling)}}
-function run(){setTimeout(enhance,80)}window.addEventListener('hashchange',run);document.addEventListener('click',()=>setTimeout(enhance,60));run();
+(() => {
+  const DOCS = "tc_retail_docs_v3",
+    TICKETS = "tc_retail_tickets_v1",
+    FOCUS = "tc_retail_completed_focus";
+  const get = (k, d = []) =>
+      k === "tc_retail_docs_v3"
+        ? RetailState.documents()
+        : RetailState.read(k, d),
+    set = (k, v) => RetailState.write(k, v),
+    n = (v) => Number(v) || 0,
+    esc = (s) =>
+      String(s ?? "").replace(
+        /[&<>"']/g,
+        (c) =>
+          ({
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;",
+          })[c],
+      );
+  function docsFor(t) {
+    const all = get(DOCS);
+    return RetailState.docsFor(t, all);
+  }
+  function captureActualPallets(t) {
+    const i = document
+      .getElementById("ops-documents")
+      ?.querySelector("[data-ap]");
+    if (i) {
+      if (
+        i.value !== "" &&
+        (!Number.isFinite(Number(i.value)) || Number(i.value) < 0)
+      )
+        throw Error("Перевірте фактичні палети.");
+      t.actualPallets = i.value;
+    }
+  }
+  function finish(t, ts, mode, changes = []) {
+    captureActualPallets(t);
+    t.status = "Скомплектовано";
+    t.completedAt = new Date().toISOString();
+    t.completionMode = mode;
+    t.changes = changes;
+    if (
+      get("tc_retail_routes_v1").some((x) =>
+        (x.ticketIds || []).includes(t.number),
+      )
+    )
+      throw Error("Талон уже у маршруті.");
+    const ids = new Set(RetailState.docsFor(t).map(RetailState.docKey));
+    RetailState.commit({
+      [TICKETS]: get(TICKETS).map((x) => (x.number === t.number ? t : x)),
+      [DOCS]: get(DOCS).map((d) =>
+        ids.has(RetailState.docKey(d))
+          ? {
+              ...d,
+              status: "Скомплектовано",
+              workflowStatus: "picked",
+              pickingChanges: changes.filter(
+                (x) => String(x.documentId) === String(d.id),
+              ),
+            }
+          : d,
+      ),
+    });
+    sessionStorage.setItem(FOCUS, String(t.number));
+    location.hash = "#completed";
+  }
+  function changedDialog(t, ts) {
+    captureActualPallets(t);
+    const docs = docsFor(t),
+      rows = docs.flatMap((d) => (d.lines || []).map((x) => ({ d, x }))),
+      changes = [];
+    const w = document.createElement("div");
+    w.style.cssText =
+      "position:fixed;inset:0;background:#000c;z-index:9999;display:grid;place-items:center;padding:18px";
+    w.innerHTML = `<div style="width:min(1450px,97vw);max-height:92vh;overflow:auto;background:#111923;border:1px solid #34404d;border-radius:12px;padding:22px;color:#fff"><h2>Зібрано зі змінами</h2><p>Знайдіть позицію за документом, ШК, артикулом або назвою та вкажіть фактичну кількість.</p><div style="display:grid;grid-template-columns:300px 1fr;gap:10px"><select data-doc><option value="">Всі документи</option>${docs.map((d) => `<option value="${esc(d.id)}">№ ${esc(d.id)}</option>`).join("")}</select><input data-q placeholder="ШК / артикул / назва"></div><div data-r style="margin-top:12px;overflow:auto"></div><h3>Зміни</h3><div data-c>Ще немає змін.</div><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px"><button data-x>Скасувати</button><button class="ops-primary" data-save>Завершити зі змінами</button></div></div>`;
+    document.body.appendChild(w);
+    const r = w.querySelector("[data-r]"),
+      c = w.querySelector("[data-c]");
+    function rc() {
+      c.innerHTML = changes.length
+        ? changes
+            .map(
+              (z, i) =>
+                `<div>№ ${esc(z.documentId)} · ${esc(z.sku)} · ${esc(z.name)}: ${z.plan} → <b>${z.actual}</b> <button data-del="${i}">×</button></div>`,
+            )
+            .join("")
+        : "Ще немає змін.";
+    }
+    function rr() {
+      const q = w.querySelector("[data-q]").value.trim().toLowerCase(),
+        di = w.querySelector("[data-doc]").value,
+        f = rows
+          .filter(
+            ({ d, x }) =>
+              (!di || String(d.id) === di) &&
+              (!q ||
+                [x.barcode, x.sku, x.name].some((v) =>
+                  String(v || "")
+                    .toLowerCase()
+                    .includes(q),
+                )),
+          )
+          .slice(0, 60);
+      r.innerHTML = `<table class="ops-register"><thead><tr><th>Документ</th><th>Артикул</th><th>ШК</th><th>Назва</th><th>План</th><th>Факт</th><th></th></tr></thead><tbody>${f.map(({ d, x }, i) => `<tr><td>№ ${esc(d.id)}</td><td>${esc(x.sku)}</td><td>${esc(x.barcode || "—")}</td><td>${esc(x.name)}</td><td>${n(x.qty)}</td><td><input type="number" min="0" data-a="${i}" value="${n(x.qty)}" style="width:90px"></td><td><button data-add="${i}">Додати зміну</button></td></tr>`).join("")}</tbody></table>`;
+      r.querySelectorAll("[data-add]").forEach(
+        (b) =>
+          (b.onclick = () => {
+            const z = f[+b.dataset.add],
+              actual = n(r.querySelector(`[data-a="${b.dataset.add}"]`).value);
+            if (actual < 0)
+              return RetailState.notice("Кількість не може бути від’ємною.");
+            const previous = changes.findIndex(
+              (c) => c.documentId === String(z.d.id) && c.sku === z.x.sku,
+            );
+            if (previous >= 0) changes.splice(previous, 1);
+            changes.push({
+              documentId: String(z.d.id),
+              sku: z.x.sku,
+              barcode: z.x.barcode || "",
+              name: z.x.name,
+              plan: n(z.x.qty),
+              actual,
+            });
+            rc();
+          }),
+      );
+    }
+    w.querySelector("[data-q]").oninput = rr;
+    w.querySelector("[data-doc]").onchange = rr;
+    w.querySelector("[data-x]").onclick = () => w.remove();
+    w.querySelector("[data-save]").onclick = RetailState.guard(() => {
+      if (!changes.length) return alert("Додайте хоча б одну змінену позицію.");
+      finish(t, ts, "changed", changes);
+      w.remove();
+    });
+    c.onclick = (e) => {
+      if (e.target.dataset.del !== undefined) {
+        changes.splice(+e.target.dataset.del, 1);
+        rc();
+      }
+    };
+    rr();
+    rc();
+  }
+  function enhance() {
+    if (location.hash !== "#picking-tickets") return;
+    const h = document.getElementById("ops-documents"),
+      h2 = h?.querySelector("h2");
+    if (!h2 || !/^Талон комплектації /.test(h2.textContent)) return;
+    const no = h2.textContent.replace("Талон комплектації ", "").trim(),
+      ts = get(TICKETS),
+      t = ts.find((x) => x.number === no),
+      bar = h.querySelector(".ops-toolbar");
+    if (!t || !bar) return;
+    bar.querySelector("[data-complete]")?.remove();
+    if (!bar.querySelector("[data-complete-ok]")) {
+      const ok = document.createElement("button");
+      ok.className = "ops-primary";
+      ok.dataset.completeOk = "1";
+      ok.textContent = "Зібрано без змін";
+      ok.onclick = RetailState.guard(() => {
+        captureActualPallets(t);
+        t.picked = {};
+        docsFor(t).forEach((d) =>
+          (d.lines || []).forEach(
+            (x) => (t.picked[x.sku] = (t.picked[x.sku] || 0) + n(x.qty)),
+          ),
+        );
+        finish(t, ts, "unchanged");
+      });
+      bar.prepend(ok);
+    }
+    if (!bar.querySelector("[data-complete-changed]")) {
+      const ch = document.createElement("button");
+      ch.className = "ops-primary";
+      ch.dataset.completeChanged = "1";
+      ch.textContent = "Зібрано зі змінами";
+      ch.onclick = RetailState.guard(() => changedDialog(t, ts));
+      bar.insertBefore(ch, bar.querySelector("[data-complete-ok]").nextSibling);
+    }
+  }
+  window.RetailPickingEnhancements = { enhance };
 })();

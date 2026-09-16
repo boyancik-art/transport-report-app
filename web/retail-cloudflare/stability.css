@@ -1,0 +1,320 @@
+/* Operational views only. Frozen directory screens deliberately retain their original CSS. */
+#retail-feedback {
+  position: fixed;
+  bottom: 18px;
+  right: 18px;
+  z-index: 18000;
+  max-width: min(560px, calc(100vw - 36px));
+  padding: 14px 42px 14px 16px;
+  background: #39212a;
+  border: 1px solid #aa4058;
+  border-radius: 9px;
+  color: #fff;
+  box-shadow: 0 8px 30px #0008;
+  line-height: 1.45;
+  font-size: 14px;
+}
+#retail-feedback[data-kind="success"] {
+  background: #113528;
+  border-color: #2f9663;
+}
+#retail-feedback button {
+  position: absolute;
+  right: 9px;
+  top: 7px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: 22px;
+}
+.rb7 button,
+.rb7select button {
+  padding: 8px 13px;
+  border: 1px solid #405366;
+  border-radius: 7px;
+  background: #172b3c;
+  color: #fff;
+  cursor: pointer;
+}
+.rb7 .ops-primary,
+.rb7select .ops-primary {
+  background: #8d1233;
+  border-color: #b62a50;
+}
+.rb7 button:disabled,
+.rb7 select:disabled,
+#ops-documents [data-upload]:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.rb7 button:hover:not(:disabled),
+.rb7select button:hover {
+  filter: brightness(1.2);
+}
+.rb7 button:focus-visible,
+.rb7 input:focus-visible,
+.rb7 select:focus-visible,
+.rb7select button:focus-visible {
+  outline: 2px solid #e8738e;
+  outline-offset: 2px;
+}
+.rb7 label small {
+  font-size: 12px;
+}
+.rb7 input,
+.rb7 select {
+  font-size: 14px;
+}
+.rb7tbl th,
+.rb7tbl td,
+.rb7select th,
+.rb7select td {
+  font-size: 12px;
+}
+.rb7select .top {
+  flex-wrap: wrap;
+}
+.rb7select .top input {
+  min-width: 150px;
+  height: 36px;
+  background: #142635;
+  border: 1px solid #39546b;
+  color: #fff;
+  border-radius: 7px;
+  padding: 0 9px;
+}
+.rb7select input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #a62047;
+}
+html:not([data-retail-page="stores-page"]):not(
+    [data-retail-page="warehouses-page"]
+  )
+  #ops-documents
+  .ops-register {
+  min-width: 850px;
+  table-layout: auto;
+}
+html:not([data-retail-page="stores-page"]):not(
+    [data-retail-page="warehouses-page"]
+  )
+  .ops-page-title {
+  gap: 12px;
+  flex-wrap: wrap;
+}
+html:not([data-retail-page="stores-page"]):not(
+    [data-retail-page="warehouses-page"]
+  )
+  .ops-toolbar {
+  flex-wrap: wrap;
+}
+@media (max-width: 800px) {
+  html:not([data-retail-page="stores-page"]):not(
+      [data-retail-page="warehouses-page"]
+    ),
+  html:not([data-retail-page="stores-page"]):not(
+      [data-retail-page="warehouses-page"]
+    )
+    body {
+    min-width: 0;
+    width: 100%;
+    overflow-x: hidden;
+  }
+  html:not([data-retail-page="stores-page"]):not(
+      [data-retail-page="warehouses-page"]
+    )
+    #app {
+    display: block;
+  }
+  html:not([data-retail-page="stores-page"]):not(
+      [data-retail-page="warehouses-page"]
+    )
+    .side {
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    position: relative;
+    border-left: 0;
+  }
+  html:not([data-retail-page="stores-page"]):not(
+      [data-retail-page="warehouses-page"]
+    )
+    .brand,
+  html:not([data-retail-page="stores-page"]):not(
+      [data-retail-page="warehouses-page"]
+    )
+    .road,
+  html:not([data-retail-page="stores-page"]):not(
+      [data-retail-page="warehouses-page"]
+    )
+    .foot {
+    display: none;
+  }
+  html:not([data-retail-page="stores-page"]):not(
+      [data-retail-page="warehouses-page"]
+    )
+    .side
+    nav {
+    display: flex;
+    overflow-x: auto;
+    padding: 8px;
+    gap: 6px;
+  }
+  html:not([data-retail-page="stores-page"]):not(
+      [data-retail-page="warehouses-page"]
+    )
+    .side
+    nav
+    a {
+    flex: none;
+    margin: 0;
+    font-size: 14px;
+    height: 38px;
+  }
+  html:not([data-retail-page="stores-page"]):not(
+      [data-retail-page="warehouses-page"]
+    )
+    .side
+    nav
+    hr {
+    display: none;
+  }
+  html:not([data-retail-page="stores-page"]):not(
+      [data-retail-page="warehouses-page"]
+    )
+    main {
+    width: 100%;
+    min-height: calc(100vh - 54px);
+  }
+  html:not([data-retail-page="stores-page"]):not(
+      [data-retail-page="warehouses-page"]
+    )
+    header {
+    height: 83px;
+    padding: 10px 14px;
+  }
+  html:not([data-retail-page="stores-page"]):not(
+      [data-retail-page="warehouses-page"]
+    )
+    header
+    h1 {
+    font-size: 23px;
+    line-height: 30px;
+  }
+  html:not([data-retail-page="stores-page"]):not(
+      [data-retail-page="warehouses-page"]
+    )
+    header
+    p {
+    font-size: 13px;
+  }
+  html:not([data-retail-page="stores-page"]):not(
+      [data-retail-page="warehouses-page"]
+    )
+    .headright {
+    display: none;
+  }
+  html:not([data-retail-page="stores-page"]):not(
+      [data-retail-page="warehouses-page"]
+    )
+    .content {
+    padding: 0 10px 16px;
+  }
+  html:not([data-retail-page="stores-page"]):not(
+      [data-retail-page="warehouses-page"]
+    )
+    .hero {
+    height: 120px;
+    background-size: auto 100%;
+    background-position: left;
+  }
+  html:not([data-retail-page="stores-page"]):not(
+      [data-retail-page="warehouses-page"]
+    )
+    .kpis {
+    height: auto;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  html:not([data-retail-page="stores-page"]):not(
+      [data-retail-page="warehouses-page"]
+    )
+    .kpi {
+    height: 95px;
+    padding: 12px;
+  }
+  .ops-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+  .ops-summary strong {
+    font-size: 16px;
+    overflow-wrap: anywhere;
+  }
+  html:not([data-retail-page="stores-page"]):not(
+      [data-retail-page="warehouses-page"]
+    )
+    .ops-page-title {
+    padding: 16px;
+  }
+  .rb7 {
+    padding: 8px;
+  }
+  .rb7box {
+    width: 100%;
+    max-height: 96vh;
+  }
+  .rb7head,
+  .rb7foot {
+    padding: 12px;
+    gap: 10px;
+  }
+  .rb7grid {
+    grid-template-columns: 1fr;
+  }
+  .rb7pick,
+  .rb7stats {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .rb7select {
+    inset: 8px;
+  }
+  .rb7select .top {
+    padding: 12px;
+  }
+  .rb7select .top b {
+    font-size: 16px !important;
+  }
+  .rb7select table {
+    min-width: 720px;
+  }
+  .rb7tbl table {
+    min-width: 720px;
+  }
+  .rb7select .bottom {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .rb7body {
+    padding: 12px;
+  }
+  .rdbar {
+    flex-wrap: wrap;
+    padding: 12px;
+  }
+  .ops-grid {
+    grid-template-columns: 1fr;
+  }
+  .iw-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+#retail-feedback {
+  pointer-events: none;
+  top: 12px;
+  bottom: auto;
+}
+#retail-feedback button {
+  pointer-events: auto;
+}
