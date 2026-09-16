@@ -17,11 +17,19 @@ has(/amountWords\(vat\)/,'VAT amount in words missing');
 has(/actualPallets===(?:\"\"|'')\|\|t\.actualPallets==null/,'actual pallets guard missing');
 has(/loadingRegister:reg\.number/,'route-to-loading-register persistence missing');
 has(/ttnCount:points\.length/,'route TTN count persistence missing');
-// Preview/register actions remain compatibility-wrapped; source generator is now side-effect free for preview and persists register only from register editing.
-has(/originalPreview=api\.preview\?\.bind\(api\)/,'preview side-effect guard missing',guard);
-has(/const s=snap\(\);try\{return originalPreview\(no\)\}finally\{restore\(s\)/,'preview must restore TTN journal and route state',guard);
-has(/originalRegister=api\.editRegister\?\.bind\(api\)/,'register side-effect guard missing',guard);
-has(/const after=clone\(RetailState\.read\(L,\[\]\)\);restore\(s\)/,'register edit must restore TTN journal/route state',guard);
-has(/RetailState\.write\(L,after\)/,'register edits must remain persistent',guard);
-has(/route-ttn-generator\.js[^<]*<\/script><script src="\.\/ttn-sideeffect-guard-v1\.js/,'side-effect guard must load immediately after TTN generator',index);
+// Native side-effect boundaries: preview is read-only; register edit writes only L; generation finalizes journal + route.
+has(/function preview\(no\).*virtualRegister\(d\.route,d\.points\).*numbersFor\(d\.route,d\.points\).*openDoc/s,'preview must use virtual data only');
+const preview=src.match(/function preview\(no\)([\s\S]*?)function editRegister/)[1];
+assert(!/RetailState\.(?:write|commit)\(/.test(preview),'preview must not persist state');
+const edit=src.match(/function editRegister\(no\)([\s\S]*?)function generate/)[1];
+has(/saveRegister\(d\.route,d\.points/,'register edit must persist loading register',edit);
+assert(!/finalizeRecords\(/.test(edit),'register edit must not finalize TTN journal/route');
+const generate=src.match(/function generate\(no\)([\s\S]*?)window\.RetailRouteTTN/)[1];
+has(/finalizeRecords\(d\.route,d\.points,reg\)/,'generate must finalize journal and route',generate);
+// Compatibility guard is intentionally narrow: validation only, no snapshot/restore monkey patching.
+assert(!/originalPreview|originalRegister|snap\(|restore\(/.test(guard),'TTN guard must not monkey-patch preview/register state');
+has(/originalGenerate=api\.generate\?\.bind\(api\)/,'generation validation guard missing',guard);
+has(/if\(!reg\)/,'generation must require a saved loading register',guard);
+has(/const missing=.*reg\.seals/,'generation must validate seals',guard);
+has(/route-ttn-generator\.js[^<]*<\/script><script src="\.\/ttn-sideeffect-guard-v1\.js/,'generation validation guard must load immediately after TTN generator',index);
 console.log('Retail TTN contract: PASS');
