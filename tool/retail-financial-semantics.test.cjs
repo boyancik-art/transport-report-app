@@ -1,0 +1,17 @@
+const fs=require('fs'),path=require('path'),assert=require('assert');
+const read=n=>fs.readFileSync(path.join(__dirname,'../web/retail-cloudflare',n),'utf8');
+const fin=read('excel-financial-semantics-v1.js'),ttn=read('route-ttn-generator.js'),idx=read('index.html');
+const has=(re,msg,s)=>assert(re.test(s),msg);
+has(/sourceSumNoVat/,'explicit no-VAT document amount missing',fin);
+has(/sourceVat/,'explicit VAT document amount missing',fin);
+has(/sourceTotalWithVat/,'explicit VAT-inclusive document amount missing',fin);
+has(/unitPriceNoVat/,'unit price without VAT missing',fin);
+has(/lineTotalWithVat/,'line VAT-inclusive total missing',fin);
+has(/sourceSum\s*=\s*noVat/,'legacy sourceSum must remain no-VAT for compatibility',fin);
+has(/vat\s*=\s*r\(p\.sum\*\.2\)/,'TTN VAT must derive from no-VAT route amount',ttn);
+has(/total\s*=\s*r\(p\.sum\*1\.2\)/,'TTN total must derive from no-VAT route amount',ttn);
+has(/<b>Сума без ПДВ:<\/b>[^`]*money\(p\.sum\)/,'TTN must label route amount as no-VAT',ttn);
+has(/<b>ПДВ:<\/b>[^`]*money\(vat\)/,'TTN VAT output missing',ttn);
+has(/<b>Разом з ПДВ:<\/b>[^`]*money\(total\)/,'TTN VAT-inclusive total output missing',ttn);
+has(/operations-fix\.js[^<]*<\/script><script src="\.\/excel-financial-semantics-v1\.js/,'financial semantics runtime must load immediately after importer',idx);
+console.log('Retail financial semantics contract: PASS');
