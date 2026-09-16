@@ -1,13 +1,7 @@
 (()=>{'use strict';
-const D='tc_retail_docs_v3',T='tc_retail_tickets_v1';
-if(!window.RetailState||!window.RetailCanonicalStores)return;
-const oldRead=RetailState.read.bind(RetailState),oldDocuments=RetailState.documents.bind(RetailState),oldDocsFor=RetailState.docsFor.bind(RetailState);
-const canon=x=>{if(!x||typeof x!=='object')return x;const hit=RetailCanonicalStores.match(x.store)||RetailCanonicalStores.match(x.receiverWarehouse)||RetailCanonicalStores.match(x.storeAddress);return hit?{...x,store:hit.name,storeAddress:hit.address}:x};
-RetailState.documents=()=>oldDocuments().map(canon);
-RetailState.read=(key,fallback=[])=>{const value=oldRead(key,fallback);return key===T&&Array.isArray(value)?value.map(canon):key===D&&Array.isArray(value)?value.map(canon):value};
-RetailState.docsFor=(ticket,all=RetailState.documents())=>oldDocsFor(canon(ticket),Array.isArray(all)?all.map(canon):all).map(canon);
-function palletInputs(){if(location.hash!=='#picking-tickets')return;const host=document.getElementById('ops-documents'),table=host?.querySelector('.ops-register');if(!table||!table.querySelector('[data-open]'))return;table.querySelectorAll('tbody tr').forEach(row=>{const b=row.querySelector('[data-open]'),cell=row.children[4];if(!b||!cell||cell.querySelector('[data-actual-pallets]'))return;const no=b.dataset.open,tickets=RetailState.read(T,[]),ticket=tickets.find(x=>String(x.number)===String(no));if(!ticket)return;const input=document.createElement('input');input.type='number';input.min='0';input.step='0.01';input.dataset.actualPallets=no;input.value=ticket.actualPallets??'';input.placeholder='Вкажіть факт';input.style.cssText='width:105px;padding:7px 8px;border-radius:7px';input.disabled=ticket.pickingStatus==='completed'||ticket.status==='Скомплектовано';input.onchange=RetailState.guard(()=>{const value=input.value.trim();if(value!==''&&(!Number.isFinite(Number(value))||Number(value)<0))throw Error('Фактичні палети мають бути невід’ємним числом.');const fresh=RetailState.read(T,[]);RetailState.write(T,fresh.map(x=>String(x.number)===String(no)?{...x,actualPallets:value}:x));RetailState.notice('Факт палет збережено.','success')});cell.textContent='';cell.append(input)})}
+// Temporary manual-test compatibility layer has been retired.
+// Canonical store/address rendering and actual-pallet editing now live in native runtimes.
 function darkFix(){const id='manual-test-dark-fix';if(document.getElementById(id))return;const s=document.createElement('style');s.id=id;s.textContent='.ops-panel,.ref-cards a{background:#0e1a25!important;color:#fff!important;border-color:#26394a!important}.ops-flow>div{border-color:#26394a!important}.ops-flow span,.ref-cards span{color:#aeb9c4!important}.ops-register input[type=number]{background:#111923;color:#fff;border:1px solid #506274}';document.head.append(s)}
-const refresh=()=>setTimeout(()=>{palletInputs();darkFix()},180);window.addEventListener('hashchange',refresh);window.addEventListener('retail:rendered',refresh);refresh();
-window.RetailManualTestStabilization={canonicalAddress:true,actualPalletsInline:true};
+darkFix();
+window.RetailManualTestStabilization={canonicalAddress:false,actualPalletsInline:false,retired:true};
 })();
