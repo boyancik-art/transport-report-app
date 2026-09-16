@@ -7,6 +7,7 @@ on:
       - retail-cloudflare-preview
     paths:
       - 'web/retail-cloudflare/**'
+      - 'tool/retail-*.test.cjs'
       - '.github/workflows/retail-cloudflare-preview.yml'
 
 concurrency:
@@ -21,6 +22,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Run Retail operational contract tests
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          tests=(tool/retail-*.test.cjs)
+          if [ ${#tests[@]} -eq 0 ]; then
+            echo 'No Retail contract tests found'
+            exit 1
+          fi
+          for test_file in "${tests[@]}"; do
+            echo "Running ${test_file}"
+            node "${test_file}"
+          done
 
       - name: Materialize cache-busted Retail v13 assets
         run: |
