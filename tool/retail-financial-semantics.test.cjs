@@ -15,8 +15,10 @@ has(/x\.priceNoVat\?\?x\.price/,'TTN unit price must prefer explicit no-VAT pric
 has(/x\.sourceSumNoVat\?\?x\.amount\?\?x\.sum/,'TTN line total must prefer explicit no-VAT line amount',ttn);
 has(/vat=r\(p\.sum\*\.2\)/,'TTN VAT must derive from no-VAT route amount',ttn);
 has(/total=r\(p\.sum\*1\.2\)/,'TTN total must derive from no-VAT route amount',ttn);
-has(/<span>Сума без ПДВ<\/span><b>\$\{money\(p\.sum\)\} грн<\/b>/,'TTN must label route amount as no-VAT',ttn);
-has(/<span>ПДВ<\/span><b>\$\{money\(vat\)\} грн<\/b>/,'TTN VAT output missing',ttn);
-has(/<span>Разом з ПДВ<\/span><b>\$\{money\(total\)\} грн<\/b>/,'TTN VAT-inclusive total output missing',ttn);
+has(/<b>Сума без ПДВ:<\/b> \$\{money\(p\.sum\)\} грн/,'TTN must label route amount as no-VAT',ttn);
+has(/<b>у т\. ч\. ПДВ:<\/b> \$\{money\(vat\)\} грн/,'TTN VAT output missing',ttn);
+has(/<b>на загальну суму:<\/b> \$\{money\(total\)\} грн/,'TTN VAT-inclusive total output missing',ttn);
+has(/Вартість вантажу з ПДВ, грн/,'approved cargo table must expose VAT-inclusive cargo value',ttn);
+has(/Ціна без ПДВ за одиницю, грн/,'approved cargo table must expose no-VAT unit price',ttn);
 has(/operations-fix\.js[^<]*<\/script><script src="\.\/retail-financial-semantics-v1\.js/,'financial semantics runtime must load immediately after importer',idx);
 console.log('Retail financial semantics contract: PASS');
