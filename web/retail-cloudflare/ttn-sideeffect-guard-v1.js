@@ -8,7 +8,14 @@ if(originalGenerate)api.generate=RetailState.guard(no=>{
   if(!route)return alert('Маршрут не знайдено.');
   if(!reg){alert('Спочатку сформуйте та збережіть реєстр завантаження.');return api.editRegister(no)}
   const tickets=RetailState.read(T,[])||[],docs=RetailState.documents?.()||RetailState.read(D,[])||[],keys=new Set();
-  for(const id of route.ticketIds||[]){const t=tickets.find(x=>String(x.number)===String(id));if(!t)continue;const ds=RetailState.docsFor(t,docs),hit=window.RetailCanonicalStores?.match?.(t.store||ds[0]?.store||t.storeAddress||ds[0]?.storeAddress),store=hit?.name||t.store||ds[0]?.store||'',address=hit?.address||t.storeAddress||ds[0]?.storeAddress||'';keys.add(storeKey(store,address))}
+  for(const id of route.ticketIds||[]){
+    const t=tickets.find(x=>String(x.number)===String(id));
+    if(!t){alert(`Не знайдено талон комплектування ${id}. Формування ТТН скасовано.`);return}
+    let ds;
+    try{ds=RetailState.docsFor(t,docs)}catch(e){alert(`Не вдалося знайти документи для талона ${id}. Формування ТТН скасовано.`);return}
+    if(!ds?.length){alert(`Не знайдено документи для талона ${id}. Формування ТТН скасовано.`);return}
+    const hit=window.RetailCanonicalStores?.match?.(t.store||ds[0]?.store||t.storeAddress||ds[0]?.storeAddress),store=hit?.name||t.store||ds[0]?.store||'',address=hit?.address||t.storeAddress||ds[0]?.storeAddress||'';keys.add(storeKey(store,address));
+  }
   const missing=[...keys].filter(key=>!String(reg.seals?.[key]||'').trim());
   if(missing.length){alert(`Перед формуванням ТТН вкажіть номер пломби для кожного магазину в реєстрі завантаження. Не заповнено: ${missing.length}.`);return api.editRegister(no)}
   return originalGenerate(no)
