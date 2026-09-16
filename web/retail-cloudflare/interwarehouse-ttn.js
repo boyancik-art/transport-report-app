@@ -108,6 +108,7 @@
     );
   }
   function addon() {
+    if(window.RetailUI)return;
     if (location.hash !== "#routes-page") return;
     const h = document.getElementById("ops-documents");
     if (!h || h.querySelector("#iw-addon")) return;
@@ -296,6 +297,7 @@
     w.document.close();
   }
   function journal() {
+    if (window.RetailUI) return;
     if (location.hash !== "#ttn-journal") return;
     const h = document.getElementById("ops-documents");
     if (!h) return;

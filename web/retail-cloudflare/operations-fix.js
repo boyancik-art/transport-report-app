@@ -357,7 +357,7 @@
     box.scrollIntoView({ block: "start" });
   }
   let uploadBusy = false;
-  async function upload() {
+  async function upload(droppedFile) {
     if (uploadBusy) return;
     uploadBusy = true;
     const button = document.querySelector("[data-upload]");
@@ -371,7 +371,7 @@
       input.type = "file";
       input.accept = ".xlsx,.xls";
       input.onchange = RetailState.guard(async () => {
-        const file = input.files?.[0];
+        const file = droppedFile || input.files?.[0];
         if (!file) return;
         try {
           const wb = XLSX.read(await file.arrayBuffer(), { type: "array" }),
@@ -407,7 +407,7 @@
           for (const [key, d] of unique) {
             const previous = map.get(key);
             if (!previous) {
-              map.set(key, d);
+              map.set(key, {...d, loadedAt: new Date().toISOString()});
               added++;
             } else if (previous.hash === d.hash) {
               unchanged++;
@@ -426,6 +426,7 @@
             } else {
               map.set(key, {
                 ...d,
+                loadedAt: new Date().toISOString(),
                 fact: previous.fact ?? "",
                 route: previous.route || "",
                 status: previous.status || "Новий",
@@ -483,7 +484,7 @@
           RetailState.notice("Помилка імпорту: " + error.message);
         }
       });
-      input.click();
+      if(droppedFile) await input.onchange(); else input.click();
     } catch (error) {
       RetailState.notice(error.message);
     } finally {

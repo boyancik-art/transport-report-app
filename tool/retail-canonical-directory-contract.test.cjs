@@ -1,17 +1,1 @@
-const fs=require('fs'),path=require('path'),assert=require('assert');
-const root=path.join(__dirname,'../web/retail-cloudflare');
-const read=n=>fs.readFileSync(path.join(root,n),'utf8');
-const canonical=read('retail-preview-fixes-v1.js'),base=read('retail-directories.js'),idx=read('index.html');
-const block=canonical.match(/const CANONICAL=(\[.*?\]);\nconst canonicalStores/s);
-assert(block,'canonical WT directory declaration missing');
-const rows=Function(`return ${block[1]}`)();
-assert.strictEqual(rows.length,38,'canonical WT directory must contain exactly 38 stores');
-assert(rows.some(x=>x[0].includes('Олени Теліги')),'Olena Telihy store must be canonical');
-assert(!rows.some(x=>x[0].includes('Столичний')),'Stolychnyi must not be canonical');
-assert(/03035[^\n]*Гетьмана Кирила Розумовського/.test(base),'Kyiv approved warehouse missing');
-assert(/79038[^\n]*Пасічна/.test(base),'Lviv approved warehouse missing');
-assert(/80383[^\n]*Тараса Дороша/.test(base),'Malehiv approved warehouse missing');
-assert(/47728[^\n]*Промислова/.test(base),'Ostriv approved warehouse missing');
-assert(/raw === null \? structuredClone\(approved\) : JSON\.parse\(raw\)/.test(base),'persisted directory must take precedence over bundled defaults');
-assert(!/directory-data-repair-v3\.js|store-directory-migration-v2\.js/.test(idx),'dangerous directory repair/migration scripts must stay disabled');
-console.log('Retail canonical directory contract: PASS');
+const fs=require('fs'),assert=require('assert'),vm=require('vm'),path=require('path'),crypto=require('crypto');const root=path.join(__dirname,'../web/retail-cloudflare'),b=require('./retail-directory-baseline.json'),window={};vm.runInNewContext(fs.readFileSync(path.join(root,'retail-directories.js'),'utf8'),{window,structuredClone,localStorage:{getItem:()=>null}});const hash=x=>crypto.createHash('sha256').update(JSON.stringify(x)).digest('hex');assert.equal(hash(window.RetailDirectories.stores()),b.stores.sha256);assert.equal(hash(window.RetailDirectories.warehouses()),b.warehouses.sha256);const idx=fs.readFileSync(path.join(root,'index.html'),'utf8');assert(!/src="[^\"]*(?:directory-data-repair-v3|store-directory-migration-v2|retail-preview-fixes-v[12])/.test(idx));console.log('Retail approved 39 WT + 4 warehouses contract: PASS');

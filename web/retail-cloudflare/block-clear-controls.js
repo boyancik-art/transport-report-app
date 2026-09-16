@@ -20,6 +20,7 @@
     "ttn-journal": "журнал ТТН",
   };
   function run() {
+    if (window.RetailUI) return;
     const key = location.hash.slice(1);
     if (!KEYS[key]) return;
     const h = document.getElementById("ops-documents");

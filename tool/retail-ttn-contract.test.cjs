@@ -24,7 +24,7 @@ assert(!/RetailState\.(?:write|commit)\(/.test(preview),'preview must not persis
 const edit=src.match(/function editRegister\(no\)([\s\S]*?)function generate/)[1];
 has(/saveRegister\(d\.route,d\.points/,'register edit must persist loading register',edit);
 assert(!/finalizeRecords\(/.test(edit),'register edit must not finalize TTN journal/route');
-const generate=src.match(/function generate\(no\)([\s\S]*?)window\.RetailRouteTTN/)[1];
+const generate=src.match(/function generate\(no(?:,options=\{\})?\)([\s\S]*?)window\.RetailRouteTTN/)[1];
 has(/finalizeRecords\(d\.route,d\.points,reg\)/,'generate must finalize journal and route',generate);
 // Compatibility guard is intentionally narrow: validation only, no snapshot/restore monkey patching.
 assert(!/originalPreview|originalRegister|snap\(|restore\(/.test(guard),'TTN guard must not monkey-patch preview/register state');

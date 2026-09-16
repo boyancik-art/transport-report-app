@@ -275,6 +275,7 @@
     host().style.display = "block";
   }
   function renderBase() {
+    if (window.RetailUI) return window.RetailUI.render();
     docs = RetailState.documents();
     imports = RetailState.read("tc_retail_imports_v1");
     showOps();
@@ -338,6 +339,7 @@
     );
   }
   function routeView() {
+    if (window.RetailUI) return;
     const hash = location.hash;
     if (hash === "#base-excel") renderBase();
     else if (hash === "#consolidation" || hash === "#documents")

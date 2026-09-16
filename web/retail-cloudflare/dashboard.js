@@ -63,6 +63,7 @@
     h.innerHTML = `<div class="ops-page-title"><div><h2>${t}</h2><small>${d}</small></div></div><div style="min-height:520px;display:grid;place-items:center"><h2>Розділ у розробці</h2></div>`;
   }
   function navigate() {
+    if (window.RetailUI) return;
     const key = location.hash.slice(1) || "home";
     document.documentElement.dataset.retailPage = key;
     if (key === "stores-page" || key === "warehouses-page") {
