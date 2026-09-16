@@ -1,0 +1,15 @@
+const fs=require('fs'),path=require('path'),assert=require('assert');
+const root=path.join(__dirname,'../web/retail-cloudflare');
+const read=n=>fs.readFileSync(path.join(root,n),'utf8');
+const canonical=read('retail-preview-fixes-v1.js'),base=read('retail-directories.js'),idx=read('index.html');
+const rows=[...canonical.matchAll(/\['(Склад №1 магазин[^']*)','([^']*)'/g)];
+assert.strictEqual(rows.length,38,'canonical WT directory must contain exactly 38 stores');
+assert(rows.some(x=>x[1].includes('Олени Теліги')),'Olena Telihy store must be canonical');
+assert(!rows.some(x=>x[1].includes('Столичний')),'Stolychnyi must not be canonical');
+assert(/03035[^\n]*Гетьмана Кирила Розумовського/.test(base),'Kyiv approved warehouse missing');
+assert(/79038[^\n]*Пасічна/.test(base),'Lviv approved warehouse missing');
+assert(/80383[^\n]*Тараса Дороша/.test(base),'Malehiv approved warehouse missing');
+assert(/47728[^\n]*Промислова/.test(base),'Ostriv approved warehouse missing');
+assert(/raw === null \? structuredClone\(approved\) : JSON\.parse\(raw\)/.test(base),'persisted directory must take precedence over bundled defaults');
+assert(!/directory-data-repair-v3\.js|store-directory-migration-v2\.js/.test(idx),'dangerous directory repair/migration scripts must stay disabled');
+console.log('Retail canonical directory contract: PASS');
