@@ -18,9 +18,9 @@ has(/actualPallets===\"\"\|\|t\.actualPallets==null/,'actual pallets guard missi
 has(/loadingRegister:reg\.number/,'route-to-loading-register persistence missing');
 has(/ttnCount:points\.length/,'route TTN count persistence missing');
 // Preview/register actions are compatibility-wrapped so only actual generation may persist TTNs/status.
-has(/const originalPreview=api\.preview\?\.bind\(api\)/,'preview side-effect guard missing',guard);
+has(/originalPreview=api\.preview\?\.bind\(api\)/,'preview side-effect guard missing',guard);
 has(/const s=snap\(\);try\{return originalPreview\(no\)\}finally\{restore\(s\)/,'preview must restore TTN journal and route state',guard);
-has(/const originalRegister=api\.editRegister\?\.bind\(api\)/,'register side-effect guard missing',guard);
+has(/originalRegister=api\.editRegister\?\.bind\(api\)/,'register side-effect guard missing',guard);
 has(/const after=clone\(RetailState\.read\(L,\[\]\)\);restore\(s\)/,'register edit must restore TTN journal/route state',guard);
 has(/RetailState\.write\(L,after\)/,'register edits must remain persistent',guard);
 has(/route-ttn-generator\.js[^<]*<\/script><script src=\"\.\/ttn-sideeffect-guard-v1\.js/,'side-effect guard must load immediately after TTN generator',index);
