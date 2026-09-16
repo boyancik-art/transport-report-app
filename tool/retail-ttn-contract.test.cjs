@@ -14,14 +14,14 @@ has(/\.sheet:last-child\{page-break-after:auto\}/,'last sheet must not force an 
 // Financial and operational fields required by the approved flow.
 has(/amountWords\(total\)/,'total amount in words missing');
 has(/amountWords\(vat\)/,'VAT amount in words missing');
-has(/actualPallets===\"\"\|\|t\.actualPallets==null/,'actual pallets guard missing');
+has(/actualPallets===(?:\"\"|'')\|\|t\.actualPallets==null/,'actual pallets guard missing');
 has(/loadingRegister:reg\.number/,'route-to-loading-register persistence missing');
 has(/ttnCount:points\.length/,'route TTN count persistence missing');
-// Preview/register actions are compatibility-wrapped so only actual generation may persist TTNs/status.
+// Preview/register actions remain compatibility-wrapped; source generator is now side-effect free for preview and persists register only from register editing.
 has(/originalPreview=api\.preview\?\.bind\(api\)/,'preview side-effect guard missing',guard);
 has(/const s=snap\(\);try\{return originalPreview\(no\)\}finally\{restore\(s\)/,'preview must restore TTN journal and route state',guard);
 has(/originalRegister=api\.editRegister\?\.bind\(api\)/,'register side-effect guard missing',guard);
 has(/const after=clone\(RetailState\.read\(L,\[\]\)\);restore\(s\)/,'register edit must restore TTN journal/route state',guard);
 has(/RetailState\.write\(L,after\)/,'register edits must remain persistent',guard);
-has(/route-ttn-generator\.js[^<]*<\/script><script src=\"\.\/ttn-sideeffect-guard-v1\.js/,'side-effect guard must load immediately after TTN generator',index);
+has(/route-ttn-generator\.js[^<]*<\/script><script src="\.\/ttn-sideeffect-guard-v1\.js/,'side-effect guard must load immediately after TTN generator',index);
 console.log('Retail TTN contract: PASS');
