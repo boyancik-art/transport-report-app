@@ -15,8 +15,8 @@ has(/x\.priceNoVat\?\?x\.price/,'TTN unit price must prefer explicit no-VAT pric
 has(/x\.sourceSumNoVat\?\?x\.amount\?\?x\.sum/,'TTN line total must prefer explicit no-VAT line amount',ttn);
 has(/vat=r\(p\.sum\*\.2\)/,'TTN VAT must derive from no-VAT route amount',ttn);
 has(/total=r\(p\.sum\*1\.2\)/,'TTN total must derive from no-VAT route amount',ttn);
-has(/<b>Сума без ПДВ:<\/b>[^`]*money\(p\.sum\)/,'TTN must label route amount as no-VAT',ttn);
-has(/<b>ПДВ:<\/b>[^`]*money\(vat\)/,'TTN VAT output missing',ttn);
-has(/<b>Разом з ПДВ:<\/b>[^`]*money\(total\)/,'TTN VAT-inclusive total output missing',ttn);
+has(/<span>Сума без ПДВ<\/span><b>\$\{money\(p\.sum\)\} грн<\/b>/,'TTN must label route amount as no-VAT',ttn);
+has(/<span>ПДВ<\/span><b>\$\{money\(vat\)\} грн<\/b>/,'TTN VAT output missing',ttn);
+has(/<span>Разом з ПДВ<\/span><b>\$\{money\(total\)\} грн<\/b>/,'TTN VAT-inclusive total output missing',ttn);
 has(/operations-fix\.js[^<]*<\/script><script src="\.\/retail-financial-semantics-v1\.js/,'financial semantics runtime must load immediately after importer',idx);
 console.log('Retail financial semantics contract: PASS');
