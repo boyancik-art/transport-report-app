@@ -1,0 +1,1 @@
+(()=>{document.addEventListener('click',e=>{const b=e.target.closest?.('[data-ow="upload"]');if(!b)return;e.preventDefault();e.stopImmediatePropagation();if(window.RetailImport?.upload)window.RetailImport.upload();else RetailState.notice('Модуль імпорту ще завантажується. Повторіть через секунду.');},true);})();
