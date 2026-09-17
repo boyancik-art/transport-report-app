@@ -1,49 +1,9 @@
-/* Retail Transport v2 guards: identity, cutoff, duplicate prevention, safe persistence. TTN out of scope. */
-(()=>{'use strict';
-const ORDER_KEY='tc_retail_orders_v1',ROUTE_KEY='tc_retail_routes_v1';
-const read=(k)=>{try{const v=JSON.parse(localStorage.getItem(k)||'[]');return Array.isArray(v)?v:[]}catch{return[]}};
-const write=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
-const uniq=a=>[...new Set(a.filter(Boolean))];
-function normalize(){
- const orders=read(ORDER_KEY),routes=read(ROUTE_KEY); let dirty=false;
- const routeByOrder=new Map();
- routes.forEach(r=>uniq(r.orderIds||r.orders||[]).forEach(id=>{if(!routeByOrder.has(id))routeByOrder.set(id,r.id)}));
- const seenDocs=new Map();
- orders.forEach(o=>{
-   o.documentKeys=uniq(o.documentKeys||o.documents||[]);
-   if(o.routeId && !routes.some(r=>r.id===o.routeId)){o.routeId=null;dirty=true}
-   if(!o.routeId && routeByOrder.has(o.id)){o.routeId=routeByOrder.get(o.id);dirty=true}
-   if(o.routeId && o.state!=='planning'){o.state='planning';dirty=true}
-   o.documentKeys.forEach(k=>{if(!seenDocs.has(k))seenDocs.set(k,o.id)});
- });
- if(dirty)write(ORDER_KEY,orders);
-}
-function protectDoubleSubmit(){
- document.addEventListener('click',e=>{
-   const b=e.target.closest('[data-rt-action="to-orders"],[data-rt-action="to-planning"],[data-rt-action="form-route"],[data-rt-action="save-draft"]');
-   if(!b||b.dataset.rtBusy==='1')return;
-   b.dataset.rtBusy='1';setTimeout(()=>{b.dataset.rtBusy='0'},900);
- },true);
-}
-function accessibility(){
- document.addEventListener('change',e=>{
-  if(e.target.matches('[data-all-day]')){
-   const id=e.target.dataset.allDay,on=e.target.checked;
-   document.querySelector(`[data-delivery-from="${CSS.escape(id)}"]`)?.toggleAttribute('disabled',on);
-   document.querySelector(`[data-delivery-to="${CSS.escape(id)}"]`)?.toggleAttribute('disabled',on);
-  }
- });
-}
-function routeValidation(){
- document.addEventListener('click',e=>{
-  const b=e.target.closest('[data-rt-action="form-route"]');if(!b)return;
-  const stops=[...document.querySelectorAll('[data-stop]')];
-  if(!stops.length){e.stopImmediatePropagation();alert('Оберіть щонайменше одне замовлення для маршруту.');return}
-  const missing=stops.filter(s=>!s.querySelector('[data-delivery-date]')?.value);
-  if(missing.length){e.stopImmediatePropagation();alert('Вкажіть планову дату доставки для кожної ТТ.');return}
-  const bad=stops.filter(s=>{const id=s.dataset.stop,all=s.querySelector(`[data-all-day="${CSS.escape(id)}"]`)?.checked,f=s.querySelector(`[data-delivery-from="${CSS.escape(id)}"]`)?.value,t=s.querySelector(`[data-delivery-to="${CSS.escape(id)}"]`)?.value;return !all&&(!f||!t||f>=t)});
-  if(bad.length){e.stopImmediatePropagation();alert('Для кожної ТТ задайте коректний інтервал доставки або «Протягом дня».');}
- },true);
-}
-normalize();protectDoubleSubmit();accessibility();routeValidation();window.addEventListener('storage',normalize);
-})();
+/* Retail Transport v2 guards: identity, duplicate prevention and route validation. TTN out of scope. */
+(()=>{'use strict';const ORDER_KEY='tc_retail_orders_v1',ROUTE_KEY='tc_retail_routes_v1';const read=k=>{try{const v=JSON.parse(localStorage.getItem(k)||'[]');return Array.isArray(v)?v:[]}catch{return[]}},write=(k,v)=>localStorage.setItem(k,JSON.stringify(v)),uniq=a=>[...new Set(a.filter(Boolean))];
+function normalize(){const os=read(ORDER_KEY),rs=read(ROUTE_KEY);let dirty=false;const routeByOrder=new Map();rs.forEach(r=>(r.stops||[]).forEach(s=>{if(s.orderId&&!routeByOrder.has(String(s.orderId)))routeByOrder.set(String(s.orderId),r.id)}));os.forEach(o=>{const before=JSON.stringify(o.documentKeys||[]);o.documentKeys=uniq(o.documentKeys||o.documents||[]);if(JSON.stringify(o.documentKeys)!==before)dirty=true;if(o.routeId&&!rs.some(r=>String(r.id)===String(o.routeId))){o.routeId=null;dirty=true}if(!o.routeId&&routeByOrder.has(String(o.id))){o.routeId=routeByOrder.get(String(o.id));dirty=true}if(o.routeId&&o.state!=='planning'){o.state='planning';dirty=true}});if(dirty)write(ORDER_KEY,os)}
+function protectDoubleSubmit(){document.addEventListener('click',e=>{const b=e.target.closest('[data-rt-action="to-orders"],[data-rt-action="to-planning"],[data-rt-action="form-route"],[data-rt-action="save-draft"]');if(!b||b.dataset.rtBusy==='1')return;b.dataset.rtBusy='1';setTimeout(()=>b.dataset.rtBusy='0',900)},true)}
+function accessibility(){document.addEventListener('change',e=>{if(!e.target.matches('[data-all-day]'))return;const id=e.target.dataset.allDay,on=e.target.checked;document.querySelector(`[data-delivery-from="${CSS.escape(id)}"]`)?.toggleAttribute('disabled',on);document.querySelector(`[data-delivery-to="${CSS.escape(id)}"]`)?.toggleAttribute('disabled',on)},true)}
+function validPhysical(row){const date=row.querySelector('[data-mtt-date]')?.value,all=row.querySelector('[data-mtt-all]')?.checked,from=row.querySelector('[data-mtt-from]')?.value,to=row.querySelector('[data-mtt-to]')?.value;return !!date&&(all||!!from&&!!to&&from<to)}
+function validSingle(row){const id=row.dataset.stop,date=row.querySelector(`[data-delivery-date="${CSS.escape(id)}"]`)?.value,all=row.querySelector(`[data-all-day="${CSS.escape(id)}"]`)?.checked,from=row.querySelector(`[data-delivery-from="${CSS.escape(id)}"]`)?.value,to=row.querySelector(`[data-delivery-to="${CSS.escape(id)}"]`)?.value;return !!date&&(all||!!from&&!!to&&from<to)}
+function routeValidation(){document.addEventListener('click',e=>{const b=e.target.closest('[data-rt-action="form-route"]');if(!b)return;const parents=[...document.querySelectorAll('.rt-stops>[data-stop]')];if(!parents.length){e.preventDefault();e.stopImmediatePropagation();alert('Оберіть щонайменше одне замовлення для маршруту.');return}for(const p of parents){const physical=[...p.querySelectorAll('.rt-multitt-delivery [data-physical-tt]')];if(physical.length){if(physical.some(x=>!validPhysical(x))){e.preventDefault();e.stopImmediatePropagation();alert('Для кожної фізичної ТТ вкажіть дату доставки та коректний інтервал або «Протягом дня».');return}}else if(!validSingle(p)){e.preventDefault();e.stopImmediatePropagation();alert('Для кожної ТТ вкажіть дату доставки та коректний інтервал або «Протягом дня».');return}}},true)}
+normalize();protectDoubleSubmit();accessibility();routeValidation();window.addEventListener('storage',normalize);})();
