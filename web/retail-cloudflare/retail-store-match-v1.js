@@ -1,6 +1,6 @@
-/* Deterministic source Store -> approved WT directory match. Never guesses by substring. */
-(()=>{'use strict';const D=window.RetailDirectories;if(!D||typeof D.stores!=='function')return;const norm=s=>String(s||'').normalize('NFKC').toLowerCase().replace(/ё/g,'е').replace(/[’'`]/g,'').replace(/№\s*/g,'№').replace(/\s+/g,' ').trim();
+/* Deterministic source Store -> approved WT directory match. Never guesses address/direction from unmatched source data. */
+(()=>{'use strict';const D=window.RetailDirectories;if(!D||typeof D.stores!=='function')return;const UNKNOWN='Не знайдено в довіднику',norm=s=>String(s||'').normalize('NFKC').toLowerCase().replace(/ё/g,'е').replace(/[’'`]/g,'').replace(/№\s*/g,'№').replace(/\s+/g,' ').trim();
 function aliases(x){return[x.name,x.store,x.code,x.externalName,x.sourceName].map(norm).filter(Boolean)}
 function match(name){const q=norm(name);if(!q)return null;const hits=D.stores().filter(x=>aliases(x).includes(q));return hits.length===1?hits[0]:null}
-function meta(d){const raw=d?.store||d?.receiverWarehouse||'',x=match(raw);if(!x)return{name:raw||'Не знайдено в довіднику',address:d?.storeAddress||'',direction:d?.direction||'Не знайдено в довіднику',matched:false};return{name:x.name||x.store||raw,address:x.address||x.fullAddress||'',direction:x.direction||x.region||'Не знайдено в довіднику',matched:true,record:x}}
-window.RetailStoreMatch={norm,match,meta};})();
+function meta(d){const raw=d?.store||d?.receiverWarehouse||'',x=match(raw);if(!x)return{name:raw||UNKNOWN,address:UNKNOWN,direction:UNKNOWN,matched:false};return{name:x.name||x.store||raw,address:x.address||x.fullAddress||UNKNOWN,direction:x.direction||x.region||UNKNOWN,matched:true,record:x}}
+window.RetailStoreMatch={norm,match,meta,UNKNOWN};})();
