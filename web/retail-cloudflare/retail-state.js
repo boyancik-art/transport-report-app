@@ -10,6 +10,7 @@
     "tc_retail_interwarehouse_v1",
     "tc_retail_ttn_journal_v1",
     "tc_retail_loading_register_v1",
+    "tc_retail_orders_v1",
   ]);
   const bad = new Set();
   let feedbackTimer;
